@@ -1,8 +1,0 @@
-
-{
-  "corelib": "libtefmodloader.so",
-  "enable_debugtool": true,
-  "original_mods_directory": "",
-  "mods_directory": "TEFMods",
-  "exe_path": "Terraria.exe"
-}                
