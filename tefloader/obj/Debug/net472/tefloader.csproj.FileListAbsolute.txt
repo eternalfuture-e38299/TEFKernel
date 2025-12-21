@@ -1,0 +1,16 @@
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.csproj.AssemblyReference.cache
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.GeneratedMSBuildEditorConfig.editorconfig
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.AssemblyInfoInputs.cache
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.AssemblyInfo.cs
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.csproj.CoreCompileInputs.cache
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/tefloader.exe.config
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/tefloader.deps.json
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/tefloader.exe
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/tefloader.pdb
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/0Harmony.dll
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/Newtonsoft.Json.dll
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/bin/Debug/net472/System.Runtime.CompilerServices.Unsafe.dll
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.csproj.Up2Date
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.exe
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.pdb
+/home/eternalfuture/CLionProjects/tefkernel/tefloader/obj/Debug/net472/tefloader.exe.config

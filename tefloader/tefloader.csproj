@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <StartupObject>tefloader.Program</StartupObject>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <PreserveCompilationContext>true</PreserveCompilationContext>
+        <CopyLocal>true</CopyLocal>
+
+        <TargetFrameworks>net472;net452;net8.0</TargetFrameworks>
+
+        <Platforms>AnyCPU</Platforms>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <Prefer32Bit>false</Prefer32Bit>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net452'">
+        <AssemblyName>tefloader</AssemblyName>
+        <PlatformTarget>x86</PlatformTarget>
+        <Prefer32Bit>true</Prefer32Bit>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
+        <AssemblyName>tefloader</AssemblyName>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <AssemblyName>tefloader</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Lib.Harmony" Version="2.4.1" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="5.0.0" />
+        <Reference Include="Microsoft.CSharp" />
+        <Reference Include="System.Reflection"/>
+        <Reference Include="System.Runtime"/>
+    </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+        <Exec Condition="'$(TargetFramework)' == 'net472'" Command="echo Building .NET 4.7.2 AnyCPU version" />
+        <Exec Condition="'$(TargetFramework)' == 'net452'" Command="echo Building .NET 4.5.2 x86 version" />
+        <Exec Condition="'$(TargetFramework)' == 'net8.0'" Command="echo Building .NET 8.0 AnyCPU version" />
+    </Target>
+
+</Project>
