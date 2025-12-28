@@ -51,26 +51,11 @@ extern "C" {
 DEFINE_FUNCTION(const char*, patchlib_method_get_name, patch_handle_t method)
 
 /**
- * @brief 获取方法的返回类型
- * @param method 方法句柄(必须有效)
- * @return 返回类型句柄
- */
-DEFINE_FUNCTION(patch_handle_t, patchlib_method_get_return_type, patch_handle_t method)
-
-/**
  * @brief 获取方法的参数数量
  * @param method 方法句柄(必须有效)
  * @return 参数数量
  */
 DEFINE_FUNCTION(int, patchlib_method_get_param_count, patch_handle_t method)
-
-/**
- * @brief 获取方法的参数类型
- * @param method 方法句柄(必须有效)
- * @param index 参数索引(0-based)
- * @return 参数类型句柄
- */
-DEFINE_FUNCTION(patch_handle_t, patchlib_method_get_param_type, patch_handle_t method, int index)
 
 // ==================== 方法特征检查 ====================
 /**
@@ -106,20 +91,29 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_method_make_generic_instance, patch_han
  * @return 成功返回函数指针，否则返回NULL
  */
 DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
+#endif
 
-#else
 /**
- * @brief 调用函数(桌面端)
+ * @brief 调用函数（使用参数数组）
+ * @param method 函数句柄
+ * @param instance 实例对象(静态函数为PATCH_NULL)
+ * @param return_value[out] 输出值缓冲区
+ * @param args 参数指针数组
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_method_invoke_args, patch_handle_t method, patch_handle_t instance,
+                                 void *return_value, void **args);
+
+/**
+ * @brief 调用函数
  * @param method 函数句柄(可为无效)
  * @param instance 实例对象(静态函数为PATCH_NULL)
- * @param return_value [out] 输出值缓冲区
- * @param args_types 参数类型
- * @param args_count 参数数量
+ * @param return_value[out] 输出值缓冲区
  * @param ... 实际参数
+ * @return 执行结果
  */
-DEFINE_FUNCTION(void, patchlib_method_invoke, patch_handle_t method, patch_handle_t instance,
-                void *return_value, const patch_type_t* args_types, int args_count, ...)
-#endif
+DEFINE_FUNCTION(bool, patchlib_method_invoke, patch_handle_t method, patch_handle_t instance,
+                void *return_value, ...)
 
 // ==================== 高级 ====================
 
@@ -127,9 +121,9 @@ typedef uint16_t patch_hook_id_t;
 #define PATCH_HOOK_INVALID_ID 0 // 无效 ID 的定义
 
 typedef struct patch_method_signature_t {
-    bool is_instance;               ///< 是否为实例函数
-    patch_type_t return_type;       ///< 返回类型
-    tef_vector_t arg_types;         ///< patch_type_t，参数类型
+    bool is_instance; ///< 是否为实例函数
+    patch_type_t return_type; ///< 返回类型
+    tef_vector_t arg_types; ///< patch_type_t，参数类型
 } patch_method_signature_t;
 
 /**
@@ -141,8 +135,11 @@ typedef struct patch_method_signature_t {
 DEFINE_FUNCTION(bool, patchlib_method_get_signature, patch_handle_t method, patch_method_signature_t* signature)
 
 
-typedef void (*prefix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void** args, const patch_method_signature_t* sig_info);
-typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info);
+typedef void (*prefix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void **args,
+                                  const patch_method_signature_t *sig_info);
+
+typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void **args, void *result,
+                                   const patch_method_signature_t *sig_info);
 
 /**
  * @brief 安装前缀和后缀 Hook (Prefix/Postfix Hook)

@@ -27,6 +27,10 @@ if (ANDROID)
             src/patchlib/android/il2cpp_api.c
             src/patchlib/android/private.c
             src/patchlib/android/method_hook.c
+            src/patchlib/android/struct/array.c
+            src/patchlib/android/struct/string.c
+            src/patchlib/android/struct/list.c
+            src/patchlib/android/struct/dictionary.c
     )
 else ()
     list(APPEND PATCHLIB_SRC
@@ -60,6 +64,7 @@ set(INTERNAL_SRC
 if (ANDROID)
     list(APPEND INTERNAL_SRC
             src/android/android_runtime_core.cpp
+            src/android/android_test.cpp
     )
 endif ()
 

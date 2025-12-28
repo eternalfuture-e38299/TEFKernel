@@ -30,6 +30,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 void il2cpp_api_init(void *handle);
@@ -72,6 +73,13 @@ typedef enum il2cpp_type_enum_t {
     IL2CPP_TYPE_PINNED = 0x45,
     IL2CPP_TYPE_ENUM = 0x55
 } il2cpp_type_enum_t;
+
+/**
+ * @brief 从对象获取类
+ * @param object 对象
+ * @return 返回结果
+ */
+void *il2cpp_object_get_class(void *object);
 
 #ifndef IL2CPP_API_IMPL
 #define IL2CPP_API_IMPL 0
@@ -449,6 +457,28 @@ DEFINE_IL2CPP_API(void*, il2cpp_method_get_object, const void* method, void* ref
  * @return 方法信息指针(原始类型: const MethodInfo*)
  */
 DEFINE_IL2CPP_API(void*, il2cpp_method_get_from_reflection, const void* method)
+
+/**
+ * @brief 获取字符串长度
+ * @param str 字符串对象(原始类型: Il2CppString*)
+ * @return 字符串长度(字符数)
+ */
+DEFINE_IL2CPP_API(int32_t, il2cpp_string_length, void* str)
+
+/**
+ * @brief 获取字符串字符数组
+ * @param str 字符串对象(原始类型: Il2CppString*)
+ * @return 字符数组指针(原始类型: Il2CppChar*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_string_chars, void* str)
+
+/**
+ * @brief 创建新字符串(UTF-8)
+ * @param str UTF-8字符串
+ * @return 字符串对象(原始类型: Il2CppString*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_string_new, const char* str)
+
 
 #ifdef __cplusplus
 }

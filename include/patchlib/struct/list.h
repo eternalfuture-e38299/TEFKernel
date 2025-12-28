@@ -1,7 +1,7 @@
 /*******************************************************************************
  * File: list
  * Project: tefkernel
- * Created: 2025/12/20
+ * Created: 2025/12/26
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  * 
@@ -31,4 +31,66 @@
 #ifndef TEFKERNEL_LIST_H
 #define TEFKERNEL_LIST_H
 
+#include "../type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief 创建列表实例
+ * @param capacity 初始容量
+ * @param type 列表类型
+ * @return 返回的列表实例
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_list_create, size_t capacity, patch_handle_t type);
+
+/**
+ * @brief 复制其他数组的内容到列表
+ * @param list 列表实例
+ * @param array 数组实例
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_list_copy_from, patch_handle_t list, patch_handle_t array);
+
+/**
+ * @brief 在列表中添加一个值
+ * @param list 列表实例
+ * @param value[int] 新值指针
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_list_add, patch_handle_t list, void* value);
+
+/**
+ * @brief 从列表中移除一个值
+ * @param list 列表实例
+ * @param value[in] 删除值
+ */
+DEFINE_FUNCTION(bool, patchlib_list_remove, patch_handle_t list, void* value);
+
+/**
+ * @brief 移除列表中某个引索的值
+ * @param list 列表实例
+ * @param index 引索
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_list_remove_at, patch_handle_t list, size_t index);
+
+/**
+ * @brief 清空列表
+ * @param list 列表实例
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_list_clear, patch_handle_t list);
+
+/**
+ * @brief 获取内部array
+ * @param list 列表实例
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_list_get_array, patch_handle_t list);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //TEFKERNEL_LIST_H

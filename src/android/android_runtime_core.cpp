@@ -41,29 +41,34 @@
 int (*dobby_hook)(void *address, void *replace_func, void **origin_func);
 int (*dobby_destroy)(void *address);
 
+/*
 void Initialize_AlmostEverything_pre(patch_handle_t orig_func, patch_handle_t instance, void** args, const patch_method_signature_t* sig_info) {
     TEKLOG_INFO("Hook triggered: Initialize_AlmostEverything_pre called with parameter");
     // TEKLOG_DEBUG("Game initialization hook activated successfully");
 }
 
+
+void (*old_Initialize_AlmostEverything)(void*);
 void Initialize_AlmostEverything_post(patch_handle_t orig_func, patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info) {
+    // old_Initialize_AlmostEverything(i);
     TEKLOG_INFO("Hook triggered: Initialize_AlmostEverything_post called with parameter");
     // TEKLOG_DEBUG("Game initialization hook activated successfully");
 }
 
 
-/*void init() {
+void init() {
     TEKLOG_INFO("Starting TEFKernel initialization");
 
     patch_handle_t method = patchlib_type_get_method_by_param_count(
         patchlib_type_get_type("Terraria", "Main"),
-        ".cctor",
+        ".ctor",
         0
     );
 
     if (method) {
         TEKLOG_DEBUG("Found target method, installing hook");
         patchlib_install_prepost_hook(method, (void*)Initialize_AlmostEverything_pre, (void*)Initialize_AlmostEverything_post);
+        // DobbyHook(patchlib_method_get_pointer(method), (void*)Initialize_AlmostEverything_post, (void**)&old_Initialize_AlmostEverything);
 
         TEKLOG_INFO("Game hook installed successfully");
     } else {
@@ -71,10 +76,12 @@ void Initialize_AlmostEverything_post(patch_handle_t orig_func, patch_handle_t i
     }
 
     TEKLOG_INFO("TEFKernel initialization completed");
-}*/
+}
+*/
+
+void start_test();
 
 int (*orig_il2cpp_init)(const char*) = nullptr;
-
 int hook_il2cpp_init(const char* domain_name) {
     TEKLOG_INFO("il2cpp_init hook called, domain: %s", domain_name);
 
@@ -90,6 +97,8 @@ int hook_il2cpp_init(const char* domain_name) {
     TEKLOG_INFO("Starting TEFKernel core initialization");
     // init();
     TEKLOG_INFO("TEFKernel core initialization completed");
+
+    start_test();
 
     return r;
 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  * File: string
  * Project: tefkernel
- * Created: 2025/12/20
+ * Created: 2025/12/26
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  * 
@@ -31,4 +31,51 @@
 #ifndef TEFKERNEL_STRING_H
 #define TEFKERNEL_STRING_H
 
+#include "../type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+/**
+ * @brief 创建一个字符串实例
+ * @param str 字符串
+ * @return 返回实例
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_string_create, const char* str);
+
+/**
+ * @brief 获取UTF16字符串
+ * @param str 字符串实例
+ * @return UTF16字符串
+ * @warning 实际返回的是一个数组，且结尾没有\0
+ */
+DEFINE_FUNCTION(const wchar_t*, patchlib_string_cstr16, patch_handle_t str);
+
+/**
+ * @brief 转换为字符串
+ * @param str 字符串实例
+ * @return c字符串(malloc分配)
+ * @warning 别忘了free(
+ */
+DEFINE_FUNCTION(char*, patchlib_string_cstr, patch_handle_t str);
+
+/**
+ * @brief 判断字符串是否为空
+ * @param str 字符串实例
+ * @return 判断结果
+ */
+DEFINE_FUNCTION(bool, patchlib_string_empty, patch_handle_t str);
+
+/**
+ * @brief 获取字符串长度
+ * @param str 字符串实例
+ * @return 字符串长度
+ */
+DEFINE_FUNCTION(size_t, patchlib_string_length, patch_handle_t str);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //TEFKERNEL_STRING_H

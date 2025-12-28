@@ -36,198 +36,412 @@ bool patchlib_is_valid(patch_handle_t h) {
         TEKLOG_WARN("patch_handle is null");
         return false;
     }
+    TEKLOG_TRACE("patch_handle is valid: %p", h);
     return true;
 }
 
+size_t get_size_from_patch_type(const patch_type_t type) {
+    TEKLOG_DEBUG("get_size_from_patch_type called: type=%d", type);
+
+    size_t result = 0;
+    switch (type) {
+        case PATCH_UINT8:  result = sizeof(uint8_t); break;
+        case PATCH_UINT16: result = sizeof(uint16_t); break;
+        case PATCH_UINT32: result = sizeof(uint32_t); break;
+        case PATCH_UINT64: result = sizeof(uint64_t); break;
+        case PATCH_INT8:   result = sizeof(int8_t); break;
+        case PATCH_INT16:  result = sizeof(int16_t); break;
+        case PATCH_INT32:  result = sizeof(int32_t); break;
+        case PATCH_INT64:  result = sizeof(int64_t); break;
+        case PATCH_FLOAT:  result = sizeof(float); break;
+        case PATCH_DOUBLE: result = sizeof(double); break;
+        case PATCH_BOOL:   result = sizeof(bool); break;
+        case PATCH_POINTER:
+        case PATCH_OBJECT: result = sizeof(void*); break; // 对象通常是引用，大小为指针
+        case PATCH_CHAR:   result = sizeof(char); break;
+        default:           result = 0; break; // 未知类型
+    }
+
+    TEKLOG_DEBUG("Type %d size: %zu bytes", type, result);
+    return result;
+}
+
 patch_handle_t patchlib_type_get_type(const char *ns, const char *name) {
-    const void *domain = il2cpp_domain_get(); // 获取il2cpp domain
-    if (!domain)
+    TEKLOG_DEBUG("patchlib_type_get_type called: namespace='%s', name='%s'", ns ? ns : "NULL", name ? name : "NULL");
+
+    if (!ns || !name) {
+        TEKLOG_ERROR("Namespace or name is NULL");
         return PATCH_NULL;
+    }
+
+    const void *domain = il2cpp_domain_get(); // 获取il2cpp domain
+    if (!domain) {
+        TEKLOG_ERROR("Failed to get il2cpp domain");
+        return PATCH_NULL;
+    }
 
     size_t assemblies_count = 0;
     void **assemblies = il2cpp_domain_get_assemblies(domain, &assemblies_count); // 获取所有程序集
-    if (!assemblies || assemblies_count == 0)
+    if (!assemblies || assemblies_count == 0) {
+        TEKLOG_ERROR("No assemblies found in domain");
         return PATCH_NULL;
+    }
+
+    TEKLOG_DEBUG("Searching in %zu assemblies", assemblies_count);
 
     for (size_t i = 0; i < assemblies_count; ++i) {
         const void *assembly = assemblies[i];
         const void *image = il2cpp_assembly_get_image(assembly); //获取image
 
-        if (!image)
+        if (!image) {
+            TEKLOG_DEBUG("Assembly %zu has no image", i);
             continue;
+        }
 
+        TEKLOG_DEBUG("Searching in assembly %zu, image: %p", i, image);
         void *found_class = il2cpp_class_from_name(image, ns, name); // 从名称获取类
-        if (found_class)
+        if (found_class) {
+            TEKLOG_INFO("Found type: %s.%s at %p", ns, name, found_class);
             return found_class;
+        }
     }
 
+    TEKLOG_WARN("Type not found: %s.%s", ns, name);
     return PATCH_NULL;
 }
 
 patch_handle_t patchlib_get_basic_type(const patch_type_t basic_type) {
+    TEKLOG_DEBUG("patchlib_get_basic_type called: basic_type=%d", basic_type);
+
+    const char* type_name;
+    patch_handle_t result = NULL;
+
     switch (basic_type) {
-        case PATCH_VOID: return patchlib_type_get_type("System", "Void");
-        case PATCH_INT8: return patchlib_type_get_type("System", "SByte");
-        case PATCH_INT16: return patchlib_type_get_type("System", "Int16");
-        case PATCH_INT32: return patchlib_type_get_type("System", "Int32");
-        case PATCH_INT64: return patchlib_type_get_type("System", "Int64");
-        case PATCH_UINT8: return patchlib_type_get_type("System", "Byte");
-        case PATCH_UINT16: return patchlib_type_get_type("System", "UInt16");
-        case PATCH_UINT32: return patchlib_type_get_type("System", "UInt32");
-        case PATCH_UINT64: return patchlib_type_get_type("System", "UInt64");
-        case PATCH_BOOL: return patchlib_type_get_type("System", "Boolean");
-        case PATCH_FLOAT: return patchlib_type_get_type("System", "Single");
-        case PATCH_DOUBLE: return patchlib_type_get_type("System", "Double");
-        case PATCH_POINTER: return patchlib_type_get_type("System", "IntPtr");
-        case PATCH_OBJECT: return patchlib_type_get_type("System", "Object");
-        case PATCH_CHAR: return patchlib_type_get_type("System", "Char");
-        default: return NULL;
+        case PATCH_VOID: type_name = "Void"; result = patchlib_type_get_type("System", "Void"); break;
+        case PATCH_INT8: type_name = "SByte"; result = patchlib_type_get_type("System", "SByte"); break;
+        case PATCH_INT16: type_name = "Int16"; result = patchlib_type_get_type("System", "Int16"); break;
+        case PATCH_INT32: type_name = "Int32"; result = patchlib_type_get_type("System", "Int32"); break;
+        case PATCH_INT64: type_name = "Int64"; result = patchlib_type_get_type("System", "Int64"); break;
+        case PATCH_UINT8: type_name = "Byte"; result = patchlib_type_get_type("System", "Byte"); break;
+        case PATCH_UINT16: type_name = "UInt16"; result = patchlib_type_get_type("System", "UInt16"); break;
+        case PATCH_UINT32: type_name = "UInt32"; result = patchlib_type_get_type("System", "UInt32"); break;
+        case PATCH_UINT64: type_name = "UInt64"; result = patchlib_type_get_type("System", "UInt64"); break;
+        case PATCH_BOOL: type_name = "Boolean"; result = patchlib_type_get_type("System", "Boolean"); break;
+        case PATCH_FLOAT: type_name = "Single"; result = patchlib_type_get_type("System", "Single"); break;
+        case PATCH_DOUBLE: type_name = "Double"; result = patchlib_type_get_type("System", "Double"); break;
+        case PATCH_POINTER: type_name = "IntPtr"; result = patchlib_type_get_type("System", "IntPtr"); break;
+        case PATCH_OBJECT: type_name = "Object"; result = patchlib_type_get_type("System", "Object"); break;
+        case PATCH_CHAR: type_name = "Char"; result = patchlib_type_get_type("System", "Char"); break;
+        default: type_name = "Unknown"; result = NULL; break;
     }
+
+    TEKLOG_DEBUG("Basic type %d (%s) result: %p", basic_type, type_name, result);
+    return result;
 }
 
 patch_handle_t patchlib_type_new_instance(patch_handle_t type) {
-    if (!patchlib_is_valid(type))
-        return PATCH_NULL;
+    TEKLOG_DEBUG("patchlib_type_new_instance called: type=%p", type);
 
-    return il2cpp_object_new(type);
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    // 获取类型信息用于日志
+    const char* type_name = patchlib_type_get_name(type);
+    const char* type_namespace = patchlib_type_get_namespace(type);
+
+    TEKLOG_DEBUG("Creating instance of type: %s.%s",
+                 type_namespace ? type_namespace : "NULL",
+                 type_name ? type_name : "NULL");
+
+    patch_handle_t result = il2cpp_object_new(type);
+
+    if (result) {
+        TEKLOG_INFO("Successfully created new instance: %p for type %s.%s",
+                    result,
+                    type_namespace ? type_namespace : "NULL",
+                    type_name ? type_name : "NULL");
+    } else {
+        TEKLOG_ERROR("Failed to create instance for type: %p (%s.%s)",
+                     type,
+                     type_namespace ? type_namespace : "NULL",
+                     type_name ? type_name : "NULL");
+    }
+
+    return result;
 }
 
 patch_handle_t patchlib_type_make_generic_type(patch_handle_t generic_type_def, const tef_vector_t *type_args) {
+    TEKLOG_DEBUG("patchlib_type_make_generic_type called: generic_type_def=%p, type_args_count=%zu",
+                 generic_type_def, type_args ? tefstd_vector_size(type_args) : 0);
+
+    if (!patchlib_is_valid(generic_type_def)) {
+        TEKLOG_ERROR("Invalid generic type definition");
+        return PATCH_NULL;
+    }
+
     patch_handle_t c_mono_type = patchlib_type_get_mono_type(generic_type_def);
+    TEKLOG_DEBUG("Mono type: %p", c_mono_type);
+
     void *type_array = create_type_array_from_vector(type_args);
+    TEKLOG_DEBUG("Type array created: %p", type_array);
 
     void *generic_type = ((void*(*)(void *, void *)) patchlib_method_get_pointer(patchlib_MakeGenericType))(
         c_mono_type, type_array);
 
-    return il2cpp_class_from_system_type(generic_type);
+    TEKLOG_DEBUG("Generic type created: %p", generic_type);
+
+    patch_handle_t result = il2cpp_class_from_system_type(generic_type);
+    TEKLOG_DEBUG("Final generic type: %p", result);
+
+    return result;
 }
 
 patch_handle_t patchlib_type_get_mono_type(patch_handle_t type) {
-    return il2cpp_type_get_object((char *) type + sizeof(void *) * 4);
+    TEKLOG_DEBUG("patchlib_type_get_mono_type called: type=%p", type);
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_type_get_object((char *) type + sizeof(void *) * 4);
+    TEKLOG_DEBUG("Mono type result: %p", result);
+    return result;
 }
 
 const char* patchlib_type_get_name(patch_handle_t type) {
-    if (!patchlib_is_valid(type)) return false;
-    return il2cpp_class_get_name(type);
+    TEKLOG_DEBUG("patchlib_type_get_name called: type=%p", type);
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return NULL;
+    }
+
+    const char* result = il2cpp_class_get_name(type);
+    TEKLOG_DEBUG("Type name: %s", result ? result : "NULL");
+    return result;
 }
 
 const char* patchlib_type_get_namespace(patch_handle_t type) {
-    if (!patchlib_is_valid(type)) return false;
-    return il2cpp_class_get_namespace(type);
+    TEKLOG_DEBUG("patchlib_type_get_namespace called: type=%p", type);
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return NULL;
+    }
+
+    const char* result = il2cpp_class_get_namespace(type);
+    TEKLOG_DEBUG("Type namespace: %s", result ? result : "NULL");
+    return result;
 }
 
 const char* patchlib_type_get_full_name(patch_handle_t type) {
-    if (!patchlib_is_valid(type)) {
-        return NULL; // 无效句柄，直接返回 NULL
-    }
+    TEKLOG_DEBUG("patchlib_type_get_full_name called: type=%p", type);
 
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return NULL;
+    }
 
     const char *namespace_name = il2cpp_class_get_namespace(type);
     const char *class_name = il2cpp_class_get_name(type);
+
+    TEKLOG_DEBUG("Raw names - namespace: '%s', class: '%s'",
+                 namespace_name ? namespace_name : "NULL",
+                 class_name ? class_name : "NULL");
 
     if (namespace_name == NULL) {
         namespace_name = "";
     }
     if (class_name == NULL) {
-        class_name = ""; // 理论上类名不应该为 NULL，但以防万一
+        class_name = "";
     }
 
     size_t namespace_len = strlen(namespace_name);
     size_t class_name_len = strlen(class_name);
-    size_t total_len = class_name_len; // 至少需要容纳类名
+    size_t total_len = class_name_len;
 
     if (namespace_len > 0) {
-        total_len += namespace_len + 1; // +1 是为了 '.' 分隔符
+        total_len += namespace_len + 1;
     }
 
     total_len += 1;
 
+    TEKLOG_DEBUG("Calculated total length: %zu", total_len);
+
     char* full_name = malloc(total_len);
     if (full_name == NULL) {
-        // 内存分配失败
+        TEKLOG_ERROR("Memory allocation failed for full name");
         return NULL;
     }
 
     full_name[0] = '\0';
     if (namespace_len > 0) {
-        strcat(full_name, namespace_name); // 复制命名空间
-        strcat(full_name, ".");           // 添加点号分隔符
+        strcat(full_name, namespace_name);
+        strcat(full_name, ".");
     }
 
     strcat(full_name, class_name);
 
+    TEKLOG_DEBUG("Full name: '%s'", full_name);
     return full_name;
 }
 
 patch_handle_t patchlib_type_get_parent(patch_handle_t type) {
-    return il2cpp_class_get_parent(type);
+    TEKLOG_DEBUG("patchlib_type_get_parent called: type=%p", type);
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_class_get_parent(type);
+    TEKLOG_DEBUG("Parent type: %p", result);
+    return result;
 }
 
 patch_handle_t patchlib_type_get_inner_type(patch_handle_t parent, const char *name) {
+    TEKLOG_DEBUG("patchlib_type_get_inner_type called: parent=%p, name='%s'", parent, name ? name : "NULL");
+
+    if (!patchlib_is_valid(parent) || !name) {
+        TEKLOG_ERROR("Invalid parent or name");
+        return PATCH_NULL;
+    }
+
     patch_handle_t result = PATCH_NULL;
 
     tef_vector_t inner_types = {};
     patchlib_type_get_inner_types(parent, false, &inner_types);
 
-    if (tefstd_vector_size(&inner_types) > 0) {
-        for (int i = 0; i < tefstd_vector_size(&inner_types); ++i) {
+    const size_t inner_count = tefstd_vector_size(&inner_types);
+    TEKLOG_DEBUG("Found %zu inner types", inner_count);
+
+    if (inner_count > 0) {
+        for (int i = 0; i < inner_count; ++i) {
             void *type = *(void **) tefstd_vector_at(&inner_types, i);
             const char* nested_name = patchlib_type_get_name(type);
 
-            if (name && strcmp(nested_name, name) == 0) {
+            TEKLOG_DEBUG("Inner type %d: %p, name: '%s'", i, type, nested_name ? nested_name : "NULL");
+
+            if (nested_name && strcmp(nested_name, name) == 0) {
                 result = type;
+                TEKLOG_INFO("Found inner type: %s at %p", name, result);
                 break;
             }
         }
+    } else {
+        TEKLOG_DEBUG("No inner types found");
     }
 
     tefstd_vector_destroy(&inner_types);
+
+    if (result == PATCH_NULL) {
+        TEKLOG_WARN("Inner type not found: %s", name);
+    }
 
     return result;
 }
 
 patch_handle_t patchlib_type_get_field(patch_handle_t type, const char *name) {
-    if (!patchlib_is_valid(type))
-        return false;
+    TEKLOG_DEBUG("patchlib_type_get_field called: type=%p, name='%s'", type, name ? name : "NULL");
 
-    return il2cpp_class_get_field_from_name(type, name);
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    if (!name) {
+        TEKLOG_ERROR("Field name is NULL");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_class_get_field_from_name(type, name);
+    TEKLOG_DEBUG("Field '%s' result: %p", name, result);
+    return result;
 }
 
 patch_handle_t patchlib_type_get_property(patch_handle_t type, const char *name) {
-    if (!patchlib_is_valid(type))
-        return false;
+    TEKLOG_DEBUG("patchlib_type_get_property called: type=%p, name='%s'", type, name ? name : "NULL");
 
-    return il2cpp_class_get_property_from_name(type, name);
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    if (!name) {
+        TEKLOG_ERROR("Property name is NULL");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_class_get_property_from_name(type, name);
+    TEKLOG_DEBUG("Property '%s' result: %p", name, result);
+    return result;
 }
 
 patch_handle_t patchlib_type_get_method(patch_handle_t type, const char *name) {
-    patch_handle_t result = PATCH_NULL;
+    TEKLOG_DEBUG("patchlib_type_get_method called: type=%p, name='%s'", type, name ? name : "NULL");
 
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    if (!name) {
+        TEKLOG_ERROR("Method name is NULL");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = PATCH_NULL;
     tef_vector_t methods = {};
     patchlib_type_get_methods(type, false, &methods);
 
-    if (tefstd_vector_size(&methods) > 0) {
-        for (int i = 0; i < tefstd_vector_size(&methods); ++i) {
+    size_t method_count = tefstd_vector_size(&methods);
+    TEKLOG_DEBUG("Found %zu methods in type", method_count);
+
+    if (method_count > 0) {
+        for (int i = 0; i < method_count; ++i) {
             void *method = *(void **) tefstd_vector_at(&methods, i);
             const char* method_name = patchlib_method_get_name(method);
-            if (name && strcmp(method_name, name) == 0) {
-                result = type;
+            TEKLOG_DEBUG("Method %d: %p, name: '%s'", i, method, method_name ? method_name : "NULL");
+
+            if (method_name && strcmp(method_name, name) == 0) {
+                result = method;
+                TEKLOG_INFO("Found method '%s' at %p", name, result);
                 break;
             }
         }
+    } else {
+        TEKLOG_DEBUG("No methods found in type");
     }
 
     tefstd_vector_destroy(&methods);
 
+    if (result == PATCH_NULL) {
+        TEKLOG_WARN("Method not found: %s", name);
+    }
+
     return result;
 }
 
-patch_handle_t patchlib_type_get_method_by_param_count(patch_handle_t type, const char *name,
-                                                       const int args_count) {
-    if (!patchlib_is_valid(type))
-        return false;
+patch_handle_t patchlib_type_get_method_by_param_count(patch_handle_t type, const char *name, const int args_count) {
+    TEKLOG_DEBUG("patchlib_type_get_method_by_param_count called: type=%p, name='%s', args_count=%d",
+                 type, name ? name : "NULL", args_count);
 
-    return il2cpp_class_get_method_from_name(type, name, args_count);
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
+        return PATCH_NULL;
+    }
+
+    if (!name) {
+        TEKLOG_ERROR("Method name is NULL");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_class_get_method_from_name(type, name, args_count);
+    TEKLOG_DEBUG("Method '%s' with %d parameters result: %p", name, args_count, result);
+    return result;
 }
 
 // 内部 helper：判断一个 method 是否匹配给定的参数约束
@@ -237,18 +451,32 @@ static bool method_matches_args(
     const patch_handle_t* args_types,      // 可为 NULL
     const char** args_names               // 可为 NULL
 ) {
-    if (il2cpp_method_get_param_count(method) != args_count) {
+    TEKLOG_DEBUG("method_matches_args called: method=%p, args_count=%d", method, args_count);
+
+    int actual_param_count = il2cpp_method_get_param_count(method);
+    TEKLOG_DEBUG("Method actual parameter count: %d", actual_param_count);
+
+    if (actual_param_count != args_count) {
+        TEKLOG_DEBUG("Parameter count mismatch: expected %d, got %d", args_count, actual_param_count);
         return false;
     }
 
     for (int i = 0; i < args_count; ++i) {
+        TEKLOG_DEBUG("Checking parameter %d", i);
+
         // 检查参数类型（如果提供）
         if (args_types) {
             const void* param_type_obj = il2cpp_method_get_param(method, i);
-            if (!param_type_obj) return false;
+            if (!param_type_obj) {
+                TEKLOG_ERROR("Failed to get parameter %d type", i);
+                return false;
+            }
 
             patch_handle_t param_class = il2cpp_class_from_type(param_type_obj);
+            TEKLOG_DEBUG("Parameter %d type: expected=%p, actual=%p", i, args_types[i], param_class);
+
             if (args_types[i] != param_class) {
+                TEKLOG_DEBUG("Parameter %d type mismatch", i);
                 return false;
             }
         }
@@ -256,12 +484,17 @@ static bool method_matches_args(
         // 检查参数名称（如果提供）
         if (args_names && args_names[i]) {
             const char* param_name = il2cpp_method_get_param_name(method, i);
+            TEKLOG_DEBUG("Parameter %d name: expected='%s', actual='%s'",
+                         i, args_names[i], param_name ? param_name : "NULL");
+
             if (!param_name || strcmp(param_name, args_names[i]) != 0) {
+                TEKLOG_DEBUG("Parameter %d name mismatch", i);
                 return false;
             }
         }
     }
 
+    TEKLOG_DEBUG("Method matches all arguments");
     return true;
 }
 
@@ -273,42 +506,76 @@ patch_handle_t patchlib_type_find_method(
     const patch_handle_t* args_types,   // nullable
     const char** args_names             // nullable
 ) {
-    if (!type || !name)
+    TEKLOG_DEBUG("patchlib_type_find_method called: type=%p, name='%s', args_count=%d",
+                 type, name ? name : "NULL", args_count);
+
+    if (!type || !name) {
+        TEKLOG_ERROR("Type or name is NULL");
         return PATCH_NULL;
+    }
 
     tef_vector_t methods = {};
     patchlib_type_get_methods(type, false, &methods);
 
-    for (int i = 0; i < tefstd_vector_size(&methods); ++i) {
+    size_t method_count = tefstd_vector_size(&methods);
+    TEKLOG_DEBUG("Searching in %zu methods", method_count);
+
+    patch_handle_t result = PATCH_NULL;
+
+    for (int i = 0; i < method_count; ++i) {
         void* method = *(void**)tefstd_vector_at(&methods, i);
         const char* method_name = il2cpp_method_get_name(method);
+
+        TEKLOG_DEBUG("Checking method %d: %p, name: '%s'", i, method, method_name ? method_name : "NULL");
+
         if (method_name && strcmp(method_name, name) == 0) {
+            TEKLOG_DEBUG("Method name matches, checking arguments");
             if (method_matches_args(method, args_count, args_types, args_names)) {
-                return method; // 找到即返回
+                result = method;
+                TEKLOG_INFO("Found matching method: %p", result);
+                break;
             }
         }
     }
 
     tefstd_vector_destroy(&methods);
 
-    return PATCH_NULL;
+    if (result == PATCH_NULL) {
+        TEKLOG_WARN("No matching method found: %s with %d parameters", name, args_count);
+    }
+
+    return result;
 }
 
 patch_handle_t patchlib_type_get_method_by_param_names(patch_handle_t type, const char *name,
                 const int args_count, const char **args_names) {
-    return patchlib_type_find_method(type, name, args_count, NULL, args_names);
-}
+    TEKLOG_DEBUG("patchlib_type_get_method_by_param_names called: type=%p, name='%s', args_count=%d",
+                 type, name ? name : "NULL", args_count);
 
+    patch_handle_t result = patchlib_type_find_method(type, name, args_count, NULL, args_names);
+    TEKLOG_DEBUG("Method by param names result: %p", result);
+    return result;
+}
 
 patch_handle_t patchlib_type_get_method_by_param_types(patch_handle_t type, const char *name,
                 const int args_count, const patch_handle_t* args_types) {
-    return patchlib_type_find_method(type, name, args_count, args_types, NULL);
+    TEKLOG_DEBUG("patchlib_type_get_method_by_param_types called: type=%p, name='%s', args_count=%d",
+                 type, name ? name : "NULL", args_count);
+
+    patch_handle_t result = patchlib_type_find_method(type, name, args_count, args_types, NULL);
+    TEKLOG_DEBUG("Method by param types result: %p", result);
+    return result;
 }
 
 patch_handle_t patchlib_type_get_method_by_signature(patch_handle_t type, const char *name,
                 const int args_count, const patch_handle_t *args_types, const char **args_names
 ) {
-    return patchlib_type_find_method(type, name, args_count, args_types, args_names);
+    TEKLOG_DEBUG("patchlib_type_get_method_by_signature called: type=%p, name='%s', args_count=%d",
+                 type, name ? name : "NULL", args_count);
+
+    patch_handle_t result = patchlib_type_find_method(type, name, args_count, args_types, args_names);
+    TEKLOG_DEBUG("Method by signature result: %p", result);
+    return result;
 }
 
 typedef void * (*il2cpp_class_iterator_fn)(void *klass, void **iter);
@@ -317,53 +584,129 @@ static bool patchlib_collect_from_type_hierarchy(
     const bool including_parent,
     tef_vector_t *array,
     const il2cpp_class_iterator_fn iterator_fn) {
-    if (!start_type || !array || !iterator_fn)
+    TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy called: start_type=%p, including_parent=%s, array=%p",
+                 start_type, including_parent ? "true" : "false", array);
+
+    if (!array || !iterator_fn) {
+        TEKLOG_ERROR("Invalid array or iterator function");
         return false;
+    }
+
+    tefstd_vector_init(array, sizeof(patch_handle_t));
+
+    // 检查向量状态
+    TEKLOG_DEBUG("Vector initial state: size=%zu, capacity=%zu, element_size=%zu",
+                 tefstd_vector_size(array), tefstd_vector_capacity(array), array->elem_size);
 
     void *current_type = start_type;
+    int hierarchy_level = 0;
+    size_t total_collected = 0;
+
     do {
+        TEKLOG_DEBUG("Collecting from hierarchy level %d, type: %p", hierarchy_level, current_type);
+
         void *iter = NULL;
         const void *item;
+        int level_item_count = 0;
 
         while ((item = iterator_fn(current_type, &iter)) != NULL) {
-            tefstd_vector_push_back(array, (void *) item); // vector 存 void*
+            TEKLOG_DEBUG("Found item %d at level %d: %p", level_item_count, hierarchy_level, item);
+
+            if (tefstd_vector_push_back(array, &item)) {
+                level_item_count++;
+                total_collected++;
+                TEKLOG_DEBUG("Successfully added item to vector: %p (new size: %zu)",
+                            item, tefstd_vector_size(array));
+
+                // 验证添加的内容
+                void **last_item = tefstd_vector_at(array, tefstd_vector_size(array) - 1);
+                if (last_item && *last_item == item) {
+                    TEKLOG_DEBUG("Item verification passed: stored=%p, expected=%p", *last_item, item);
+                } else {
+                    TEKLOG_ERROR("Item verification failed: stored=%p, expected=%p",
+                                last_item ? *last_item : NULL, item);
+                }
+            } else {
+                TEKLOG_ERROR("Failed to add item to vector: %p", item);
+            }
         }
+
+        TEKLOG_DEBUG("Level %d: collected %d items, vector size now: %zu",
+                    hierarchy_level, level_item_count, tefstd_vector_size(array));
 
         if (!including_parent)
             break;
-    } while ((current_type = il2cpp_class_get_parent(current_type)) != NULL);
+
+        hierarchy_level++;
+        current_type = il2cpp_class_get_parent(current_type);
+        TEKLOG_DEBUG("Moving to parent type: %p", current_type);
+    } while (current_type != NULL);
+
+    TEKLOG_DEBUG("Collection completed: total_collected=%zu, final_vector_size=%zu",
+                total_collected, tefstd_vector_size(array));
 
     return true;
 }
 
 bool patchlib_type_get_inner_types(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
-    if (!patchlib_is_valid(type))
+    TEKLOG_DEBUG("patchlib_type_get_inner_types called: type=%p, including_parent=%s",
+                 type, including_parent ? "true" : "false");
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
         return false;
-    return patchlib_collect_from_type_hierarchy(
-        type, including_parent, array, il2cpp_class_get_nested_types);
+    }
+
+    bool result = patchlib_collect_from_type_hierarchy(type, including_parent, array, il2cpp_class_get_nested_types);
+    TEKLOG_DEBUG("Get inner types result: %s, count: %zu", result ? "success" : "failed", tefstd_vector_size(array));
+    return result;
 }
 
 bool patchlib_type_get_methods(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
-    if (!patchlib_is_valid(type))
+    TEKLOG_DEBUG("patchlib_type_get_methods called: type=%p, including_parent=%s",
+                 type, including_parent ? "true" : "false");
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
         return false;
-    return patchlib_collect_from_type_hierarchy(
-        type, including_parent, array, il2cpp_class_get_methods);
+    }
+
+    bool result = patchlib_collect_from_type_hierarchy(type, including_parent, array, il2cpp_class_get_methods);
+    TEKLOG_DEBUG("Get methods result: %s, count: %zu", result ? "success" : "failed", tefstd_vector_size(array));
+    return result;
 }
 
 bool patchlib_type_get_fields(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
-    if (!patchlib_is_valid(type))
+    TEKLOG_DEBUG("patchlib_type_get_fields called: type=%p, including_parent=%s",
+                 type, including_parent ? "true" : "false");
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
         return false;
-    return patchlib_collect_from_type_hierarchy(
-        type, including_parent, array, il2cpp_class_get_fields);
+    }
+
+    bool result = patchlib_collect_from_type_hierarchy(type, including_parent, array, il2cpp_class_get_fields);
+    TEKLOG_DEBUG("Get fields result: %s, count: %zu", result ? "success" : "failed", tefstd_vector_size(array));
+    return result;
 }
 
 bool patchlib_type_get_properties(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
-    if (!patchlib_is_valid(type))
+    TEKLOG_DEBUG("patchlib_type_get_properties called: type=%p, including_parent=%s",
+                 type, including_parent ? "true" : "false");
+
+    if (!patchlib_is_valid(type)) {
+        TEKLOG_ERROR("Invalid type handle");
         return false;
-    return patchlib_collect_from_type_hierarchy(
-        type, including_parent, array, il2cpp_class_get_properties);
+    }
+
+    bool result = patchlib_collect_from_type_hierarchy(type, including_parent, array, il2cpp_class_get_properties);
+    TEKLOG_DEBUG("Get properties result: %s, count: %zu", result ? "success" : "failed", tefstd_vector_size(array));
+    return result;
 }
 
 bool patchlib_type_free(patch_handle_t type) {
+    TEKLOG_DEBUG("patchlib_type_free called: type=%p", type);
+    // 实际的内存释放逻辑（如果有的话）
+    TEKLOG_DEBUG("Type freed successfully");
     return true;
 }

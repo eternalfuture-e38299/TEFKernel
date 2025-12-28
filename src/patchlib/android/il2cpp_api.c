@@ -26,70 +26,79 @@
 
 #include <dlfcn.h>
 
-#define LOAD_SYMBOL(handle, name) \
+#define LOAD_SYMBOL(name) \
 name = dlsym(handle, #name)
 
 void il2cpp_api_init(void *handle) {
     // 加载基础API
-    LOAD_SYMBOL(handle, il2cpp_init);
-    LOAD_SYMBOL(handle, il2cpp_domain_get);
-    LOAD_SYMBOL(handle, il2cpp_domain_get_assemblies);
-    LOAD_SYMBOL(handle, il2cpp_assembly_get_image);
-    LOAD_SYMBOL(handle, il2cpp_get_corlib);
+    LOAD_SYMBOL(il2cpp_init);
+    LOAD_SYMBOL(il2cpp_domain_get);
+    LOAD_SYMBOL(il2cpp_domain_get_assemblies);
+    LOAD_SYMBOL(il2cpp_assembly_get_image);
+    LOAD_SYMBOL(il2cpp_get_corlib);
 
     // 加载类相关API
-    LOAD_SYMBOL(handle, il2cpp_class_from_name);
-    LOAD_SYMBOL(handle, il2cpp_class_get_nested_types);
-    LOAD_SYMBOL(handle, il2cpp_class_get_name);
-    LOAD_SYMBOL(handle, il2cpp_class_get_parent);
-    LOAD_SYMBOL(handle, il2cpp_class_get_methods);
-    LOAD_SYMBOL(handle, il2cpp_class_get_fields);
-    LOAD_SYMBOL(handle, il2cpp_class_get_properties);
-    LOAD_SYMBOL(handle, il2cpp_class_get_static_field_data);
-    LOAD_SYMBOL(handle, il2cpp_class_get_namespace);
-    LOAD_SYMBOL(handle, il2cpp_class_get_type);
-    LOAD_SYMBOL(handle, il2cpp_class_is_abstract);
-    LOAD_SYMBOL(handle, il2cpp_class_is_interface);
-    LOAD_SYMBOL(handle, il2cpp_class_is_enum);
-    LOAD_SYMBOL(handle, il2cpp_class_is_generic);
-    LOAD_SYMBOL(handle, il2cpp_class_from_system_type);
-    LOAD_SYMBOL(handle, il2cpp_class_get_field_from_name);
-    LOAD_SYMBOL(handle, il2cpp_class_get_property_from_name);
-    LOAD_SYMBOL(handle, il2cpp_class_get_method_from_name);
-    LOAD_SYMBOL(handle, il2cpp_class_from_il2cpp_type);
+    LOAD_SYMBOL(il2cpp_class_from_name);
+    LOAD_SYMBOL(il2cpp_class_get_nested_types);
+    LOAD_SYMBOL(il2cpp_class_get_name);
+    LOAD_SYMBOL(il2cpp_class_get_parent);
+    LOAD_SYMBOL(il2cpp_class_get_methods);
+    LOAD_SYMBOL(il2cpp_class_get_fields);
+    LOAD_SYMBOL(il2cpp_class_get_properties);
+    LOAD_SYMBOL(il2cpp_class_get_static_field_data);
+    LOAD_SYMBOL(il2cpp_class_get_namespace);
+    LOAD_SYMBOL(il2cpp_class_get_type);
+    LOAD_SYMBOL(il2cpp_class_is_abstract);
+    LOAD_SYMBOL(il2cpp_class_is_interface);
+    LOAD_SYMBOL(il2cpp_class_is_enum);
+    LOAD_SYMBOL(il2cpp_class_is_generic);
+    LOAD_SYMBOL(il2cpp_class_from_system_type);
+    LOAD_SYMBOL(il2cpp_class_get_field_from_name);
+    LOAD_SYMBOL(il2cpp_class_get_property_from_name);
+    LOAD_SYMBOL(il2cpp_class_get_method_from_name);
+    LOAD_SYMBOL(il2cpp_class_from_il2cpp_type);
 
     // 加载对象相关API
-    LOAD_SYMBOL(handle, il2cpp_object_new);
+    LOAD_SYMBOL(il2cpp_object_new);
 
     // 加载字段相关API
-    LOAD_SYMBOL(handle, il2cpp_field_get_name);
-    LOAD_SYMBOL(handle, il2cpp_field_get_parent);
-    LOAD_SYMBOL(handle, il2cpp_field_get_offset);
-    LOAD_SYMBOL(handle, il2cpp_field_get_type);
+    LOAD_SYMBOL(il2cpp_field_get_name);
+    LOAD_SYMBOL(il2cpp_field_get_parent);
+    LOAD_SYMBOL(il2cpp_field_get_offset);
+    LOAD_SYMBOL(il2cpp_field_get_type);
 
     // 加载属性相关API
-    LOAD_SYMBOL(handle, il2cpp_property_get_name);
-    LOAD_SYMBOL(handle, il2cpp_property_get_get_method);
-    LOAD_SYMBOL(handle, il2cpp_property_get_set_method);
+    LOAD_SYMBOL(il2cpp_property_get_name);
+    LOAD_SYMBOL(il2cpp_property_get_get_method);
+    LOAD_SYMBOL(il2cpp_property_get_set_method);
 
     // 加载方法相关API
-    LOAD_SYMBOL(handle, il2cpp_method_get_name);
-    LOAD_SYMBOL(handle, il2cpp_method_get_param_count);
-    LOAD_SYMBOL(handle, il2cpp_method_get_param_name);
-    LOAD_SYMBOL(handle, il2cpp_method_get_param);
-    LOAD_SYMBOL(handle, il2cpp_method_is_instance);
-    LOAD_SYMBOL(handle, il2cpp_method_is_generic);
-    LOAD_SYMBOL(handle, il2cpp_method_get_return_type);
-    LOAD_SYMBOL(handle, il2cpp_method_get_declaring_type);
-    LOAD_SYMBOL(handle, il2cpp_method_get_object);
-    LOAD_SYMBOL(handle, il2cpp_method_get_from_reflection);
+    LOAD_SYMBOL(il2cpp_method_get_name);
+    LOAD_SYMBOL(il2cpp_method_get_param_count);
+    LOAD_SYMBOL(il2cpp_method_get_param_name);
+    LOAD_SYMBOL(il2cpp_method_get_param);
+    LOAD_SYMBOL(il2cpp_method_is_instance);
+    LOAD_SYMBOL(il2cpp_method_is_generic);
+    LOAD_SYMBOL(il2cpp_method_get_return_type);
+    LOAD_SYMBOL(il2cpp_method_get_declaring_type);
+    LOAD_SYMBOL(il2cpp_method_get_object);
+    LOAD_SYMBOL(il2cpp_method_get_from_reflection);
 
     // 加载类型相关API
-    LOAD_SYMBOL(handle, il2cpp_type_get_type);
-    LOAD_SYMBOL(handle, il2cpp_class_from_type);
-    LOAD_SYMBOL(handle, il2cpp_type_get_object);
+    LOAD_SYMBOL(il2cpp_type_get_type);
+    LOAD_SYMBOL(il2cpp_class_from_type);
+    LOAD_SYMBOL(il2cpp_type_get_object);
 
     // 加载数组相关API
-    LOAD_SYMBOL(handle, il2cpp_array_new);
-    LOAD_SYMBOL(handle, il2cpp_array_element_size);
+    LOAD_SYMBOL(il2cpp_array_new);
+    LOAD_SYMBOL(il2cpp_array_element_size);
+
+    // 加载字符串相关API
+    LOAD_SYMBOL(il2cpp_string_length);
+    LOAD_SYMBOL(il2cpp_string_chars);
+    LOAD_SYMBOL(il2cpp_string_new);
+}
+
+void * il2cpp_object_get_class(void *object) {
+    return *(void**)object;
 }

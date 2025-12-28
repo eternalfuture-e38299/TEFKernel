@@ -1,7 +1,7 @@
 /*******************************************************************************
  * File: array
  * Project: tefkernel
- * Created: 2025/12/20
+ * Created: 2025/12/26
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  * 
@@ -31,4 +31,71 @@
 #ifndef TEFKERNEL_ARRAY_H
 #define TEFKERNEL_ARRAY_H
 
+#include "../type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief 创建数组实例
+ * @param size 数组大小
+ * @param type 数组类型
+ * @return 返回的数组实例
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_array_create, size_t size, patch_handle_t type);
+
+/**
+ * @brief 获取数组元素
+ * @param array 数组实例
+ * @param index 引索
+ * @param out_value[out] 输出的值
+ * @param value_type 值类型
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_array_at, patch_handle_t array, size_t index, void* out_value, patch_type_t value_type);
+
+/**
+ * @brief 修改数组元素
+ * @param array 数组实例
+ * @param index 引索
+ * @param new_value[in] 新值
+ * @param value_type 值类型
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_array_set, patch_handle_t array, size_t index, void* new_value, patch_type_t value_type);
+
+/**
+ * @brief 填充数组元素
+ * @param array 数组实例
+ * @param value[in] 填充值
+ * @param value_type 值类型
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_array_fill, patch_handle_t array, void* value, patch_type_t value_type);
+
+/**
+ * @brief 判断数组是否为空
+ * @param array 数组实例
+ * @return 判断结果
+ */
+DEFINE_FUNCTION(bool, patchlib_array_empty, patch_handle_t array);
+
+/**
+ * @brief 获取数组长度
+ * @param array 数组实例
+ */
+DEFINE_FUNCTION(size_t, patchlib_array_length, patch_handle_t array);
+
+/**
+ * @brief 清空数组
+ * @param array 数组实例
+ * @param value_type 值类型
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_array_clear, patch_handle_t array, patch_type_t value_type);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //TEFKERNEL_ARRAY_H

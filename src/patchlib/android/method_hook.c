@@ -26,7 +26,10 @@
 #include <asm-generic/mman-common.h>
 #include <malloc.h>
 #include <dobby.h>
+#include <errno.h>
+#include <string.h>
 
+#include "private.h"
 #include "internal/log.h"
 #include "patchlib/method.h"
 #include "tefstd/hashmap.h"
@@ -133,25 +136,63 @@ static void* allocate_executable_memory(const size_t size) {
     // 获取系统页大小
     const long page_size = sysconf(_SC_PAGESIZE);
     if (page_size == -1) {
-        TEKLOG_INFO("Failed to get page size");
+        TEKLOG_ERROR("Failed to get page size: %s", strerror(errno));
         return NULL;
     }
 
     // 计算需要映射的页数
     size_t mapped_size = (size + page_size - 1) & ~(page_size - 1);
 
-    // 使用 mmap 分配可读、可写、可执行的内存
-    void* ptr = mmap(NULL, mapped_size,
+    // 根据架构确定对齐要求
+    size_t alignment;
+    const char* arch_name;
+
+#if defined(__aarch64__)
+    alignment = 16;  // ARM64要求16字节对齐
+    arch_name = "ARM64";
+#elif defined(__arm__)
+    alignment = 8;   // ARM32要求8字节对齐
+    arch_name = "ARM32";
+#else
+    alignment = 16;  // 其他架构使用安全值
+    arch_name = "Unknown";
+#endif
+
+    TEKLOG_DEBUG("Allocating executable memory for %s: size=%zu, page_size=%ld, alignment=%zu",
+                 arch_name, size, page_size, alignment);
+
+    // 分配额外空间用于对齐
+    size_t total_size = mapped_size + alignment - 1;
+
+    void* ptr = mmap(NULL, total_size,
                      PROT_READ | PROT_WRITE | PROT_EXEC,
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (ptr == MAP_FAILED) {
-        TEKLOG_INFO("mmap failed");
+        TEKLOG_ERROR("mmap failed: %s (errno=%d)", strerror(errno), errno);
         return NULL;
     }
 
-    TEKLOG_INFO("Successfully allocated executable memory: %p, size: %zu", ptr, mapped_size);
-    return ptr;
+    // 计算对齐的指针
+    uintptr_t aligned_addr = ((uintptr_t)ptr + alignment - 1) & ~(alignment - 1);
+    void* aligned_ptr = (void*)aligned_addr;
+
+    // 验证对齐
+    if (((uintptr_t)aligned_ptr & (alignment - 1)) != 0) {
+        TEKLOG_ERROR("Memory not properly aligned for %s: %p (required alignment: %zu)",
+                     arch_name, aligned_ptr, alignment);
+        munmap(ptr, total_size);
+        return NULL;
+    }
+
+    TEKLOG_DEBUG("Successfully allocated executable memory for %s:", arch_name);
+    TEKLOG_DEBUG("  Raw pointer: %p", ptr);
+    TEKLOG_DEBUG("  Aligned pointer: %p", aligned_ptr);
+    TEKLOG_DEBUG("  Total size: %zu, Usable size: %zu", total_size, size);
+    TEKLOG_DEBUG("  Alignment check: %p & %zu = 0 (OK)",
+                 aligned_ptr, alignment - 1);
+
+    return aligned_ptr;
 }
 
 static void free_executable_memory(void* ptr, const size_t size) {
@@ -162,30 +203,6 @@ static void free_executable_memory(void* ptr, const size_t size) {
         TEKLOG_INFO("Release executable memory: %p", ptr);
     }
 }
-
-static ffi_type* patch_type_to_ffi_type(const patch_type_t type) {
-    ffi_type* result = NULL;
-
-    switch (type) {
-        case PATCH_VOID:    result = &ffi_type_void; break;
-        case PATCH_BOOL:    result = &ffi_type_uint8; break;
-        case PATCH_INT8:    result = &ffi_type_sint8; break;
-        case PATCH_INT16:   result = &ffi_type_sint16; break;
-        case PATCH_INT32:   result = &ffi_type_sint32; break;
-        case PATCH_INT64:   result = &ffi_type_sint64; break;
-        case PATCH_UINT8:   result = &ffi_type_uint8; break;
-        case PATCH_UINT16:  result = &ffi_type_uint16; break;
-        case PATCH_UINT32:  result = &ffi_type_uint32; break;
-        case PATCH_UINT64:  result = &ffi_type_uint64; break;
-        case PATCH_FLOAT:   result = &ffi_type_float; break;
-        case PATCH_DOUBLE:  result = &ffi_type_double; break;
-        default:            result = &ffi_type_pointer; break; // 默认指针类型
-    }
-
-    TEKLOG_TRACE("Converted patch type %d to FFI type: %p", type, result);
-    return result;
-}
-
 
 static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* user_data) {
     const patchlib_hook_handle_t* handle = user_data;
@@ -306,6 +323,8 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
         arg_types[arg_index++] = patch_type_to_ffi_type(*type);
     }
 
+
+
     ffi_abi abi = FFI_DEFAULT_ABI;
 #if defined(__aarch64__)
     abi = FFI_SYSV;
@@ -342,8 +361,6 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
         free(arg_types);
         return false;
     }
-
-    free(arg_types);
 
     TEKLOG_DEBUG("Successfully created closure for method: %p", handle->method);
     return true;
@@ -477,7 +494,7 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
 
         // 从hook_handles中移除
         for (size_t i = 0; i < tefstd_vector_size(&g_hooks.hook_handles); i++) {
-            patchlib_hook_handle_t** handle_ptr = (patchlib_hook_handle_t**)tefstd_vector_at(&g_hooks.hook_handles, i);
+            patchlib_hook_handle_t** handle_ptr = tefstd_vector_at(&g_hooks.hook_handles, i);
             if (handle_ptr && *handle_ptr == handle) {
                 tefstd_vector_erase(&g_hooks.hook_handles, i, NULL);
                 TEKLOG_DEBUG("Removed handle from hook_handles vector");

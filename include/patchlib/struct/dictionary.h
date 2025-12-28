@@ -1,7 +1,7 @@
 /*******************************************************************************
  * File: dictionary
  * Project: tefkernel
- * Created: 2025/12/20
+ * Created: 2025/12/27
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  * 
@@ -31,4 +31,71 @@
 #ifndef TEFKERNEL_DICTIONARY_H
 #define TEFKERNEL_DICTIONARY_H
 
+#include "../type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief 创建一个dictionary
+ * @param key_type 键类型
+ * @param value_type 值类型
+ * @param capacity 初始容量
+ * @return dictionary实例
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_dictionary_create, patch_handle_t key_type, patch_handle_t value_type, size_t capacity);
+
+/**
+ * @brief 尝试在dictionary中添加一个键对
+ * @param dictionary dictionary实例
+ * @param key[in] 键指针
+ * @param value[in] 值指针
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_dictionary_add, patch_handle_t dictionary, void* key, void* value);
+
+/**
+ * @brief 通过键获取值
+ * @param dictionary dictionary实例
+ * @param key 键值指针
+ * @param out_value[out] 输出值
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_dictionary_get_value, patch_handle_t dictionary, void* key, void* out_value);
+
+/**
+ * @brief 修改键对
+ * @param dictionary dictionary实例
+ * @param key 键值指针
+ * @param value 值指针
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_dictionary_set_value, patch_handle_t dictionary, void* key, void* value);
+
+/**
+ * @brief 清空dictionary
+ * @param dictionary dictionary实例
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_dictionary_clear, patch_handle_t dictionary);
+
+/**
+ * @brief 获取dictionary长度
+ * @param dictionary dictionary实例
+ * @return dictionary长度
+ */
+DEFINE_FUNCTION(size_t, patchlib_dictionary_length, patch_handle_t dictionary);
+
+/**
+ * @brief 移除指定键对
+ * @param dictionary dictionary实例
+ * @param key 键值指针
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_dictionary_remove, patch_handle_t dictionary, void* key);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //TEFKERNEL_DICTIONARY_H

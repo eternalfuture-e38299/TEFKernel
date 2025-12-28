@@ -21,28 +21,58 @@
  *******************************************************************************/
 
 #include "patchlib/property.h"
+#include "internal/log.h"
 
 #include "il2cpp_api.h"
 
 const char* patchlib_property_get_name(patch_handle_t property) {
-    if (!patchlib_is_valid(property))
-        return false;
+    TEKLOG_DEBUG("patchlib_property_get_name called: property=%p", property);
 
-    return il2cpp_property_get_name(property);
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return NULL;
+    }
+
+    const char* result = il2cpp_property_get_name(property);
+    TEKLOG_DEBUG("Property name: %s", result ? result : "NULL");
+    return result;
 }
 
 patch_handle_t patchlib_property_get_get_method(patch_handle_t property) {
-    if (!patchlib_is_valid(property))
-        return PATCH_NULL;
+    TEKLOG_DEBUG("patchlib_property_get_get_method called: property=%p", property);
 
-    return il2cpp_property_get_get_method(property);
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_property_get_get_method(property);
+    TEKLOG_DEBUG("Property getter method: %p", result);
+    return result;
 }
 
 patch_handle_t patchlib_property_get_set_method(patch_handle_t property) {
-    if (!patchlib_is_valid(property))
-        return PATCH_NULL;
+    TEKLOG_DEBUG("patchlib_property_get_set_method called: property=%p", property);
 
-    return il2cpp_property_get_set_method(property);
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t result = il2cpp_property_get_set_method(property);
+    TEKLOG_DEBUG("Property setter method: %p", result);
+    return result;
 }
 
-uint8_t patchlib_free_property(patch_handle_t property) { return true; }
+bool patchlib_property_free(patch_handle_t property) {
+    TEKLOG_DEBUG("patchlib_property_free called: property=%p", property);
+
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Attempted to free invalid property");
+        return false;
+    }
+
+    // 这里可以添加实际的清理逻辑（如果有的话）
+    TEKLOG_DEBUG("Property freed successfully");
+    return true;
+}

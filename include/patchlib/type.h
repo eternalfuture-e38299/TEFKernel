@@ -31,12 +31,15 @@
 #ifndef TEFKERNEL_TYPE_H
 #define TEFKERNEL_TYPE_H
 
+#include <stdint.h>
+
 #include "../tef_api.h"
 
 #include "../tefstd/vector.h"
 
 #ifdef __cplusplus
 extern "C" {
+
 #endif
 
 /* 平台相关类型定义 */
@@ -67,7 +70,6 @@ typedef enum {
     PATCH_CHAR
 } patch_type_t;
 
-#if !defined(__ANDROID__)
 #define PATCH_TYPE_TO_NATIVE(type) \
 _Generic((type), \
 patch_type_t: _Generic((int)(type), \
@@ -84,9 +86,8 @@ PATCH_DOUBLE:  double, \
 PATCH_BOOL:    bool, \
 PATCH_POINTER: void*, \
 PATCH_OBJECT:  void*)
-#else
-#define PATCH_TYPE_TO_NATIVE(type) void
-#endif
+
+DEFINE_FUNCTION(size_t, get_size_from_patch_type, patch_type_t type);
 
 // ==================== 基础工具函数 ====================
 /**

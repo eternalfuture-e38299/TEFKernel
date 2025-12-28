@@ -23,6 +23,8 @@
 #ifndef TEFKERNEL_PRIVATE_H
 #define TEFKERNEL_PRIVATE_H
 
+#include <ffi.h>
+
 #include "patchlib/type.h"
 #include "tefstd/vector.h"
 
@@ -40,6 +42,13 @@ extern "C" {
  * @note 要求 vector_t 的 elem_size == sizeof(void*)
  */
 void *create_type_array_from_vector(const tef_vector_t *type_vector);
+
+/**
+ * @brief 转换为ffi type
+ * @param type patch类型
+ * @return ffi_type
+ */
+ffi_type* patch_type_to_ffi_type(patch_type_t type);
 
 extern patch_handle_t patchlib_MakeGenericType;
 extern patch_handle_t patchlib_MakeGenericMethod_impl;

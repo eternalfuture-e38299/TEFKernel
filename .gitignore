@@ -13,7 +13,6 @@ CMakeUserPresets.json
 cmake-build-*
 tefloader/bin
 tefloader/obj
-.idea
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
