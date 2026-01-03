@@ -102,7 +102,7 @@ DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
  * @return 执行结果
  */
 DEFINE_FUNCTION(bool, patchlib_method_invoke_args, patch_handle_t method, patch_handle_t instance,
-                                 void *return_value, void **args);
+                                 void *return_value, void **args)
 
 /**
  * @brief 调用函数
@@ -121,9 +121,11 @@ typedef uint16_t patch_hook_id_t;
 #define PATCH_HOOK_INVALID_ID 0 // 无效 ID 的定义
 
 typedef struct patch_method_signature_t {
+    patch_handle_t method;  ///< 函数句柄
     bool is_instance; ///< 是否为实例函数
     patch_type_t return_type; ///< 返回类型
     tef_vector_t arg_types; ///< patch_type_t，参数类型
+    tef_vector_t arg_names; ///< const char*, 参数名称
 } patch_method_signature_t;
 
 /**
@@ -134,11 +136,17 @@ typedef struct patch_method_signature_t {
  */
 DEFINE_FUNCTION(bool, patchlib_method_get_signature, patch_handle_t method, patch_method_signature_t* signature)
 
+/**
+ * @brief 卸载函数类型
+ * @param signature 指向参数签名的指针
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_method_signature_free, patch_method_signature_t* signature);
 
-typedef void (*prefix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void **args,
+typedef void (*prefix_callback_t)(patch_handle_t instance, void **args,
                                   const patch_method_signature_t *sig_info);
 
-typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t instance, void **args, void *result,
+typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *result,
                                    const patch_method_signature_t *sig_info);
 
 /**
@@ -151,7 +159,7 @@ typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t inst
  *
  * @param method        目标函数的句柄 (patch_handle_t)，用于标识要被 Hook 的函数。不可为空。
  * @param prefix        指向 Prefix Hook 函数的指针。该函数将在目标函数执行前被调用。
- *                      函数签名应为: void prefix(patch_handle_t orig_func, patch_handle_t instance, void** args, const patch_method_signature_t* sig_info)
+ *                      函数签名应为: void prefix(patch_handle_t instance, void** args, const patch_method_signature_t* sig_info)
  *                      - orig_func: 被 Hook 的原始函数句柄。
  *                      - instance: 对象实例指针（如果是成员函数），可能为空。
  *                      - args: 指向函数参数数组的指针（可能为空）。
@@ -159,7 +167,7 @@ typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t inst
  *                                  Hook 函数可以据此了解参数和返回值的类型信息。
  *                      如果不需要 Prefix Hook，可以传入 NULL。
  * @param postfix       指向 Postfix Hook 函数的指针。该函数将在目标函数执行后被调用。
- *                      函数签名应为: void postfix(patch_handle_t orig_func, patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info)
+ *                      函数签名应为: void postfix(patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info)
  *                      - orig_func: 被 Hook 的原始函数句柄。
  *                      - instance: 对象实例指针（如果是成员函数），可能为空。
  *                      - args: 指向函数参数数组的指针（可能为空）。
@@ -179,7 +187,7 @@ typedef void (*postfix_callback_t)(patch_handle_t orig_func, patch_handle_t inst
  *                      Hook 函数必须能正确处理 `sig_info` 中描述的各种类型。
  *                      没有线程安全，请不要并行调用。
  */
-DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook, patch_handle_t method, void* prefix, void* postfix)
+DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook, patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix)
 
 /**
  * @brief 卸载指定的 Hook

@@ -39,6 +39,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 /**
@@ -170,6 +171,39 @@ DEFINE_FUNCTION(bool, tefstd_vector_erase, tef_vector_t *vec, size_t index, void
  * @note 使用memcmp进行字节级别的精确比较
  */
 DEFINE_FUNCTION(bool, tefstd_vector_remove_value, tef_vector_t *vec, const void *value)
+
+/**
+ * @brief 从现有数组初始化 vector
+ *
+ * @param vec 指向待初始化的 vector_t 结构体（不能为 NULL）
+ * @param elem_size 单个元素的大小（字节），例如 sizeof(int) 或 sizeof(MyStruct)
+ * @param array 源数组指针（不能为 NULL，除非 array_length 为 0）
+ * @param array_length 源数组中的元素个数
+ * @return 成功返回 true，失败返回 false
+ *
+ * @note 此函数会：
+ *       1. 初始化 vector 结构体
+ *       2. 分配足够容纳所有元素的内存
+ *       3. 将数组内容复制到 vector 中
+ *       4. 设置 size 和 capacity 为 array_length
+ *
+ *       如果 array_length 为 0：
+ *       - array 参数可以为 NULL
+ *       - vector 将被初始化为空
+ *       - 可能预分配少量内存
+ *
+ *       内存管理：
+ *       - vector 内部会复制数组内容，不会引用原始数组
+ *       - 原始数组的内存由调用者管理
+ *       - 使用后必须调用 tefstd_vector_destroy 释放内存
+ *
+ *       错误处理：
+ *       - 如果 array 为 NULL 但 array_length > 0，返回 false
+ *       - 如果内存分配失败，返回 false，vec 保持未初始化状态
+ */
+DEFINE_FUNCTION(bool, tefstd_vector_init_from_array, tef_vector_t *vec, size_t elem_size, void* array,
+                size_t array_length)
+
 
 #ifdef __cplusplus
 }

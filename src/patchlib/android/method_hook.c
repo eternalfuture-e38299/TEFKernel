@@ -219,7 +219,7 @@ static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* u
 
                 const prefix_callback_t prefix = *prefix_ptr;
                 TEKLOG_TRACE("Calling prefix hook %zu: %p", i, prefix);
-                prefix(handle->original, NULL, args, &handle->method_signature);
+                prefix(NULL, args, &handle->method_signature);
             }
         }
     }
@@ -238,7 +238,7 @@ static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* u
             if (postfix_ptr && *postfix_ptr) {
                 const postfix_callback_t postfix = *postfix_ptr;
                 TEKLOG_TRACE("Calling postfix hook %zu: %p", i, postfix);
-                postfix(handle->original, NULL, args, ret, &handle->method_signature);
+                postfix(NULL, args, ret, &handle->method_signature);
             }
         }
     }
@@ -262,7 +262,7 @@ static void hook_dispatcher(ffi_cif* cif, void* ret, void** args, void* user_dat
             if (prefix_ptr && *prefix_ptr) {
                 const prefix_callback_t prefix = *prefix_ptr;
                 TEKLOG_TRACE("Calling prefix hook %zu: %p", i, prefix);
-                prefix(handle->original, instance, actual_args, &handle->method_signature);
+                prefix(instance, actual_args, &handle->method_signature);
             }
         }
     }
@@ -281,7 +281,7 @@ static void hook_dispatcher(ffi_cif* cif, void* ret, void** args, void* user_dat
             if (postfix_ptr && *postfix_ptr) {
                 const postfix_callback_t postfix = *postfix_ptr;
                 TEKLOG_TRACE("Calling postfix hook %zu: %p", i, postfix);
-                postfix(handle->original, instance, actual_args, ret, &handle->method_signature);
+                postfix(instance, actual_args, ret, &handle->method_signature);
             }
         }
     }
@@ -366,7 +366,7 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     return true;
 }
 
-patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, void* prefix, void* postfix) {
+patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix) {
     if (!patchlib_is_valid(method)) {
         TEKLOG_ERROR("Cannot install hook: method is NULL");
         return PATCH_HOOK_INVALID_ID;

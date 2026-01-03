@@ -77,7 +77,7 @@ bool patchlib_field_is_thread_static(patch_handle_t field) {
     return result;
 }
 
-void patchlib_field_get_value(patch_handle_t field, void *instance, void *value) {
+void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, void *value) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_ERROR("Invalid field handle");
         return;
@@ -103,7 +103,7 @@ void patchlib_field_get_value(patch_handle_t field, void *instance, void *value)
     TEKLOG_DEBUG("Field value retrieved successfully");
 }
 
-void patchlib_field_set_value(patch_handle_t field, void *instance, const void *value) {
+void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, const void *value) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_ERROR("Invalid field handle");
         return;

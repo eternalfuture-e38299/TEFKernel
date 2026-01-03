@@ -1,6 +1,6 @@
 // /*******************************************************************************
-//  * tefkernel - Test.cs
-//  * Copyright (C) 2025 eternalfuture-e38299
+//  * tefkernel - Property.cs
+//  * Copyright (C) 2026 eternalfuture-e38299
 //  *
 //  * This program is free software: you can redistribute it and/or modify
 //  * it under the terms of the GNU Affero General Public License as published by
@@ -17,34 +17,26 @@
 //  *
 //  * Author: eternalfuture-e38299
 //  * GitHub: https://github.com/eternalfuture-e38299
-//  * Created: 2025/11/23
+//  * Created: 2026/01/03
 //  *******************************************************************************/
 
-using System.Data;
-using System.Runtime.InteropServices;
+namespace tefloader.NetApi;
 
-namespace tefloader;
-
-public class Test
+public static class Property
 {
-    private static int Hello(int a)
+    public static string GetName(int propertyHandle) => Asset.PropertyInfos[propertyHandle].Name;
+
+    public static int GetGetMethod(int propertyHandle)
     {
-        Logger.Info("Hello!");
-        return 0;
+        var propertyInfo = Asset.PropertyInfos[propertyHandle];
+        return Asset.MethodInfos.Add(propertyInfo.GetMethod);
+    }
+    
+    public static int GetSetMethod(int propertyHandle)
+    {
+        var propertyInfo = Asset.PropertyInfos[propertyHandle];
+        return Asset.MethodInfos.Add(propertyInfo.SetMethod);
     }
 
-    private delegate void TestD();
-    public static void Main()
-    {
-        Program.CoreLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-debug/libtefkernel.so");
-        Logger.Initialize(Program.CoreLib);
-        NetApi.Initialization.MethodInit.Init();
-        NetApi.Initialization.TypeApi.Init();
-        NetApi.Initialization.FieldApi.Init();
-        NetApi.Initialization.PropertyApi.Init();
-
-        
-        var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.CoreLib.GetSym("Test"));
-        t();
-    }
+    public static void Free(int propertyHandle) => Asset.PropertyInfos.RemoveAt(propertyHandle);
 }

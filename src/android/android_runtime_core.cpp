@@ -37,6 +37,7 @@
 #include "patchlib/method.h"
 #include "patchlib/type.h"
 #include "../patchlib/android/il2cpp_api.h"
+#include "patchlib/android/private.h"
 
 int (*dobby_hook)(void *address, void *replace_func, void **origin_func);
 int (*dobby_destroy)(void *address);
@@ -81,6 +82,102 @@ void init() {
 
 void start_test();
 
+
+patch_handle_t find_and_initialize_make_generic_method_impl() {
+    TEKLOG_INFO("[MakeGenericMethod] Starting search for MakeGenericMethod_impl");
+
+    // If already initialized, return immediately
+    if (patchlib_MakeGenericMethod_impl != nullptr) {
+        TEKLOG_DEBUG("[MakeGenericMethod] Already initialized");
+        return patchlib_MakeGenericMethod_impl;
+    }
+
+    patch_handle_t make_generic_method = nullptr;
+    const char* search_classes[] = {
+        "System.Reflection.RuntimeMethodInfo",
+        "System.Reflection.MonoMethod",
+        nullptr
+    };
+
+    // Search in different classes
+    for (int class_idx = 0; search_classes[class_idx] != nullptr; class_idx++) {
+        const char* class_name = search_classes[class_idx];
+        TEKLOG_INFO("[MakeGenericMethod] Searching in class: %s", class_name);
+
+        // Extract namespace and class name
+        const char* dot_pos = strrchr(class_name, '.');
+        auto namespace_name = "System.Reflection";
+        const char* short_class_name = dot_pos ? dot_pos + 1 : class_name;
+
+        patch_handle_t class_handle = patchlib_type_get_type(namespace_name, short_class_name);
+        if (!class_handle) {
+            TEKLOG_WARN("[MakeGenericMethod] Class not found: %s", class_name);
+            continue;
+        }
+
+        TEKLOG_DEBUG("[MakeGenericMethod] Found class: %s (%p)", class_name, class_handle);
+
+        // Get methods for this class
+        tef_vector_t methods;
+        if (!tefstd_vector_init(&methods, sizeof(patch_handle_t))) {
+            TEKLOG_ERROR("[MakeGenericMethod] Failed to initialize methods vector");
+            continue;
+        }
+
+        if (!patchlib_type_get_methods(class_handle, false, &methods)) {
+            TEKLOG_WARN("[MakeGenericMethod] Failed to get methods for class: %s", class_name);
+            tefstd_vector_destroy(&methods);
+            continue;
+        }
+
+        const size_t method_count = tefstd_vector_size(&methods);
+        TEKLOG_INFO("[MakeGenericMethod] Class %s has %zu methods:", class_name, method_count);
+
+        // Debug: list all methods
+        for (size_t i = 0; i < method_count; i++) {
+            if (const auto* method_ptr = static_cast<patch_handle_t *>(tefstd_vector_at(&methods, i)); patchlib_is_valid(*method_ptr)) {
+                const char* method_name = patchlib_method_get_name(*method_ptr);
+                const int param_count = patchlib_method_get_param_count(*method_ptr);
+                TEKLOG_INFO("[MakeGenericMethod]   [%zu] %s (params: %d)", i, method_name, param_count);
+            }
+        }
+
+        // Search for MakeGenericMethod_impl
+        for (size_t i = 0; i < method_count; i++) {
+            const auto* method_ptr = static_cast<patch_handle_t *>(tefstd_vector_at(&methods, i));
+
+            if (!patchlib_is_valid(*method_ptr)) {
+                continue;
+            }
+
+            const char* current_name = patchlib_method_get_name(*method_ptr);
+            if (!current_name) {
+                continue;
+            }
+
+            if (strcmp(current_name, "MakeGenericMethod_impl") == 0) {
+                make_generic_method = *method_ptr;
+                TEKLOG_INFO("[MakeGenericMethod] FOUND: MakeGenericMethod_impl in %s (%p)", class_name, make_generic_method);
+
+                // Verify method signature
+                const int param_count = patchlib_method_get_param_count(make_generic_method);
+                TEKLOG_INFO("[MakeGenericMethod] Method parameter count: %d", param_count);
+
+                patchlib_MakeGenericMethod_impl = make_generic_method;
+                tefstd_vector_destroy(&methods);
+                return make_generic_method;
+            }
+        }
+
+        // Clean up for this class
+        tefstd_vector_destroy(&methods);
+    }
+
+    TEKLOG_ERROR("[MakeGenericMethod] FAILED: MakeGenericMethod_impl not found in any class");
+    return nullptr;
+}
+
+
 int (*orig_il2cpp_init)(const char*) = nullptr;
 int hook_il2cpp_init(const char* domain_name) {
     TEKLOG_INFO("il2cpp_init hook called, domain: %s", domain_name);
@@ -96,6 +193,17 @@ int hook_il2cpp_init(const char* domain_name) {
 
     TEKLOG_INFO("Starting TEFKernel core initialization");
     // init();
+
+
+    patchlib_MakeGenericType = patchlib_type_get_method_by_param_count(patchlib_type_get_type("System", "RuntimeType"), "MakeGenericType", 2);
+    find_and_initialize_make_generic_method_impl();
+
+
+
+    // patchlib_MakeGenericMethod_impl = patchlib_type_get_methods(patchlib_type_get_type("System.Reflection", "MonoMethod"), "MakeGenericMethod_impl");
+
+
+
     TEKLOG_INFO("TEFKernel core initialization completed");
 
     start_test();

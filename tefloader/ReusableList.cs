@@ -139,7 +139,7 @@ public class ReusableList<T>(int initialCapacity = 256) : IEnumerable<T>
         if (index < 0 || index >= _items.Length)
             throw new ArgumentOutOfRangeException(nameof(index));
 
-        T item = _items[index];
+        var item = _items[index];
         if (_comparer.Equals(item, default!))
             return; // 已经是空位
 

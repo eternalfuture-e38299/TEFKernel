@@ -22,6 +22,7 @@
 
 #ifndef TEFKERNEL_LOG_H
 #define TEFKERNEL_LOG_H
+#include "tef_api.h"
 #ifdef __cplusplus
 extern "C" {
 
@@ -61,6 +62,9 @@ void tefkernel_log_write_ex(tefkernel_log_level_t level,
                             const char *fmt, ...)
 __attribute__((__format__(printf, 5, 6)));
 
+API_EXPORT void API_CALL tefkernel_log_write_net(tefkernel_log_level_t level,
+                                const char *file, int line, const char *func,
+                                const char *msg);
 
 /**
  * @brief 初始化日志系统

@@ -81,7 +81,7 @@ DEFINE_FUNCTION(bool, patchlib_field_is_thread_static, patch_handle_t field)
  * @param instance 实例(静态时为NULL)
  * @param value [out] 输出值缓冲区
  */
-DEFINE_FUNCTION(void, patchlib_field_get_value, patch_handle_t field, void *instance, void *value)
+DEFINE_FUNCTION(void, patchlib_field_get_value, patch_handle_t field, patch_handle_t instance, void *value)
 
 /**
  * @brief 设置字段值
@@ -89,7 +89,7 @@ DEFINE_FUNCTION(void, patchlib_field_get_value, patch_handle_t field, void *inst
  * @param instance 实例(静态时为NULL)
  * @param value 要设置的值
  */
-DEFINE_FUNCTION(void, patchlib_field_set_value, patch_handle_t field, void *instance, const void *value)
+DEFINE_FUNCTION(void, patchlib_field_set_value, patch_handle_t field, patch_handle_t instance, void *value)
 
 #if __ANDROID__
 // ==================== Android平台特定功能 ====================

@@ -50,7 +50,7 @@
 #if IS_TEFKERNEL_BUILD
 
 #define DEFINE_FUNCTION(ret, name, ...) \
-ret name(__VA_ARGS__);
+API_EXPORT ret API_CALL name(__VA_ARGS__);
 
 #else
 

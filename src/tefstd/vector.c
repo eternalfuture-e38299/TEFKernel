@@ -181,3 +181,46 @@ bool tefstd_vector_remove_value(tef_vector_t *vec, const void *value) {
 
     return removed;
 }
+
+bool tefstd_vector_init_from_array(tef_vector_t *vec, const size_t elem_size, void* array, const size_t array_length) {
+    // 参数验证
+    if (!vec || elem_size == 0) {
+        return false;  // 无效参数
+    }
+
+    if (array_length > 0 && !array) {
+        return false;  // 有元素但数组为 NULL
+    }
+
+    // 清零 vector 结构体
+    vec->data = NULL;
+    vec->size = 0;
+    vec->capacity = 0;
+    vec->elem_size = elem_size;
+
+    // 如果数组长度为0，直接初始化空 vector
+    if (array_length == 0) {
+        // 可以选择预分配少量内存，或者保持为0
+        // 这里我们保持为空，第一次 push_back 时会自动分配
+        return true;
+    }
+
+    // 分配足够的内存
+    const size_t total_bytes = array_length * elem_size;
+    void *data = malloc(total_bytes);
+    if (!data) {
+        return false;  // 内存分配失败
+    }
+
+    // 复制数组内容
+    if (array) {
+        memcpy(data, array, total_bytes);
+    }
+
+    // 设置 vector 状态
+    vec->data = data;
+    vec->size = array_length;
+    vec->capacity = array_length;  // 容量设置为刚好容纳所有元素
+
+    return true;
+}

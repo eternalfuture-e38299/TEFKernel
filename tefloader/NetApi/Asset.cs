@@ -24,7 +24,7 @@ using System.Reflection;
 
 namespace tefloader.NetApi;
 
-public class Asset
+public static class Asset
 {
     public static readonly ReusableList<System.Type> Types = [];
     public static readonly ReusableList<MemberInfo> MethodInfos = []; // 支持构造函数与普通函数

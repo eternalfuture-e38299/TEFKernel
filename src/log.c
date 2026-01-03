@@ -562,6 +562,19 @@ void tefkernel_log_write_ex(const tefkernel_log_level_t level, const char *file,
     tefkernel_log_write(level, "%s", message);
 }
 
+void tefkernel_log_write_net(const tefkernel_log_level_t level, const char *file, const int line, const char *func,
+    const char *msg) {
+
+#if !defined(NDEBUG)
+    tefkernel_log_write_ex(level, file, line, func, msg);
+#else
+    // 发布版本：过滤掉 TRACE 和 DEBUG 级别的日志
+    if (level >= TEFKERNEL_LOG_LEVEL_INFO) {
+        tefkernel_log_write(level, msg);
+    }
+#endif
+}
+
 void tefkernel_log_cleanup(void) {
     if (g_log_ctx.running) {
         // 写入关闭日志

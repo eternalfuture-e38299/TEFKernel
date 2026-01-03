@@ -31,10 +31,7 @@
 #ifndef TEFKERNEL_TYPE_H
 #define TEFKERNEL_TYPE_H
 
-#include <stdint.h>
-
 #include "../tef_api.h"
-
 #include "../tefstd/vector.h"
 
 #ifdef __cplusplus
@@ -86,6 +83,12 @@ PATCH_DOUBLE:  double, \
 PATCH_BOOL:    bool, \
 PATCH_POINTER: void*, \
 PATCH_OBJECT:  void*)
+
+#if defined(__ANDROID__) || defined(ANDROID)
+#define PATCH_HANDLE_FMT "%p"
+#else
+#define PATCH_HANDLE_FMT "%d"
+#endif
 
 DEFINE_FUNCTION(size_t, get_size_from_patch_type, patch_type_t type);
 
@@ -157,8 +160,9 @@ DEFINE_FUNCTION(const char*, patchlib_type_get_namespace, patch_handle_t type)
  * @brief 获取类型的完整名称（命名空间 + 类名）
  * @param[in] type 类型句柄（必须有效）
  * @return 完整`名称
+ * @warning 使用malloc分配
  */
-DEFINE_FUNCTION(const char*, patchlib_type_get_full_name, patch_handle_t type)
+DEFINE_FUNCTION(char*, patchlib_type_get_full_name, patch_handle_t type)
 
 /**
  * @brief 获取指定类型的父类型

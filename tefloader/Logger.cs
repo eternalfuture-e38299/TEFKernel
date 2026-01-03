@@ -28,52 +28,16 @@ namespace tefloader;
 public static class Logger
 {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogTraceDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-    
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogDebugDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogInfoDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-    
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogWarningDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-    
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogErrorDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void LogCriticalDelegate([MarshalAs(UnmanagedType.LPStr)] string message);
-
-    private static LogTraceDelegate? _traceRaw;
-    private static LogDebugDelegate? _debugRaw;
-    private static LogInfoDelegate? _infoRaw;
-    private static LogWarningDelegate? _warningRaw;
-    private static LogErrorDelegate? _errorRaw;
-    private static LogCriticalDelegate? _criticalRaw;
+    private delegate void LogDelegate(int level, [MarshalAs(UnmanagedType.LPStr)] string file, int line, [MarshalAs(UnmanagedType.LPStr)] string func, [MarshalAs(UnmanagedType.LPStr)] string message);
+    private static LogDelegate? _logRaw;
 
     public static void Initialize(LibLoader handle)
     {
         try
         {
-            _traceRaw = Marshal.GetDelegateForFunctionPointer<LogTraceDelegate>(
-                handle.GetSym("NET_LOG_TRACE"));
-                
-            _debugRaw = Marshal.GetDelegateForFunctionPointer<LogDebugDelegate>(
-                handle.GetSym("NET_LOG_DEBUG"));
-                
-            _infoRaw = Marshal.GetDelegateForFunctionPointer<LogInfoDelegate>(
-                handle.GetSym("NET_LOG_INFO"));
-                
-            _warningRaw = Marshal.GetDelegateForFunctionPointer<LogWarningDelegate>(
-                handle.GetSym("NET_LOG_WARNING"));
-                
-            _errorRaw = Marshal.GetDelegateForFunctionPointer<LogErrorDelegate>(
-                handle.GetSym("NET_LOG_ERROR"));
-                
-            _criticalRaw = Marshal.GetDelegateForFunctionPointer<LogCriticalDelegate>(
-                handle.GetSym("NET_LOG_CRITICAL"));
-
+            _logRaw = Marshal.GetDelegateForFunctionPointer<LogDelegate>(
+                handle.GetSym("tefkernel_log_write_net"));
+            
             Info("Logger system initialized successfully");
         }
         catch (Exception ex)
@@ -87,62 +51,51 @@ public static class Logger
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _traceRaw, filePath, lineNumber, memberName);
+        => Log(message, 0, filePath, lineNumber, memberName);
 
     public static void Debug(
         string message,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _debugRaw, filePath, lineNumber, memberName);
+        => Log(message, 1, filePath, lineNumber, memberName);
 
     public static void Info(
         string message,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _infoRaw, filePath, lineNumber, memberName);
+        => Log(message, 2, filePath, lineNumber, memberName);
 
     public static void Warning(
         string message,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _warningRaw, filePath, lineNumber, memberName);
+        => Log(message, 3, filePath, lineNumber, memberName);
 
     public static void Error(
         string message,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _errorRaw, filePath, lineNumber, memberName);
+        => Log(message, 4, filePath, lineNumber, memberName);
 
     public static void Critical(
         string message,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0,
         [CallerMemberName] string memberName = "") 
-        => Log(message, _criticalRaw, filePath, lineNumber, memberName);
+        => Log(message, 5, filePath, lineNumber, memberName);
 
     private static void Log(
         string message,
-        Delegate? logDelegate,
+        int level,
         string filePath,
         int lineNumber,
         string memberName)
     {
-        var formattedMessage = $"[{filePath}:{lineNumber} ({memberName})] {message}";
-        
-        switch (logDelegate)
-        {
-            case LogTraceDelegate trace: trace(formattedMessage); break;
-            case LogDebugDelegate debug: debug(formattedMessage); break;
-            case LogInfoDelegate info: info(formattedMessage); break;
-            case LogWarningDelegate warning: warning(formattedMessage); break;
-            case LogErrorDelegate error: error(formattedMessage); break;
-            case LogCriticalDelegate critical: critical(formattedMessage); break;
-        }
-        
-        if (logDelegate == null) Console.WriteLine(formattedMessage);
+        if (_logRaw == null) Console.WriteLine($"[{filePath}:{lineNumber} ({memberName})] {message}");
+        else _logRaw(level, filePath, lineNumber, memberName, message);
     }
 }

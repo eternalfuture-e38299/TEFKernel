@@ -19,3 +19,60 @@
  * GitHub: https://github.com/eternalfuture-e38299
  * Created: 2025/11/23
  *******************************************************************************/
+
+#include "patchlib/property.h"
+
+#include "net_api.h"
+#include "internal/log.h"
+
+const char* patchlib_property_get_name(const patch_handle_t property) {
+    TEKLOG_DEBUG("patchlib_property_get_name called: property=%d", property);
+
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return NULL;
+    }
+
+    const char* result = net_property_get_name(property);
+    TEKLOG_DEBUG("Property name: %s", result ? result : "NULL");
+    return result;
+}
+
+patch_handle_t patchlib_property_get_get_method(const patch_handle_t property) {
+    TEKLOG_DEBUG("patchlib_property_get_get_method called: property=%d", property);
+
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return PATCH_NULL;
+    }
+
+    const patch_handle_t result = net_property_get_get_method(property);
+    TEKLOG_DEBUG("Property getter method: %d", result);
+    return result;
+}
+
+patch_handle_t patchlib_property_get_set_method(const patch_handle_t property) {
+    TEKLOG_DEBUG("patchlib_property_get_set_method called: property=%d", property);
+
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Invalid property handle");
+        return PATCH_NULL;
+    }
+
+    const patch_handle_t result = net_property_get_set_method(property);
+    TEKLOG_DEBUG("Property setter method: %d", result);
+    return result;
+}
+
+bool patchlib_property_free(const patch_handle_t property) {
+    TEKLOG_DEBUG("patchlib_property_free called: property=%d", property);
+
+    if (!patchlib_is_valid(property)) {
+        TEKLOG_WARN("Attempted to free invalid property");
+        return false;
+    }
+
+    net_property_free(property);
+
+    return true;
+}

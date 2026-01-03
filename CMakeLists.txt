@@ -10,14 +10,16 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 endif()
 
-set(ANDROID_MODE ON)
+set(ANDROID_MODE OFF)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
     set(CMAKE_SYSROOT /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/)
 endif ()
 
-set(PATCHLIB_SRC)
+set(PATCHLIB_SRC src/patchlib/common/type.c
+        src/patchlib/common/method.c
+)
 if (ANDROID)
     list(APPEND PATCHLIB_SRC
             src/patchlib/android/type.c
@@ -38,6 +40,7 @@ else ()
             src/patchlib/desktop/field.c
             src/patchlib/desktop/property.c
             src/patchlib/desktop/method.c
+            src/patchlib/desktop/net_api.c
     )
 endif ()
 
@@ -66,6 +69,11 @@ if (ANDROID)
             src/android/android_runtime_core.cpp
             src/android/android_test.cpp
     )
+else ()
+    list(APPEND INTERNAL_SRC
+            src/desktop/desktop_runtime_core.c
+            src/desktop/desktop_test.c
+    )
 endif ()
 
 add_library(tefkernel SHARED
@@ -74,7 +82,6 @@ add_library(tefkernel SHARED
         ${TEFSTD_SRC}
         ${TEFPLUGIN_SRC}
         ${MEMDL_SRC}
-        ${INTERNAL_SRC}
         ${MODLOADER_SRC}
 )
 

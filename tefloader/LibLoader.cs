@@ -185,13 +185,13 @@ public class LibLoader
     private static extern IntPtr LoadLibraryExW(string lpFileName, IntPtr hFile, uint dwFlags);
     
     // Linux
-    [DllImport("libdl.so", EntryPoint = "dlopen")]
+    [DllImport("libc", EntryPoint = "dlopen")]
     private static extern IntPtr linux_dlopen(string filename, int flags);
 
-    [DllImport("libdl.so", EntryPoint = "dlsym")]
+    [DllImport("libc", EntryPoint = "dlsym")]
     private static extern IntPtr linux_dlsym(IntPtr handle, string symbol);
 
-    [DllImport("libdl.so", EntryPoint = "dlclose")]
+    [DllImport("libc", EntryPoint = "dlclose")]
     private static extern int linux_dlclose(IntPtr handle);
 
     // MacOs
