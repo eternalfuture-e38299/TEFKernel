@@ -117,6 +117,13 @@ DEFINE_FUNCTION(size_t, patchlib_field_get_size, patch_handle_t field)
  */
 DEFINE_FUNCTION(bool, patchlib_field_free, patch_handle_t field)
 
+
+#if __ANDROID__
+
+#    define patchlib_field_free(handle) ((void)0)
+
+#endif
+
 #ifdef __cplusplus
 }
 #endif

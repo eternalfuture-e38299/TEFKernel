@@ -16,37 +16,62 @@
         <Platforms>AnyCPU</Platforms>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <Prefer32Bit>false</Prefer32Bit>
+
+        <EnableUnsafeBinaryFormatterSerialization Condition="'$(TargetFramework)' == 'net8.0'">true</EnableUnsafeBinaryFormatterSerialization>
     </PropertyGroup>
 
+    <!-- .NET Framework 4.5.2 特定配置 -->
     <PropertyGroup Condition="'$(TargetFramework)' == 'net452'">
         <AssemblyName>tefloader</AssemblyName>
         <PlatformTarget>x86</PlatformTarget>
         <Prefer32Bit>true</Prefer32Bit>
+        <DefineConstants>NETFRAMEWORK;NET452</DefineConstants>
     </PropertyGroup>
 
+    <!-- .NET Framework 4.7.2 特定配置 -->
     <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
         <AssemblyName>tefloader</AssemblyName>
+        <DefineConstants>NETFRAMEWORK;NET472</DefineConstants>
     </PropertyGroup>
 
+    <!-- .NET 8.0 特定配置 -->
     <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
         <AssemblyName>tefloader</AssemblyName>
+        <DefineConstants>NET8_0;NETCOREAPP</DefineConstants>
     </PropertyGroup>
 
+    <!-- 公共包引用 -->
     <ItemGroup>
-        <PackageReference Include="Lib.Harmony" Version="2.4.1" />
+        <PackageReference Include="HarmonyX" Version="2.16.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="5.0.0" />
         <Reference Include="Microsoft.CSharp" />
         <Reference Include="System.Reflection"/>
         <Reference Include="System.Runtime"/>
     </ItemGroup>
 
-    <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-      <PackageReference Include="System.ValueTuple" Version="4.6.1" />
+    <!-- .NET Framework 4.5.2 特定包引用 -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="5.0.0" />
     </ItemGroup>
 
+    <!-- .NET Framework 4.7.2 特定包引用 -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="5.0.0" />
+    </ItemGroup>
+
+    <!-- .NET 8.0 特定包引用 -->
     <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-      <PackageReference Include="System.ValueTuple" Version="4.6.1" />
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+        <!-- .NET 8.0 内置 System.ValueTuple，无需单独引用 -->
+    </ItemGroup>
+
+    <!-- 条件编译符号处理 -->
+    <ItemGroup>
+        <Using Include="System" />
+        <Using Include="System.Collections.Generic" />
+        <Using Include="System.Linq" />
+        <Using Include="System.Text" />
+        <Using Include="System.Threading.Tasks" />
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">

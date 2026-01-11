@@ -51,7 +51,7 @@ public static unsafe class HookManager
 
     private static readonly Dictionary<int, HookHandle> HookTab = new();
     private static readonly List<HookNode> HookNodes = [];
-    private static readonly Harmony Harmony = new("tefkernel.HookManager");
+    public static readonly Harmony Harmony = new("tefkernel.HookManager");
 
     public static ushort HookMethod(MethodBase methodBase, IntPtr methodSignature, IntPtr prefixHook,
         IntPtr postfixHook)
@@ -79,18 +79,28 @@ public static unsafe class HookManager
         if (isNewHook)
             try
             {
-                // 应用Harmony补丁
-                var patchProcessor = Harmony.CreateProcessor(methodBase);
-                patchProcessor.AddPrefix(new HarmonyMethod(typeof(HookManager), nameof(PrefixHook)));
+                
+                var harmonyMethodPrefix = prefixHook != IntPtr.Zero 
+                    ? new HarmonyMethod(typeof(HookManager), nameof(PrefixHook)) 
+                    : null;
 
+                
+                HarmonyMethod? harmonyMethodPostfix;
                 if (methodBase is MethodInfo methodInfo)
-                    patchProcessor.AddPostfix(methodInfo.ReturnType == typeof(void)
-                        ? new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid))
-                        : new HarmonyMethod(typeof(HookManager), nameof(PostfixHook)));
+                    harmonyMethodPostfix = postfixHook != IntPtr.Zero 
+                        ? methodInfo.ReturnType == typeof(void)
+                            ? new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid))
+                            : new HarmonyMethod(typeof(HookManager), nameof(PostfixHook))
+                        : null;
                 else
-                    patchProcessor.AddPostfix(new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid)));
+                    harmonyMethodPostfix = postfixHook != IntPtr.Zero 
+                        ? new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid))
+                        : null;
 
-                patchProcessor.Patch();
+                Harmony.Patch(methodBase, 
+                    prefix: harmonyMethodPrefix,
+                    postfix: harmonyMethodPostfix);
+                
 
                 Logger.Info($"Successfully hooked method: {methodBase.DeclaringType?.Name}.{methodBase.Name}");
             }

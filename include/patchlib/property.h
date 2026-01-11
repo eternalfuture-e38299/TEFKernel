@@ -71,6 +71,12 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_property_get_set_method, patch_handle_t
  */
 DEFINE_FUNCTION(bool, patchlib_property_free, patch_handle_t property)
 
+#if __ANDROID__
+
+#    define patchlib_property_free(handle) ((void)0)
+
+#endif
+
 #ifdef __cplusplus
 }
 #endif

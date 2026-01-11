@@ -44,7 +44,7 @@ patch_handle_t patchlib_type_get_mono_type(const patch_handle_t type) {
     return type;
 }
 
-const char* patchlib_type_get_name(const patch_handle_t type) {
+const char *patchlib_type_get_name(const patch_handle_t type) {
     TEKLOG_DEBUG("patchlib_type_get_name called: type=%d", type);
 
     if (!patchlib_is_valid(type)) {
@@ -52,12 +52,12 @@ const char* patchlib_type_get_name(const patch_handle_t type) {
         return NULL;
     }
 
-    const char* result = net_type_get_name(type);
+    const char *result = net_type_get_name(type);
     TEKLOG_DEBUG("Type name: %s", result ? result : "NULL");
     return result;
 }
 
-const char* patchlib_type_get_namespace(const patch_handle_t type) {
+const char *patchlib_type_get_namespace(const patch_handle_t type) {
     TEKLOG_DEBUG("patchlib_type_get_namespace called: type=%d", type);
 
     if (!patchlib_is_valid(type)) {
@@ -65,7 +65,7 @@ const char* patchlib_type_get_namespace(const patch_handle_t type) {
         return NULL;
     }
 
-    const char* result = net_type_get_namespace(type);
+    const char *result = net_type_get_namespace(type);
     TEKLOG_DEBUG("Type namespace: %s", result ? result : "NULL");
     return result;
 }
@@ -119,7 +119,8 @@ patch_handle_t patchlib_type_get_property(const patch_handle_t type, const char 
     return result;
 }
 
-patch_handle_t patchlib_type_get_method_by_param_count(const patch_handle_t type, const char *name, const int args_count) {
+patch_handle_t patchlib_type_get_method_by_param_count(const patch_handle_t type, const char *name,
+                                                       const int args_count) {
     TEKLOG_DEBUG("patchlib_type_get_method_by_param_count called: type=%d, name='%s', args_count=%d",
                  type, name ? name : "NULL", args_count);
 
@@ -142,8 +143,8 @@ patch_handle_t patchlib_type_get_method_by_param_count(const patch_handle_t type
 static bool method_matches_signature(
     const patch_handle_t method,
     const int args_count,
-    const patch_handle_t* args_types,      // 可为 NULL
-    const char** args_names               // 可为 NULL
+    const patch_handle_t *args_types, // 可为 NULL
+    const char **args_names // 可为 NULL
 ) {
     TEKLOG_DEBUG("method_matches_signature called: method=" PATCH_HANDLE_FMT ", args_count=%d",
                  method, args_count);
@@ -160,17 +161,17 @@ static bool method_matches_signature(
         return false;
     }
 
-    const int actual_arg_count = (int)tefstd_vector_size(&signature.arg_types);
+    const int actual_arg_count = (int) tefstd_vector_size(&signature.arg_types);
     if (actual_arg_count != args_count) {
         TEKLOG_DEBUG("Parameter count mismatch: expected %d, got %d",
-                    args_count, actual_arg_count);
+                     args_count, actual_arg_count);
         patchlib_method_signature_free(&signature);
         return false;
     }
 
     if (args_types) {
         for (int i = 0; i < args_count; ++i) {
-            const patch_type_t expected_type = *(patch_type_t*)tefstd_vector_at(&signature.arg_types, i);
+            const patch_type_t expected_type = *(patch_type_t *) tefstd_vector_at(&signature.arg_types, i);
 
             patch_type_t actual_type = PATCH_NULL;
 
@@ -185,9 +186,9 @@ static bool method_matches_signature(
     if (args_names) {
         for (int i = 0; i < args_count; ++i) {
             if (args_names[i]) {
-                const char* actual_name = *(const char**)tefstd_vector_at(&signature.arg_names, i);
+                const char *actual_name = *(const char **) tefstd_vector_at(&signature.arg_names, i);
                 TEKLOG_DEBUG("Parameter %d name: expected='%s', actual='%s'",
-                            i, args_names[i], actual_name ? actual_name : "NULL");
+                             i, args_names[i], actual_name ? actual_name : "NULL");
 
                 if (!actual_name || strcmp(actual_name, args_names[i]) != 0) {
                     TEKLOG_DEBUG("Parameter %d name mismatch", i);
@@ -205,10 +206,10 @@ static bool method_matches_signature(
 
 patch_handle_t patchlib_type_find_method(
     const patch_handle_t type,
-    const char* name,
+    const char *name,
     const int args_count,
-    const patch_handle_t* args_types,   // nullable
-    const char** args_names             // nullable
+    const patch_handle_t *args_types, // nullable
+    const char **args_names // nullable
 ) {
     TEKLOG_DEBUG("patchlib_type_find_method called: type=%d, name='%s', args_count=%d",
                  type, name ? name : "NULL", args_count);
@@ -227,8 +228,8 @@ patch_handle_t patchlib_type_find_method(
     patch_handle_t result = PATCH_NULL;
 
     for (int i = 0; i < method_count; ++i) {
-        const patch_handle_t* method = tefstd_vector_at(&methods, i);
-        const char* method_name = patchlib_type_get_name(*method);
+        const patch_handle_t *method = tefstd_vector_at(&methods, i);
+        const char *method_name = patchlib_type_get_name(*method);
 
         TEKLOG_DEBUG("Checking method %d: %d, name: '%s'", i, *method, method_name ? method_name : "NULL");
 
@@ -260,7 +261,7 @@ bool patchlib_type_get_inner_types(const patch_handle_t type, const bool includi
         return false;
     }
 
-    patch_handle_t* inner_types;
+    patch_handle_t *inner_types;
     int count;
     net_type_get_inner_types(type, including_parent, &inner_types, &count);
 
@@ -279,7 +280,7 @@ bool patchlib_type_get_methods(const patch_handle_t type, const bool including_p
         return false;
     }
 
-    patch_handle_t* methods;
+    patch_handle_t *methods;
     int count;
     net_type_get_methods(type, including_parent, &methods, &count);
 
@@ -297,7 +298,7 @@ bool patchlib_type_get_fields(const patch_handle_t type, const bool including_pa
         return false;
     }
 
-    patch_handle_t* fields;
+    patch_handle_t *fields;
     int count;
     net_type_get_fields(type, including_parent, &fields, &count);
 
@@ -316,7 +317,7 @@ bool patchlib_type_get_properties(const patch_handle_t type, const bool includin
         return false;
     }
 
-    patch_handle_t* properties;
+    patch_handle_t *properties;
     int count;
     net_type_get_properties(type, including_parent, &properties, &count);
 
@@ -328,4 +329,15 @@ bool patchlib_type_get_properties(const patch_handle_t type, const bool includin
 
 bool patchlib_type_free(const patch_handle_t type) {
     return net_type_free(type);
+}
+
+bool patchlib_object_free(const patch_handle_t object) {
+    return net_object_free(object);
+}
+
+patch_handle_t patchlib_object_persist(patch_handle_t object) {
+    if (!patchlib_is_valid(object))
+        return PATCH_NULL;
+
+    return net_object_persist(object);
 }

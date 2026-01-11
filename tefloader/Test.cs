@@ -36,15 +36,16 @@ public class Test
     private delegate void TestD();
     public static void Main()
     {
-        Program.CoreLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-debug/libtefkernel.so");
-        Logger.Initialize(Program.CoreLib);
+        Program.TefKernelLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-debug/libtefkernel.so");
+        Logger.Initialize(Program.TefKernelLib);
         NetApi.Initialization.MethodInit.Init();
         NetApi.Initialization.TypeApi.Init();
         NetApi.Initialization.FieldApi.Init();
         NetApi.Initialization.PropertyApi.Init();
+        NetApi.Initialization.StructInit.InitAll();
 
         
-        var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.CoreLib.GetSym("Test"));
+        var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("Test"));
         t();
     }
 }

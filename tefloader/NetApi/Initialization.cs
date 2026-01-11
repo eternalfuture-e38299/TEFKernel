@@ -26,260 +26,265 @@ namespace tefloader.NetApi;
 
 public static class Initialization
 {
-    private static readonly List<Delegate> KeepAliveDelegates = [];
     private static readonly List<IntPtr> KeepAlivePointers = [];
+    private static readonly List<Delegate> KeepAliveDelegates = [];
 
-
-    private static void RegisterApiMethod<T>(Delegate method, string name) where T : Delegate
+    private static void RegisterApiMethod<T>(T method, string name) where T : Delegate
     {
-        var delegateInstance = Delegate.CreateDelegate(typeof(T), method.Target, method.Method) as T;
-        if (delegateInstance == null)
-        {
-            Console.WriteLine($"Failed to create delegate for {name}");
-            return;
-        }
-
-        // 将委托转换为函数指针
-        var functionPointer = Marshal.GetFunctionPointerForDelegate(delegateInstance);
-
-        // 设置到CoreLib
-
-        Program.CoreLib.SetVariable(name, functionPointer);
-        // 保持委托和指针引用，防止GC回收
-        KeepAliveDelegates.Add(delegateInstance);
+        var functionPointer = Marshal.GetFunctionPointerForDelegate(method);
+        Program.TefKernelLib.SetVariable(name, functionPointer);
         KeepAlivePointers.Add(functionPointer);
+        KeepAliveDelegates.Add(method);
         Logger.Info($"Successfully registered {name}");
     }
 
-    // 清理方法（可选）
     public static void Cleanup()
     {
-        KeepAliveDelegates.Clear();
         KeepAlivePointers.Clear();
+        KeepAliveDelegates.Clear();
     }
 
     public static class TypeApi
     {
+        // Type API 委托
+        private delegate int GetTypeDelegate(string ns, string name);
+        private delegate int NewInstanceDelegate(int typeHandle);
+
+        private delegate int TypeMakeGenericDelegate(int typeHandle, IntPtr genericTypes, int typesSize);
+        private delegate string TypeGetNameDelegate(int typeHandle);
+        private delegate IntPtr TypeGetNamespaceDelegate(int typeHandle);
+        private delegate int TypeGetParentDelegate(int typeHandle);
+        private delegate int TypeGetFieldDelegate(int typeHandle, string name);
+        private delegate int TypeGetPropertyDelegate(int typeHandle, string name);
+        private delegate int TypeGetMethodFromArgsCountDelegate(int typeHandle, string name, int argsCount);
+        private delegate int TypeToPatchlibTypeDelegate(int typeHandle);
+        private delegate bool TypeGetInnerTypesDelegate(int typeHandle, bool includingParent, out IntPtr outArray, out int count);
+        private delegate bool TypeGetMethodsDelegate(int typeHandle, bool includingParent, out IntPtr outArray, out int count);
+        private delegate bool TypeGetFieldsDelegate(int typeHandle, bool includingParent, out IntPtr outArray, out int count);
+        private delegate bool TypeGetPropertiesDelegate(int typeHandle, bool includingParent, out IntPtr outArray, out int count);
+        private delegate bool TypeFreeDelegate(int typeHandle);
+        private delegate bool ObjectFreeDelegate(int objectHandle);
+        private delegate int ObjectPersistDelegate(int objectHandle);
+        
         public static void Init()
         {
-            // 注册所有Type API函数
-            RegisterApiMethod<NetGetTypeDelegate>(Type.GetType, "net_get_type");
-            RegisterApiMethod<NetNewInstanceDelegate>(Type.NewInstance, "net_new_instance");
-            RegisterApiMethod<NetTypeMakeGenericDelegate>(Type.TypeMakeGeneric, "net_type_make_generic");
-            RegisterApiMethod<NetTypeGetNameDelegate>(Type.TypeGetName, "net_type_get_name");
-            RegisterApiMethod<NetTypeGetNamespaceDelegate>(Type.TypeGetNamespace, "net_type_get_namespace");
-            RegisterApiMethod<NetTypeGetParentDelegate>(Type.TypeGetParent, "net_type_get_parent");
-            RegisterApiMethod<NetTypeGetFieldDelegate>(Type.TypeGetField, "net_type_get_field");
-            RegisterApiMethod<NetTypeGetPropertyDelegate>(Type.TypeGetProperty, "net_type_get_property");
-            RegisterApiMethod<NetTypeGetMethodFromArgsCountDelegate>(
-                Type.TypeGetMethodFromArgsCount, "net_type_get_method_from_args_count");
-            RegisterApiMethod<NetTypeToPatchlibTypeDelegate>(Type.TypeToPatchlibType, "net_type_to_patchlib_type");
-            RegisterApiMethod<NetTypeGetInnerTypesDelegate>(Type.TypeGetInnerTypes, "net_type_get_inner_types");
-            RegisterApiMethod<NetTypeGetMethodsDelegate>(Type.TypeGetMethods, "net_type_get_methods");
-            RegisterApiMethod<NetTypeGetFieldsDelegate>(Type.TypeGetFields, "net_type_get_fields");
-            RegisterApiMethod<NetTypeGetPropertiesDelegate>(Type.TypeGetProperties, "net_type_get_properties");
-            RegisterApiMethod<NetTypeFreeDelegate>(Type.TypeFree, "net_type_free");
+            RegisterApiMethod<GetTypeDelegate>(Type.GetType, "net_get_type");
+            RegisterApiMethod<NewInstanceDelegate>(Type.NewInstance, "net_new_instance");
+            RegisterApiMethod<TypeMakeGenericDelegate>(Type.TypeMakeGeneric, "net_type_make_generic");
+            RegisterApiMethod<TypeGetNameDelegate>(Type.TypeGetName, "net_type_get_name");
+            RegisterApiMethod<TypeGetNamespaceDelegate>(Type.TypeGetNamespace, "net_type_get_namespace");
+            RegisterApiMethod<TypeGetParentDelegate>(Type.TypeGetParent, "net_type_get_parent");
+            RegisterApiMethod<TypeGetFieldDelegate>(Type.TypeGetField, "net_type_get_field");
+            RegisterApiMethod<TypeGetPropertyDelegate>(Type.TypeGetProperty, "net_type_get_property");
+            RegisterApiMethod<TypeGetMethodFromArgsCountDelegate>(Type.TypeGetMethodFromArgsCount, "net_type_get_method_from_args_count");
+            RegisterApiMethod<TypeToPatchlibTypeDelegate>(Type.TypeToPatchlibType, "net_type_to_patchlib_type");
+            RegisterApiMethod<TypeGetInnerTypesDelegate>(Type.TypeGetInnerTypes, "net_type_get_inner_types");
+            RegisterApiMethod<TypeGetMethodsDelegate>(Type.TypeGetMethods, "net_type_get_methods");
+            RegisterApiMethod<TypeGetFieldsDelegate>(Type.TypeGetFields, "net_type_get_fields");
+            RegisterApiMethod<TypeGetPropertiesDelegate>(Type.TypeGetProperties, "net_type_get_properties");
+            RegisterApiMethod<TypeFreeDelegate>(Type.TypeFree, "net_type_free");
+            RegisterApiMethod<ObjectFreeDelegate>(Type.ObjectFree, "net_object_free");
+            RegisterApiMethod<ObjectPersistDelegate>(Type.ObjectPersist, "net_object_persist");
         }
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetGetTypeDelegate(string ns, string name);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetNewInstanceDelegate(int type);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetTypeFreeDelegate(int type);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeGetFieldDelegate(int type, string name);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetTypeGetFieldsDelegate(int type, bool includingParent, out IntPtr outArray,
-            out int count);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetTypeGetInnerTypesDelegate(int type, bool includingParent, out IntPtr outArray,
-            out int count);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeGetMethodFromArgsCountDelegate(int type, string name, int argsCount);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetTypeGetMethodsDelegate(int type, bool includingParent, out IntPtr outArray,
-            out int count);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        private delegate string NetTypeGetNameDelegate(int type);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate IntPtr NetTypeGetNamespaceDelegate(int type);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeGetParentDelegate(int type);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetTypeGetPropertiesDelegate(int type, bool includingParent, out IntPtr outArray,
-            out int count);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeGetPropertyDelegate(int type, string name);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeMakeGenericDelegate(int type, IntPtr genericTypes, int typesSize);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetTypeToPatchlibTypeDelegate(int type);
     }
 
     public static class FieldApi
     {
+        // Field API 委托
+        private delegate string FieldGetNameDelegate(int fieldHandle);
+        private delegate bool FieldIsStaticDelegate(int fieldHandle);
+        private delegate bool FieldIsConstDelegate(int fieldHandle);
+        private delegate bool FieldIsThreadStaticDelegate(int fieldHandle);
+        private delegate bool FieldGetValueDelegate(int fieldHandle, int objectHandle, IntPtr valueOut);
+        private delegate bool FieldSetValueDelegate(int fieldHandle, int objectHandle, IntPtr valuePtr);
+        private delegate void FieldFreeDelegate(int fieldHandle);
+        
         public static void Init()
         {
-            // 注册所有Field API函数
-            RegisterApiMethod<NetFieldGetNameDelegate>(Field.GetName, "net_field_get_name");
-            RegisterApiMethod<NetFieldIsStaticDelegate>(Field.IsStatic, "net_field_is_static");
-            RegisterApiMethod<NetFieldIsConstDelegate>(Field.IsConst, "net_field_is_const");
-            RegisterApiMethod<NetFieldIsThreadStaticDelegate>(Field.IsThreadStatic, "net_field_is_thread_static");
-            RegisterApiMethod<NetFieldGetValueDelegate>(Field.GetValue, "net_field_get_value");
-            RegisterApiMethod<NetFieldSetValueDelegate>(Field.SetValue, "net_field_set_value");
-            RegisterApiMethod<NetFieldFreeDelegate>(Field.Free, "net_field_free");
+            RegisterApiMethod<FieldGetNameDelegate>(Field.GetName, "net_field_get_name");
+            RegisterApiMethod<FieldIsStaticDelegate>(Field.IsStatic, "net_field_is_static");
+            RegisterApiMethod<FieldIsConstDelegate>(Field.IsConst, "net_field_is_const");
+            RegisterApiMethod<FieldIsThreadStaticDelegate>(Field.IsThreadStatic, "net_field_is_thread_static");
+            RegisterApiMethod<FieldGetValueDelegate>(Field.GetValue, "net_field_get_value");
+            RegisterApiMethod<FieldSetValueDelegate>(Field.SetValue, "net_field_set_value");
+            RegisterApiMethod<FieldFreeDelegate>(Field.Free, "net_field_free");
         }
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        private delegate string NetFieldGetNameDelegate(int fieldHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetFieldIsStaticDelegate(int fieldHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetFieldIsConstDelegate(int fieldHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetFieldIsThreadStaticDelegate(int fieldHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetFieldGetValueDelegate(int fieldHandle, int instanceHandle, IntPtr valueOut);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetFieldSetValueDelegate(int fieldHandle, int instanceHandle, IntPtr valuePtr);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void NetFieldFreeDelegate(int fieldHandle);
     }
 
     public static class PropertyApi
     {
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        private delegate string NetPropertyGetNameDelegate(int propertyHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetPropertyGetGetMethodDelegate(int propertyHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetPropertyGetSetMethodDelegate(int propertyHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void NetPropertyFreeDelegate(int propertyHandle);
-
+        
+        // Property API 委托
+        private delegate string PropertyGetNameDelegate(int propertyHandle);
+        private delegate int PropertyGetGetMethodDelegate(int propertyHandle);
+        private delegate int PropertyGetSetMethodDelegate(int propertyHandle);
+        private delegate void PropertyFreeDelegate(int propertyHandle);
+        
         public static void Init()
         {
-            // 注册所有Property API函数
-            RegisterApiMethod<NetPropertyGetNameDelegate>(Property.GetName, "net_property_get_name");
-            RegisterApiMethod<NetPropertyGetGetMethodDelegate>(Property.GetGetMethod,
-                "net_property_get_get_method");
-            RegisterApiMethod<NetPropertyGetSetMethodDelegate>(Property.GetSetMethod,
-                "net_property_get_set_method");
-            RegisterApiMethod<NetPropertyFreeDelegate>(Property.Free, "net_property_free");
+            RegisterApiMethod<PropertyGetNameDelegate>(Property.GetName, "net_property_get_name");
+            RegisterApiMethod<PropertyGetGetMethodDelegate>(Property.GetGetMethod, "net_property_get_get_method");
+            RegisterApiMethod<PropertyGetSetMethodDelegate>(Property.GetSetMethod, "net_property_get_set_method");
+            RegisterApiMethod<PropertyFreeDelegate>(Property.Free, "net_property_free");
         }
     }
 
     public static class MethodInit
     {
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        private delegate string NetMethodGetNameDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetMethodGetParamCountDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetMethodIsInstanceDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetMethodMakeGenericMethodDelegate(int methodHandle, IntPtr genericTypes,
-            int typesSize);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetMethodGetReturnTypeDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetMethodGetParamDelegate(int methodHandle, int index);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate string NetMethodGetParamNameDelegate(int methodHandle, int index);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private delegate bool NetMethodInvokeDelegate(int methodHandle, int instanceHandle, int argCount,
+        // Method API 委托
+        private delegate string MethodGetNameDelegate(int methodHandle);
+        private delegate int MethodGetParamCountDelegate(int methodHandle);
+        private delegate bool MethodIsInstanceDelegate(int methodHandle);
+        private delegate int MethodMakeGenericDelegate(int methodHandle, IntPtr genericTypes, int typesSize);
+        private delegate int MethodGetReturnTypeDelegate(int methodHandle);
+        private delegate int MethodGetParamDelegate(int methodHandle, int index);
+        private delegate string MethodGetParamNameDelegate(int methodHandle, int index);
+        private delegate bool MethodInvokeDelegate(int methodHandle, int instanceHandle, int argCount, 
             IntPtr returnValue, IntPtr argsPtr, IntPtr typesPtr);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void NetMethodFreeDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate ushort NetHookMethodDelegate(int methodHandle, IntPtr methodSignature, 
-            IntPtr prefixHook, IntPtr postfixHook);
-    
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate bool NetUnhookMethodDelegate(ushort nodeIndex);
-    
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate bool NetHasSingleHookNodeDelegate(int methodHandle);
-    
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate bool NetIsMethodHookedDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate IntPtr NetGetHookedMethodSigDelegate(int methodHandle);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int NetGetMethodByNodeDelegate(ushort nodeIndex);
-        
+        private delegate void MethodFreeDelegate(int methodHandle);
+        private delegate ushort HookMethodDelegate(int methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook);
+        private delegate bool UnHookMethodDelegate(ushort nodeIndex);
+        private delegate bool HasSingleHookNodeDelegate(int methodHandle);
+        private delegate bool IsMethodHookedDelegate(int methodHandle);
+        private delegate IntPtr GetHookedMethodSigDelegate(int methodHandle);
+        private delegate int GetMethodByNodeDelegate(ushort nodeIndex);
         
         public static void Init()
         {
-            // 注册所有Method API函数
-            RegisterApiMethod<NetMethodGetNameDelegate>(Method.GetName, "net_method_get_name");
-            RegisterApiMethod<NetMethodGetParamCountDelegate>(Method.GetParamCount, "net_method_get_param_count");
-            RegisterApiMethod<NetMethodIsInstanceDelegate>(Method.IsInstance, "net_method_is_instance");
-            RegisterApiMethod<NetMethodMakeGenericMethodDelegate>(Method.MakeGeneric,
-                "net_method_make_generic_method");
-            RegisterApiMethod<NetMethodGetReturnTypeDelegate>(Method.GetReturnType, "net_method_get_return_type");
-            RegisterApiMethod<NetMethodGetParamDelegate>(Method.GetParam, "net_method_get_param");
-            RegisterApiMethod<NetMethodGetParamNameDelegate>(Method.GetParamName, "net_method_get_param_name");
-            RegisterApiMethod<NetMethodInvokeDelegate>(Method.Invoke, "net_method_invoke");
-            RegisterApiMethod<NetMethodFreeDelegate>(Method.Free, "net_method_free");
-            
-            RegisterApiMethod<NetHookMethodDelegate>(Method.HookMethod, "net_hook_method");
-            RegisterApiMethod<NetUnhookMethodDelegate>(Method.UnHookMethod, "net_unhook_method");
-            RegisterApiMethod<NetHasSingleHookNodeDelegate>(Method.HasSingleHookNode, "net_has_single_hook_node");
-            RegisterApiMethod<NetIsMethodHookedDelegate>(Method.IsMethodHooked, "net_is_method_hooked");
-            RegisterApiMethod<NetGetHookedMethodSigDelegate>(Method.GetHookedMethodSig, "net_get_hooked_method_sig");
-            RegisterApiMethod<NetGetMethodByNodeDelegate>(Method.GetMethodByNode, "net_get_method_by_hook_node");
+            RegisterApiMethod<MethodGetNameDelegate>(Method.GetName, "net_method_get_name");
+            RegisterApiMethod<MethodGetParamCountDelegate>(Method.GetParamCount, "net_method_get_param_count");
+            RegisterApiMethod<MethodIsInstanceDelegate>(Method.IsInstance, "net_method_is_instance");
+            RegisterApiMethod<MethodMakeGenericDelegate>(Method.MakeGeneric, "net_method_make_generic_method");
+            RegisterApiMethod<MethodGetReturnTypeDelegate>(Method.GetReturnType, "net_method_get_return_type");
+            RegisterApiMethod<MethodGetParamDelegate>(Method.GetParam, "net_method_get_param");
+            RegisterApiMethod<MethodGetParamNameDelegate>(Method.GetParamName, "net_method_get_param_name");
+            RegisterApiMethod<MethodInvokeDelegate>(Method.Invoke, "net_method_invoke");
+            RegisterApiMethod<MethodFreeDelegate>(Method.Free, "net_method_free");
+            RegisterApiMethod<HookMethodDelegate>(Method.HookMethod, "net_hook_method");
+            RegisterApiMethod<UnHookMethodDelegate>(Method.UnHookMethod, "net_unhook_method");
+            RegisterApiMethod<HasSingleHookNodeDelegate>(Method.HasSingleHookNode, "net_has_single_hook_node");
+            RegisterApiMethod<IsMethodHookedDelegate>(Method.IsMethodHooked, "net_is_method_hooked");
+            RegisterApiMethod<GetHookedMethodSigDelegate>(Method.GetHookedMethodSig, "net_get_hooked_method_sig");
+            RegisterApiMethod<GetMethodByNodeDelegate>(Method.GetMethodByNode, "net_get_method_by_hook_node");
         }
+    }
+
+    public static class StructInit
+    {
+        public static void InitAll()
+        {
+            ArrayInit.Init();
+            StringInit.Init();
+            ListInit.Init();
+            DictionaryInit.Init();
+        }
+
+    
+
+
+        private static class ArrayInit
+        {
+            // Array 委托
+            private delegate int ArrayCreateDelegate(int size, int type);
+            private delegate bool ArrayAtDelegate(int arrayHandle, int index, IntPtr outValue);
+            private delegate bool ArraySetDelegate(int arrayHandle, int index, IntPtr valuePtr, Type.PatchType type);
+            private delegate bool ArrayFillDelegate(int arrayHandle, IntPtr valuePtr, Type.PatchType type);
+            private delegate int ArrayLengthDelegate(int arrayHandle);
+            private delegate bool ArrayClearDelegate(int arrayHandle);
+            
+            public static void Init()
+            {
+                RegisterApiMethod<ArrayCreateDelegate>(Struct.Array.Create, "net_array_create");
+                RegisterApiMethod<ArrayAtDelegate>(Struct.Array.At, "net_array_at");
+                RegisterApiMethod<ArraySetDelegate>(Struct.Array.Set, "net_array_set");
+                RegisterApiMethod<ArrayFillDelegate>(Struct.Array.Fill, "net_array_fill");
+                RegisterApiMethod<ArrayLengthDelegate>(Struct.Array.Length, "net_array_length");
+                RegisterApiMethod<ArrayClearDelegate>(Struct.Array.Clear, "net_array_clear");
+            }
+        }
+        
+        private static class StringInit
+        {
+            
+            // String 委托
+            private delegate int StringCreateDelegate(IntPtr strPtr, int length);
+            private delegate IntPtr StringCStr16Delegate(int strHandle);
+            private delegate IntPtr StringCStrDelegate(int strHandle);
+            private delegate bool StringEmptyDelegate(int strHandle);
+            private delegate int StringLengthDelegate(int strHandle);
+
+            
+            public static void Init()
+            {
+                RegisterApiMethod<StringCreateDelegate>(Struct.String.Create, "net_string_create");
+                RegisterApiMethod<StringCStr16Delegate>(Struct.String.CStr16, "net_string_cstr16");
+                RegisterApiMethod<StringCStrDelegate>(Struct.String.CStr, "net_string_cstr");
+                RegisterApiMethod<StringEmptyDelegate>(Struct.String.Empty, "net_string_empty");
+                RegisterApiMethod<StringLengthDelegate>(Struct.String.Length, "net_string_length");
+            }
+        }
+
+        private static class ListInit
+        {
+            
+            // List 委托
+            private delegate int ListCreateDelegate(int capacity, int type);
+            private delegate bool ListCopyFromDelegate(int listHandle, int arrayHandle);
+            private delegate bool ListAddDelegate(int listHandle, IntPtr valuePtr);
+            private delegate bool ListRemoveDelegate(int listHandle, IntPtr valuePtr);
+            private delegate bool ListRemoveAtDelegate(int listHandle, int index);
+            private delegate bool ListClearDelegate(int listHandle);
+            private delegate int ListGetArrayDelegate(int listHandle);
+            
+            public static void Init()
+            {
+                RegisterApiMethod<ListCreateDelegate>(Struct.List.Create, "net_list_create");
+                RegisterApiMethod<ListCopyFromDelegate>(Struct.List.CopyFrom, "net_list_copy_from");
+                RegisterApiMethod<ListAddDelegate>(Struct.List.Add, "net_list_add");
+                RegisterApiMethod<ListRemoveDelegate>(Struct.List.Remove, "net_list_remove");
+                RegisterApiMethod<ListRemoveAtDelegate>(Struct.List.RemoveAt, "net_list_remove_at");
+                RegisterApiMethod<ListClearDelegate>(Struct.List.Clear, "net_list_clear");
+                RegisterApiMethod<ListGetArrayDelegate>(Struct.List.GetArray, "net_list_get_array");
+            }
+        }
+        
+        private static class DictionaryInit
+        {
+            
+            // Dictionary 委托
+            private delegate int DictionaryCreateDelegate(int keyTypeHandle, int valueTypeHandle, int capacity);
+            private delegate bool DictionaryAddDelegate(int dictionaryHandle, IntPtr keyPtr, IntPtr valuePtr);
+            private delegate bool DictionaryGetValueDelegate(int dictionaryHandle, IntPtr keyPtr, IntPtr outValuePtr);
+            private delegate bool DictionarySetValueDelegate(int dictionaryHandle, IntPtr keyPtr, IntPtr valuePtr);
+            private delegate bool DictionaryClearDelegate(int dictionaryHandle);
+            private delegate int DictionaryLengthDelegate(int dictionaryHandle);
+            private delegate bool DictionaryRemoveDelegate(int dictionaryHandle, IntPtr keyPtr);
+
+            
+            public static void Init()
+            {
+                RegisterApiMethod<DictionaryCreateDelegate>(Struct.Dictionary.Create, "net_dictionary_create");
+                RegisterApiMethod<DictionaryAddDelegate>(Struct.Dictionary.Add, "net_dictionary_add");
+                RegisterApiMethod<DictionaryGetValueDelegate>(Struct.Dictionary.GetValue, "net_dictionary_get_value");
+                RegisterApiMethod<DictionarySetValueDelegate>(Struct.Dictionary.SetValue, "net_dictionary_set_value");
+                RegisterApiMethod<DictionaryClearDelegate>(Struct.Dictionary.Clear, "net_dictionary_clear");
+                RegisterApiMethod<DictionaryLengthDelegate>(Struct.Dictionary.Length, "net_dictionary_length");
+                RegisterApiMethod<DictionaryRemoveDelegate>(Struct.Dictionary.Remove, "net_dictionary_remove");
+            }
+        }
+    }
+
+    // 主初始化方法
+    public static void InitializeAllApis()
+    {
+        Logger.Info("Starting API initialization...");
+        
+        TypeApi.Init();
+        FieldApi.Init();
+        PropertyApi.Init();
+        MethodInit.Init();
+        StructInit.InitAll();
+        
+        Logger.Info("All APIs initialized successfully");
     }
 }

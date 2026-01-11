@@ -137,6 +137,7 @@ bool patchlib_method_signature_free(patch_method_signature_t* signature) {
 
     tefstd_vector_destroy(&signature->arg_types);
     tefstd_vector_destroy(&signature->arg_names);
+    patchlib_method_free(signature->method);
     signature->method = PATCH_NULL;
     signature->is_instance = 0;
     signature->return_type = PATCH_VOID;

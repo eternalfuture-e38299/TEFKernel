@@ -41,6 +41,10 @@ else ()
             src/patchlib/desktop/property.c
             src/patchlib/desktop/method.c
             src/patchlib/desktop/net_api.c
+            src/patchlib/desktop/struct/array.c
+            src/patchlib/desktop/struct/string.c
+            src/patchlib/desktop/struct/list.c
+            src/patchlib/desktop/struct/dictionary.c
     )
 endif ()
 

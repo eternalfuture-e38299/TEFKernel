@@ -57,6 +57,13 @@ extern "C" {
 #endif
 
 /**
+ * @brief 持久化对象
+ * @param object 对象句柄
+ * @return 持久化后的句柄
+ */
+DEFINE_NETAPI_FUNCTION(int, net_object_persist, int object)
+
+/**
  * @brief 获取类型
  * @param ns 命名空间
  * @param name 名称
@@ -195,6 +202,14 @@ DEFINE_NETAPI_FUNCTION(bool, net_type_get_properties, patch_handle_t type, bool 
  * @return 执行结果
  */
 DEFINE_NETAPI_FUNCTION(bool, net_type_free, patch_handle_t type);
+
+/**
+ * @brief 卸载对象句柄
+ * @param type 对象句柄
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_object_free, patch_handle_t type);
+
 
 /**
  * @brief 获取字段名称
@@ -395,6 +410,204 @@ DEFINE_NETAPI_FUNCTION(void*, net_get_hooked_method_sig, patch_handle_t method);
  * @param method 函数句柄
  */
 DEFINE_NETAPI_FUNCTION(void, net_method_free, patch_handle_t method);
+
+/**
+ * @brief 创建数组实例
+ * @param size 数组大小
+ * @param type 数组类型
+ * @return 数组实例
+ */
+DEFINE_NETAPI_FUNCTION(patch_handle_t, net_array_create, size_t size, patch_handle_t type);
+
+/**
+ * @brief 访问数组元素
+ * @param array 数组句柄
+ * @param index 引索
+ * @param out_value[out] 输出值
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_array_at, patch_handle_t array, int index, void* out_value);
+
+/**
+ * @brief 访问数组元素
+ * @param array 数组句柄
+ * @param index 引索
+ * @param value[in] 输入值
+ * @param type 值类型
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_array_set, patch_handle_t array, int index, void* value, int type);
+
+/**
+ * @brief 访问数组元素
+ * @param array 数组句柄
+ * @param value[in] 输入值
+ * @param type 值类型
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_array_fill, patch_handle_t array, void* value, int type);
+
+/**
+ * @brief 获取数组长度
+ * @param array 数组句柄
+ * @return 数组长度
+ */
+DEFINE_NETAPI_FUNCTION(int, net_array_length, int array)
+
+/**
+ * @brief 清空数组
+ * @param array 数组句柄
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_array_clear, int array);
+
+/**
+ * @brief 创建字符串
+ * @param str 字符串指针
+ * @param length 字符串长度
+ * @return 字符串句柄
+ */
+DEFINE_NETAPI_FUNCTION(int, net_string_create, const char* str, int length)
+
+/**
+ * @brief 获取UTF16字符串
+ * @param str 字符串句柄
+ * @return UTF16字符串指针
+ */
+DEFINE_NETAPI_FUNCTION(wchar_t*, net_string_cstr16, int str)
+
+/**
+ * @brief 获取C字符串
+ * @param str 字符串句柄
+ * @return C字符串指针
+ */
+DEFINE_NETAPI_FUNCTION(char*, net_string_cstr, int str)
+
+/**
+ * @brief 判断字符串是否为空
+ * @param str 字符串句柄
+ * @return 是否为空
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_string_empty, int str)
+
+/**
+ * @brief 获取字符串长度
+ * @param str 字符串句柄
+ * @return 字符串长度
+ */
+DEFINE_NETAPI_FUNCTION(int, net_string_length, int str)
+
+/**
+ * @brief 创建列表
+ * @param capacity 初始容量
+ * @param type 元素类型
+ * @return 列表句柄
+ */
+DEFINE_NETAPI_FUNCTION(int, net_list_create, int capacity, int type)
+
+/**
+ * @brief 从数组复制到列表
+ * @param list 列表句柄
+ * @param array 数组句柄
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_list_copy_from, int list, int array)
+
+/**
+ * @brief 向列表添加元素
+ * @param list 列表句柄
+ * @param value 值指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_list_add, int list, void* value)
+
+/**
+ * @brief 从列表中移除元素
+ * @param list 列表句柄
+ * @param value 值指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_list_remove, int list, void* value)
+
+/**
+ * @brief 移除指定索引的元素
+ * @param list 列表句柄
+ * @param index 索引
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_list_remove_at, int list, int index)
+
+/**
+ * @brief 清空列表
+ * @param list 列表句柄
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_list_clear, int list)
+
+/**
+ * @brief 获取列表内部的数组
+ * @param list 列表句柄
+ * @return 数组句柄
+ */
+DEFINE_NETAPI_FUNCTION(int, net_list_get_array, int list)
+
+/**
+ * @brief 创建字典
+ * @param key_type 键类型
+ * @param value_type 值类型
+ * @param capacity 初始容量
+ * @return 字典句柄
+ */
+DEFINE_NETAPI_FUNCTION(int, net_dictionary_create, int key_type, int value_type, int capacity)
+
+/**
+ * @brief 向字典添加键值对
+ * @param dictionary 字典句柄
+ * @param key 键指针
+ * @param value 值指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_dictionary_add, int dictionary, void* key, void* value)
+
+/**
+ * @brief 获取字典值
+ * @param dictionary 字典句柄
+ * @param key 键指针
+ * @param out_value 输出值指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_dictionary_get_value, int dictionary, void* key, void* out_value)
+
+/**
+ * @brief 设置字典值
+ * @param dictionary 字典句柄
+ * @param key 键指针
+ * @param value 值指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_dictionary_set_value, int dictionary, void* key, void* value)
+
+/**
+ * @brief 清空字典
+ * @param dictionary 字典句柄
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_dictionary_clear, int dictionary)
+
+/**
+ * @brief 获取字典长度
+ * @param dictionary 字典句柄
+ * @return 字典长度
+ */
+DEFINE_NETAPI_FUNCTION(int, net_dictionary_length, int dictionary)
+
+/**
+ * @brief 移除字典项
+ * @param dictionary 字典句柄
+ * @param key 键指针
+ * @return 执行结果
+ */
+DEFINE_NETAPI_FUNCTION(bool, net_dictionary_remove, int dictionary, void* key)
 
 #ifdef __cplusplus
 }

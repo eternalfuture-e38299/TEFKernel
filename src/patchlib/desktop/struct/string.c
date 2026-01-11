@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - desktop_runtime_core
+ * tefkernel - string
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,44 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/1/3
+ * Created: 2026/1/11
  *******************************************************************************/
 
-#include "tef_api.h"
+#include "patchlib/struct/string.h"
+#include "../net_api.h"
 
-void Test();
-API_EXPORT int init_ary() {
-    Test();
-    return 0;
+#include <string.h>
+
+
+patch_handle_t patchlib_string_create(const char* str) {
+    if (!str) {
+        return net_string_create(NULL, 0);
+    }
+    return net_string_create(str, (int)strlen(str));
+}
+
+const wchar_t* patchlib_string_cstr16(const patch_handle_t str) {
+    if (!patchlib_is_valid(str)) {
+        return NULL;
+    }
+    return net_string_cstr16(str);
+}
+
+char* patchlib_string_cstr(const patch_handle_t str) {
+    if (!patchlib_is_valid(str)) {
+        return NULL;
+    }
+    return net_string_cstr(str);
+}
+
+bool patchlib_string_empty(const patch_handle_t str) {
+    if (!patchlib_is_valid(str))
+        return true;
+    return net_string_empty(str);
+}
+
+size_t patchlib_string_length(const patch_handle_t str) {
+    if (!patchlib_is_valid(str))
+        return 0;
+    return (size_t)net_string_length(str);
 }

@@ -22,7 +22,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../include/modloader/modloader_core.h"
 #include "../include/memdl/memdl.h"

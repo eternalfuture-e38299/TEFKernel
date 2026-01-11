@@ -128,7 +128,7 @@ public static class Utils
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"SetNativeValue error: {ex.Message}");
+            Logger.Error($"SetNativeValue error: {ex.Message}");
             return false;
         }
     }
@@ -197,8 +197,10 @@ public static class Utils
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"GetNativeValue error: {ex.Message}");
+            Logger.Error($"GetNativeValue error: {ex.Message}");
             return null;
         }
     }
+    
+    
 }

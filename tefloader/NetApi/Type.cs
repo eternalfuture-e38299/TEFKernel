@@ -25,8 +25,45 @@ using System.Runtime.InteropServices;
 
 namespace tefloader.NetApi;
 
-public class Type
+public static class Type
 {
+    public enum PatchType {
+        PatchVoid,
+        PatchInt8,
+        PatchInt16,
+        PatchInt32,
+        PatchInt64,
+        PatchUint8,
+        PatchUint16,
+        PatchUint32,
+        PatchUint64,
+        PatchBool,
+        PatchFloat,
+        PatchDouble,
+        PatchPointer,
+        PatchObject,
+        PatchChar
+    };
+    
+    public static readonly Dictionary<PatchType, System.Type> TypeMapping = new()
+    {
+        { PatchType.PatchVoid, typeof(void) },
+        { PatchType.PatchInt8, typeof(sbyte) },
+        { PatchType.PatchInt16, typeof(short) },
+        { PatchType.PatchInt32, typeof(int) },
+        { PatchType.PatchInt64, typeof(long) },
+        { PatchType.PatchUint8, typeof(byte) },
+        { PatchType.PatchUint16, typeof(ushort) },
+        { PatchType.PatchUint32, typeof(uint) },
+        { PatchType.PatchUint64, typeof(ulong) },
+        { PatchType.PatchBool, typeof(bool) },
+        { PatchType.PatchFloat, typeof(float) },
+        { PatchType.PatchDouble, typeof(double) },
+        { PatchType.PatchPointer, typeof(IntPtr) },
+        { PatchType.PatchObject, typeof(object) },
+        { PatchType.PatchChar, typeof(char) }
+    };
+    
     /// <summary>
     /// 获取类型句柄
     /// </summary>
@@ -531,5 +568,19 @@ public class Type
         
         Asset.Types.RemoveAt(typeHandle);
         return true;
+    }
+
+    public static bool ObjectFree(int objectHandle)
+    {
+        if (objectHandle < 0) return false;
+        
+        Asset.Objects.RemoveAt(objectHandle);
+        return true;
+    }
+
+    public static int ObjectPersist(int objectHandle)
+    {
+        var o = Asset.Objects[objectHandle];
+        return Asset.Objects.Add(o);
     }
 }

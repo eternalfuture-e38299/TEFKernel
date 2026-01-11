@@ -218,6 +218,12 @@ DEFINE_FUNCTION(bool, patchlib_uninstall_hook, patch_hook_id_t hook_id)
  */
 DEFINE_FUNCTION(bool, patchlib_method_free, patch_handle_t method)
 
+#if __ANDROID__
+
+#    define patchlib_method_free(handle) ((void)0)
+
+#endif
+
 #ifdef __cplusplus
 }
 #endif

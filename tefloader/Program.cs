@@ -21,32 +21,37 @@
 //  *******************************************************************************/
 
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using static System.Reflection.Assembly;
 
 namespace tefloader;
 
-public class Program
+public abstract class Program
 {
-    private const string LaunchConfig = "Launch.json";
+    private const string LaunchConfig = "TEFKernel_Launch.json";
     private static string _exePath = "Terraria.exe";
-    
-    public static LibLoader CoreLib = new();
+    private static string _workDirs = string.Empty;
 
+    public static readonly LibLoader TefKernelLib = new();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int InitAryDelegate([MarshalAs(UnmanagedType.LPStr)]string workDirs);
+    private static InitAryDelegate? _initAry;
+    
     public static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-        
+
         if (!File.Exists(LaunchConfig))
         {
             const string defaultJson = """
 
                                        {
-                                         "corelib": "libtefmodloader.so",
-                                         "enable_debugtool": true,
-                                         "original_mods_directory": "",
-                                         "mods_directory": "TEFMods",
+                                         "tefkernel_lib": "libtefkernel.so",
+                                         "work_directory": ".",
                                          "exe_path": "Terraria.exe"
                                        }                
 
@@ -57,18 +62,25 @@ public class Program
         var jsonContent = File.ReadAllText(LaunchConfig);
         var config = JObject.Parse(jsonContent);
 
-        CoreLib.LoadLib((string)config["corelib"]!);
-        
+        TefKernelLib.LoadLib((string)config["tefkernel_lib"]!);
+        _workDirs = (string)config["work_directory"]!;
         var exePath = config["exe_path"]?.Value<string>();
         if (exePath != null)
             _exePath = exePath;
 
-        Logger.Initialize(CoreLib);
+        Logger.Initialize(TefKernelLib);
+        NetApi.Initialization.MethodInit.Init();
+        NetApi.Initialization.TypeApi.Init();
+        NetApi.Initialization.FieldApi.Init();
+        NetApi.Initialization.PropertyApi.Init();
+        NetApi.Initialization.StructInit.InitAll();
+        
+        _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_ary"));
 
         Launch(args);
     }
-    
-        private static void LoadEmbeddedDependencies()
+
+    private static void LoadEmbeddedDependencies()
     {
         try
         {
@@ -314,13 +326,13 @@ public class Program
         Logger.Info("Preparing to invoke entry point...");
         Logger.Debug($"Parameter count: {entryPoint.GetParameters().Length}");
         try
-        {/*
-            HookManager.Harmony.Patch(targetAssembly.GetType("Terraria.Program").GetMethod("SetupLogging",
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance),
-                postfix: new HarmonyMethod(typeof(Program), nameof(SetupLoggingPrefix)));
+        {
+                HookManager.Harmony.Patch(targetAssembly.GetType("Terraria.Program").GetMethod("SetupLogging",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance),
+                    postfix: new HarmonyMethod(typeof(Program), nameof(SetupLoggingPrefix)));
 
-            entryPoint.Invoke(null, parameters);
-            */
+                entryPoint.Invoke(null, parameters);
+                
 
             Logger.Info("Terraria main program has exited");
         }
@@ -347,13 +359,13 @@ public class Program
         }
     }
 
-    /*
+    
     [HarmonyPrefix]
     public static void SetupLoggingPrefix()
     {
         try
         {
-            Initializer.Launch([], true);
+            Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
         }
         catch (Exception ex)
         {
@@ -361,5 +373,5 @@ public class Program
             Logger.Error($"Message: {ex.Message}");
             Logger.Debug($"Stack trace:\n{ex.StackTrace}");
         }
-    }*/
+    }
 }

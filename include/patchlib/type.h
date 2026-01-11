@@ -31,11 +31,14 @@
 #ifndef TEFKERNEL_TYPE_H
 #define TEFKERNEL_TYPE_H
 
+#include <stdint.h>
+
 #include "../tef_api.h"
 #include "../tefstd/vector.h"
 
 #ifdef __cplusplus
 extern "C" {
+
 
 #endif
 
@@ -44,7 +47,7 @@ extern "C" {
 typedef void *patch_handle_t;
 #define PATCH_NULL NULL
 #else
-typedef int patch_handle_t;
+typedef int32_t patch_handle_t;
 #define PATCH_NULL (-1)
 #endif
 
@@ -296,6 +299,30 @@ DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool in
  * @return 执行结果
  */
 DEFINE_FUNCTION(bool, patchlib_type_free, patch_handle_t type)
+
+/**
+ * @brief 释放对象
+ * @param object 对象句柄
+ * @return 执行结果
+ */
+DEFINE_FUNCTION(bool, patchlib_object_free, patch_handle_t object)
+
+/**
+ * @brief 持久化保存对象
+ * @param object 临时对象句柄
+ * @return 持久化后的对象句柄
+ * @note 用于将hook等场景中的临时对象持久化保存，
+ *       避免函数结束后对象被自动卸载
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_object_persist, patch_handle_t object);
+
+#if __ANDROID__
+
+#    define patchlib_type_free(handle) ((void)0)
+#    define patchlib_object_free(handle) ((void)0)
+#    define patchlib_object_persist(handle) ((void)0)
+
+#endif
 
 #ifdef __cplusplus
 }
