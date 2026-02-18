@@ -95,7 +95,7 @@ patch_handle_t patchlib_type_new_instance(patch_handle_t type) {
     patch_handle_t result = il2cpp_object_new(type);
 
     if (result) {
-        TEKLOG_INFO("Successfully created new instance: %p for type %s.%s",
+        TEKLOG_DEBUG("Successfully created new instance: %p for type %s.%s",
                     result,
                     type_namespace ? type_namespace : "NULL",
                     type_name ? type_name : "NULL");
@@ -121,7 +121,7 @@ patch_handle_t patchlib_type_make_generic_type(patch_handle_t generic_type_def, 
     patch_handle_t c_mono_type = patchlib_type_get_mono_type(generic_type_def);
     TEKLOG_DEBUG("Mono type: %p", c_mono_type);
 
-    void *type_array = create_type_array_from_vector(type_args);
+    void *type_array = create_type_array_from_vector(type_args, il2cpp_class_from_name(il2cpp_get_corlib(), "System", "Type"));
     TEKLOG_DEBUG("Type array created: %p", type_array);
 
     void *generic_type = ((void*(*)(void *, void *)) patchlib_method_get_pointer(patchlib_MakeGenericType))(
@@ -304,7 +304,7 @@ patch_handle_t patchlib_type_find_method(
     const patch_handle_t* args_types,   // nullable
     const char** args_names             // nullable
 ) {
-    TEKLOG_DEBUG("patchlib_type_find_method called: type=%p, name='%s', args_count=%d",
+    TEKLOG_DEBUG("patchlib_type_find_method: type=%p, name='%s', args_count=%d",
                  type, name ? name : "NULL", args_count);
 
     if (!type || !name) {
@@ -319,18 +319,17 @@ patch_handle_t patchlib_type_find_method(
     TEKLOG_DEBUG("Searching in %zu methods", method_count);
 
     patch_handle_t result = PATCH_NULL;
+    int matched_count = 0;
 
     for (int i = 0; i < method_count; ++i) {
         void* method = *(void**)tefstd_vector_at(&methods, i);
         const char* method_name = il2cpp_method_get_name(method);
 
-        TEKLOG_DEBUG("Checking method %d: %p, name: '%s'", i, method, method_name ? method_name : "NULL");
-
         if (method_name && strcmp(method_name, name) == 0) {
-            TEKLOG_DEBUG("Method name matches, checking arguments");
+            matched_count++;
             if (method_matches_args(method, args_count, args_types, args_names)) {
                 result = method;
-                TEKLOG_INFO("Found matching method: %p", result);
+                TEKLOG_INFO("Found matching method: %p (matches: %d)", result, matched_count);
                 break;
             }
         }
@@ -339,7 +338,8 @@ patch_handle_t patchlib_type_find_method(
     tefstd_vector_destroy(&methods);
 
     if (result == PATCH_NULL) {
-        TEKLOG_WARN("No matching method found: %s with %d parameters", name, args_count);
+        TEKLOG_WARN("No matching method found: %s with %d parameters (checked %d/%zu)",
+                   name, args_count, matched_count, method_count);
     }
 
     return result;
@@ -351,8 +351,8 @@ static bool patchlib_collect_from_type_hierarchy(
     const bool including_parent,
     tef_vector_t *array,
     const il2cpp_class_iterator_fn iterator_fn) {
-    TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy called: start_type=%p, including_parent=%s, array=%p",
-                 start_type, including_parent ? "true" : "false", array);
+    TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy: start_type=%p, including_parent=%s",
+                 start_type, including_parent ? "true" : "false");
 
     if (!array || !iterator_fn) {
         TEKLOG_ERROR("Invalid array or iterator function");
@@ -361,58 +361,42 @@ static bool patchlib_collect_from_type_hierarchy(
 
     tefstd_vector_init(array, sizeof(patch_handle_t));
 
-    // 检查向量状态
-    TEKLOG_DEBUG("Vector initial state: size=%zu, capacity=%zu, element_size=%zu",
-                 tefstd_vector_size(array), tefstd_vector_capacity(array), array->elem_size);
-
     void *current_type = start_type;
     int hierarchy_level = 0;
     size_t total_collected = 0;
+    bool collection_success = true;
 
     do {
-        TEKLOG_DEBUG("Collecting from hierarchy level %d, type: %p", hierarchy_level, current_type);
-
         void *iter = NULL;
         const void *item;
         int level_item_count = 0;
 
         while ((item = iterator_fn(current_type, &iter)) != NULL) {
-            TEKLOG_DEBUG("Found item %d at level %d: %p", level_item_count, hierarchy_level, item);
-
             if (tefstd_vector_push_back(array, &item)) {
                 level_item_count++;
                 total_collected++;
-                TEKLOG_DEBUG("Successfully added item to vector: %p (new size: %zu)",
-                            item, tefstd_vector_size(array));
-
-                // 验证添加的内容
-                void **last_item = tefstd_vector_at(array, tefstd_vector_size(array) - 1);
-                if (last_item && *last_item == item) {
-                    TEKLOG_DEBUG("Item verification passed: stored=%p, expected=%p", *last_item, item);
-                } else {
-                    TEKLOG_ERROR("Item verification failed: stored=%p, expected=%p",
-                                last_item ? *last_item : NULL, item);
-                }
             } else {
                 TEKLOG_ERROR("Failed to add item to vector: %p", item);
+                collection_success = false;
+                break;
             }
         }
 
-        TEKLOG_DEBUG("Level %d: collected %d items, vector size now: %zu",
-                    hierarchy_level, level_item_count, tefstd_vector_size(array));
+        if (level_item_count > 0) {
+            TEKLOG_TRACE("Level %d: collected %d items", hierarchy_level, level_item_count);
+        }
 
         if (!including_parent)
             break;
 
         hierarchy_level++;
         current_type = il2cpp_class_get_parent(current_type);
-        TEKLOG_DEBUG("Moving to parent type: %p", current_type);
     } while (current_type != NULL);
 
-    TEKLOG_DEBUG("Collection completed: total_collected=%zu, final_vector_size=%zu",
-                total_collected, tefstd_vector_size(array));
+    TEKLOG_DEBUG("Collection completed: total_collected=%zu, final_vector_size=%zu, success=%s",
+                total_collected, tefstd_vector_size(array), collection_success ? "true" : "false");
 
-    return true;
+    return collection_success;
 }
 
 bool patchlib_type_get_inner_types(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
@@ -469,11 +453,4 @@ bool patchlib_type_get_properties(patch_handle_t type, const bool including_pare
     bool result = patchlib_collect_from_type_hierarchy(type, including_parent, array, il2cpp_class_get_properties);
     TEKLOG_DEBUG("Get properties result: %s, count: %zu", result ? "success" : "failed", tefstd_vector_size(array));
     return result;
-}
-
-bool patchlib_type_free(patch_handle_t type) {
-    TEKLOG_DEBUG("patchlib_type_free called: type=%p", type);
-    // 实际的内存释放逻辑（如果有的话）
-    TEKLOG_DEBUG("Type freed successfully");
-    return true;
 }

@@ -78,7 +78,7 @@ static void init_g_hooks() {
     tefstd_vector_init(&g_hooks.hook_handles, sizeof(patchlib_hook_handle_t*));
     tefstd_hashmap_init(&g_hooks.hooks, sizeof(patch_hook_id_t), sizeof(patchlib_hook_node_t*));
     tefstd_hashmap_init(&g_hooks.method_to_handle, sizeof(void*), sizeof(patchlib_hook_handle_t*));
-    g_hooks.next_hook_id = 1;
+    g_hooks.next_hook_id = 0;
 
     g_hooks.initialized = true;
     TEKLOG_INFO("Hook system initialized successfully");

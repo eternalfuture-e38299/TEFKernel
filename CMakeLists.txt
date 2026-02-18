@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.28.3)
 project(tefkernel C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -129,15 +129,16 @@ target_include_directories(tefkernel
         include
         src
 )
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    add_custom_command(TARGET tefkernel POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
-            COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:tefkernel>
-            COMMENT "Stripping symbols from tefkernel library using strip command"
-            VERBATIM
-    )
-endif()
+if (${CMAKE_C_FLAGS_RELEASE})
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        add_custom_command(TARGET tefkernel POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
+                COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:tefkernel>
+                COMMENT "Stripping symbols from tefkernel library using strip command"
+                VERBATIM
+        )
+    endif()
+endif ()
 
 set(TEST OFF)
 if (${TEST})

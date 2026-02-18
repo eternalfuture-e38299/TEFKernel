@@ -53,7 +53,7 @@ public static unsafe class HookManager
     private static readonly List<HookNode> HookNodes = [];
     public static readonly Harmony Harmony = new("tefkernel.HookManager");
 
-    public static ushort HookMethod(MethodBase methodBase, IntPtr methodSignature, IntPtr prefixHook,
+    public static short HookMethod(MethodBase methodBase, IntPtr methodSignature, IntPtr prefixHook,
         IntPtr postfixHook)
     {
         var methodHash = methodBase.GetHashCode();
@@ -116,7 +116,7 @@ public static unsafe class HookManager
         return AddHookNode(methodHash, prefixHook, postfixHook);
     }
 
-    public static bool UnhookMethodByNode(ushort nodeIndex)
+    public static bool UnhookMethodByNode(short nodeIndex)
     {
         if (nodeIndex >= HookNodes.Count)
         {
@@ -163,7 +163,7 @@ public static unsafe class HookManager
         return true;
     }
 
-    private static ushort AddHookNode(int methodHash, IntPtr preHook, IntPtr postHook)
+    private static short AddHookNode(int methodHash, IntPtr preHook, IntPtr postHook)
     {
         if (!HookTab.TryGetValue(methodHash, out var hookHandle))
         {
@@ -172,7 +172,7 @@ public static unsafe class HookManager
         }
 
         // 查找可用的空节点（标记为删除的节点）
-        for (ushort i = 0; i < HookNodes.Count; i++)
+        for (short i = 0; i < HookNodes.Count; i++)
             if (HookNodes[i].IsEmpty)
             {
                 // 重用被标记为删除的节点
@@ -185,7 +185,7 @@ public static unsafe class HookManager
             }
 
         // 没有可用的空节点，添加新节点
-        var nodeIndex = (ushort)HookNodes.Count;
+        var nodeIndex = (short)HookNodes.Count;
         var hookNode = new HookNode(preHook, postHook);
         HookNodes.Add(hookNode);
 
@@ -229,7 +229,7 @@ public static unsafe class HookManager
     /// <summary>
     ///     检查Hook节点是否有效（未被标记为删除）
     /// </summary>
-    public static bool IsHookNodeValid(ushort nodeIndex)
+    public static bool IsHookNodeValid(short nodeIndex)
     {
         if (nodeIndex >= HookNodes.Count) return false;
 
@@ -241,32 +241,34 @@ public static unsafe class HookManager
     ///     通过Hook节点获取对应的方法
     /// </summary>
     /// <param name="nodeIndex">Hook节点ID</param>
-    /// <returns>方法句柄，0表示未找到</returns>
-    public static int GetMethodByNode(ushort nodeIndex)
+    /// <returns>方法句柄，-1表示未找到</returns>
+    public static int GetMethodByNode(short nodeIndex)
     {
-        if (nodeIndex >= HookNodes.Count)
+        if (nodeIndex < 0 || nodeIndex >= HookNodes.Count)
         {
             Logger.Warning($"Invalid node index: {nodeIndex}");
-            return 0;
+            return -1;
         }
 
         var node = HookNodes[nodeIndex];
         if (node.IsEmpty)
         {
             Logger.Warning($"Hook node {nodeIndex} is empty");
-            return 0;
+            return -1;
         }
 
         // 查找包含此节点的方法
-        foreach (var method in from kvp in HookTab
-                 where kvp.Value.NodeIndexes.Contains(nodeIndex)
-                 select kvp.Value.Method)
-            return Asset.MethodInfos.Add(method);
+        foreach (var kvp in HookTab)
+        {
+            if (kvp.Value.NodeIndexes.Contains(nodeIndex))
+            {
+                return Asset.MethodInfos.Add(kvp.Value.Method);
+            }
+        }
 
         Logger.Warning($"No method found for hook node {nodeIndex}");
-        return 0;
+        return -1;
     }
-
 
     // Harmony前缀钩子
     private static bool PrefixHook(MethodBase __originalMethod, object? __instance, object[]? __args)
@@ -632,6 +634,6 @@ public static unsafe class HookManager
     {
         public MethodBase Method; // 保存原始方法引用
         public IntPtr MethodSignature; // 函数签名 
-        public List<ushort> NodeIndexes; // Hook节点索引
+        public List<short> NodeIndexes; // Hook节点索引
     }
 }

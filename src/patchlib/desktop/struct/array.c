@@ -33,14 +33,14 @@ patch_handle_t patchlib_array_create(const size_t size, const patch_handle_t typ
 }
 
 bool patchlib_array_at(const patch_handle_t array, const size_t index, void* out_value, patch_type_t value_type) {
-    if (index <= 0 || !patchlib_is_valid(array))
+    if (!patchlib_is_valid(array))
         return false;
 
     return net_array_at(array, (int)index, out_value);
 }
 
 bool patchlib_array_set(const patch_handle_t array, const size_t index, void* new_value, const patch_type_t value_type) {
-    if (index <= 0 || !patchlib_is_valid(array))
+    if (!patchlib_is_valid(array))
         return false;
 
     return net_array_set(array, (int)index, new_value, value_type);

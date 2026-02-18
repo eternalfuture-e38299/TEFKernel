@@ -31,6 +31,7 @@
 extern "C" {
 
 
+
 #endif
 
 void il2cpp_api_init(void *handle);
@@ -479,6 +480,37 @@ DEFINE_IL2CPP_API(void*, il2cpp_string_chars, void* str)
  */
 DEFINE_IL2CPP_API(void*, il2cpp_string_new, const char* str)
 
+/**
+ * @brief 获取方法所属类
+ * @param method 方法信息指针(原始类型: const MethodInfo*)
+ * @return 类指针(原始类型: Il2CppClass*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_method_get_class, const void* method)
+
+/**
+ * @brief 运行时方法调用
+ * @param method 方法信息指针(原始类型: const MethodInfo*)
+ * @param obj 对象实例
+ * @param params 参数数组
+ * @param exc [out] 异常对象(原始类型: Il2CppException**)
+ * @return 调用结果(原始类型: Il2CppObject*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_runtime_invoke,
+                  void* method, void* obj, void** params, void** exc)
+
+/**
+ * @brief 拆箱对象
+ * @param obj 对象指针(原始类型: Il2CppObject*)
+ * @return 值类型数据指针
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_object_unbox, void* obj)
+
+/**
+ * @brief 获取方法Token
+ * @param method 方法信息指针(原始类型: const MethodInfo*)
+ * @return 方法Token
+ */
+DEFINE_IL2CPP_API(uint32_t, il2cpp_method_get_token, const void* method)
 
 #ifdef __cplusplus
 }

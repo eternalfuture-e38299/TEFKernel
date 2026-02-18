@@ -98,6 +98,8 @@ public static class Initialization
         private delegate bool FieldGetValueDelegate(int fieldHandle, int objectHandle, IntPtr valueOut);
         private delegate bool FieldSetValueDelegate(int fieldHandle, int objectHandle, IntPtr valuePtr);
         private delegate void FieldFreeDelegate(int fieldHandle);
+
+        private delegate int FieldGetTypeDelegate(int fieldHandle);
         
         public static void Init()
         {
@@ -107,6 +109,7 @@ public static class Initialization
             RegisterApiMethod<FieldIsThreadStaticDelegate>(Field.IsThreadStatic, "net_field_is_thread_static");
             RegisterApiMethod<FieldGetValueDelegate>(Field.GetValue, "net_field_get_value");
             RegisterApiMethod<FieldSetValueDelegate>(Field.SetValue, "net_field_set_value");
+            RegisterApiMethod<FieldGetTypeDelegate>(Field.GetType, "net_field_get_type");
             RegisterApiMethod<FieldFreeDelegate>(Field.Free, "net_field_free");
         }
     }
@@ -142,12 +145,14 @@ public static class Initialization
         private delegate bool MethodInvokeDelegate(int methodHandle, int instanceHandle, int argCount, 
             IntPtr returnValue, IntPtr argsPtr, IntPtr typesPtr);
         private delegate void MethodFreeDelegate(int methodHandle);
-        private delegate ushort HookMethodDelegate(int methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook);
-        private delegate bool UnHookMethodDelegate(ushort nodeIndex);
+        private delegate short HookMethodDelegate(int methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook);
+        private delegate bool UnHookMethodDelegate(short nodeIndex);
         private delegate bool HasSingleHookNodeDelegate(int methodHandle);
         private delegate bool IsMethodHookedDelegate(int methodHandle);
         private delegate IntPtr GetHookedMethodSigDelegate(int methodHandle);
-        private delegate int GetMethodByNodeDelegate(ushort nodeIndex);
+        private delegate int GetMethodByNodeDelegate(short nodeIndex);
+        private delegate int GetMethodTokenDelegate(int methodHandle);
+        private delegate int CloneMethodDelegate(int methodHandle);
         
         public static void Init()
         {
@@ -166,6 +171,8 @@ public static class Initialization
             RegisterApiMethod<IsMethodHookedDelegate>(Method.IsMethodHooked, "net_is_method_hooked");
             RegisterApiMethod<GetHookedMethodSigDelegate>(Method.GetHookedMethodSig, "net_get_hooked_method_sig");
             RegisterApiMethod<GetMethodByNodeDelegate>(Method.GetMethodByNode, "net_get_method_by_hook_node");
+            RegisterApiMethod<GetMethodTokenDelegate>(Method.GetMethodToken, "net_method_get_token");
+            RegisterApiMethod<CloneMethodDelegate>(Method.CloneMethod, "net_method_clone");
         }
     }
 
@@ -178,9 +185,6 @@ public static class Initialization
             ListInit.Init();
             DictionaryInit.Init();
         }
-
-    
-
 
         private static class ArrayInit
         {

@@ -31,8 +31,9 @@
 #ifndef TEFKERNEL_MODLOADER_CORE_H
 #define TEFKERNEL_MODLOADER_CORE_H
 
+typedef void tefpkg_handle_t;
+
 #include "../tefstd/vector.h"
-#include "../tefpackage/tefpkg.h"
 
 #ifdef __cplusplus
 extern "C" {

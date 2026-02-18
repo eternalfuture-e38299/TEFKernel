@@ -29,6 +29,7 @@
 #include "internal/tefplugin/tef_core_imp.h"
 #include "memdl/memdl.h"
 
+
 static struct {
     // 插件句柄，为malloc分配
     tef_vector_t plugin_handles;  // plugin_handle_t*
@@ -201,7 +202,6 @@ typedef struct {
     bool success;
 } tpf_thread_arg_t;
 
-// 线程函数：注册符号到单个共享库
 static int register_symbols_thread(void* arg) {
     tpf_thread_arg_t* args = arg;
     void* lib = args->lib_handle;
@@ -228,15 +228,9 @@ static int register_symbols_thread(void* arg) {
                 TEKLOG_TRACE("Registering symbol '%s' at %p to library %p",
                            sym_name, sym_addr, lib);
                 *sym_ptr = (void*)sym_addr;
-            } else {
-                TEKLOG_WARN("Symbol '%s' not found in library %p", sym_name, lib);
-                args->success = false; // 符号查找失败
             }
         }
     }
-
-    TEKLOG_DEBUG("Thread completed for library %p, success: %s",
-                lib, args->success ? "true" : "false");
     return 0;
 }
 
@@ -302,18 +296,28 @@ bool tpf_register_plugin_symbols(plugin_handle_t* plugin) {
 
     TEKLOG_DEBUG("Created %zu symbol registration threads", thread_count);
 
+    // 如果没有创建任何线程，返回成功
+    if (thread_count == 0) {
+        TEKLOG_DEBUG("No symbol registration threads were created");
+        free(threads);
+        free(args_array);
+        return true;  // 没有线程创建，返回成功
+    }
+
     // 等待所有线程完成
-    bool all_success = true;
+    bool any_success = false;
+    size_t success_count = 0;
     for (size_t i = 0; i < thread_count; ++i) {
         int result;
         thrd_join(threads[i], &result);
 
-        if (!args_array[i]->success) {
-            TEKLOG_WARN("Symbol registration thread %zu completed with errors", i);
-            all_success = false;
-        } else {
-            TEKLOG_DEBUG("Symbol registration thread %zu completed successfully", i);
+        if (args_array[i]->success) {
+            any_success = true;
+            success_count++;
+            TEKLOG_DEBUG("Symbol registration thread %zu for library %p completed successfully",
+                        i, args_array[i]->lib_handle);
         }
+        // 失败的线程不打印日志
 
         free(args_array[i]);
     }
@@ -322,36 +326,149 @@ bool tpf_register_plugin_symbols(plugin_handle_t* plugin) {
     free(threads);
     free(args_array);
 
-    TEKLOG_INFO("Symbol registration for plugin %p completed: %s",
-               (void*)plugin, all_success ? "success" : "with errors");
-    return all_success;
+    // 记录总体结果
+    if (any_success) {
+        TEKLOG_INFO("Symbol registration for plugin %p completed: %zu/%zu libraries registered successfully",
+                   (void*)plugin, success_count, thread_count);
+    } else {
+        TEKLOG_WARN("Symbol registration for plugin %p completed: 0/%zu libraries registered successfully",
+                   (void*)plugin, thread_count);
+    }
+
+    return any_success;
 }
 
 bool tpf_register_shared_plugin_library(void *handle) {
-    if (!shared_plugin_libraries.initialized)
-        tefstd_vector_init(&shared_plugin_libraries.handles, sizeof(void*));
+    if (!handle) {
+        return false;
+    }
+
+    if (!shared_plugin_libraries.initialized) {
+        if (!tefstd_vector_init(&shared_plugin_libraries.handles, sizeof(void*))) {
+            return false;
+        }
+        shared_plugin_libraries.initialized = true;
+    }
+
     return tefstd_vector_push_back(&shared_plugin_libraries.handles, &handle);
 }
 
 // API函数
+// 在符号注册时添加详细日志
 bool tpf_register_symbol(plugin_handle_t* this_handle, const char *name, const void *addr) {
     if (!this_handle || !name || !addr) {
         TEKLOG_ERROR("Invalid parameters for symbol registration");
         return false;
     }
 
-    TEKLOG_DEBUG("Registering symbol '%s' at %p for plugin %p",
-                name, addr, (void*)this_handle);
+    TEKLOG_DEBUG("Registering symbol '%s' at %p for plugin %p", name, addr, (void*)this_handle);
 
     const bool name_result = tefstd_vector_push_back(&this_handle->sym_names, &name);
     const bool addr_result = tefstd_vector_push_back(&this_handle->sym_addrs, &addr);
 
     if (name_result && addr_result) {
+        // 立即将这个符号注册到所有已存在的共享库
+        if (shared_plugin_libraries.initialized) {
+            const size_t lib_count = tefstd_vector_size(&shared_plugin_libraries.handles);
+            for (size_t i = 0; i < lib_count; ++i) {
+                void** lib_ptr = tefstd_vector_at(&shared_plugin_libraries.handles, i);
+                if (lib_ptr && *lib_ptr) {
+                    void** sym_ptr = memdl_sym(*lib_ptr, name);
+                    if (sym_ptr) {
+                        *sym_ptr = (void*)addr;
+                        TEKLOG_TRACE("Immediately registered '%s' to library %p", name, *lib_ptr);
+                    }
+                }
+            }
+        }
         TEKLOG_TRACE("Symbol '%s' registered successfully", name);
         return true;
     }
+
     TEKLOG_ERROR("Failed to register symbol '%s'", name);
     return false;
+}
+
+bool tpf_initialize_all_plugins() {
+    // 先初始化内核
+    tpf_init_libtefkernel();
+
+    if (!g_tpf_symbols.initialized) {
+        TEKLOG_WARN("No plugins loaded, nothing to initialize");
+        return true;
+    }
+
+    const size_t plugin_count = tefstd_vector_size(&g_tpf_symbols.plugin_handles);
+    if (plugin_count == 0) {
+        TEKLOG_DEBUG("Plugin handles vector is empty");
+        return true;
+    }
+
+    TEKLOG_INFO("Initializing all %zu plugins", plugin_count);
+
+    bool all_success = true;
+
+    for (size_t i = 0; i < plugin_count; ++i) {
+        plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
+        if (!plugin_ptr || !*plugin_ptr) {
+            TEKLOG_WARN("Invalid plugin handle at index %zu", i);
+            continue;
+        }
+
+        plugin_handle_t* plugin = *plugin_ptr;
+
+        // 尝试初始化插件（如果有初始化函数）
+        if (plugin->ops && plugin->ops->initialize) {
+            TEKLOG_DEBUG("Initializing plugin %zu (handle: %p)", i, (void*)plugin);
+
+            if (!plugin->ops->initialize(plugin)) {
+                TEKLOG_ERROR("Plugin %zu initialization failed", i);
+                all_success = false;
+            } else {
+                TEKLOG_DEBUG("Plugin %zu initialized successfully", i);
+            }
+        } else {
+            TEKLOG_DEBUG("Plugin %zu has no initialize function (handle: %p, ops: %p)",
+                        i, (void*)plugin, (void*)plugin->ops);
+        }
+    }
+
+    // 第三步：将所有插件的符号注册到所有共享库
+    if (shared_plugin_libraries.initialized) {
+        const size_t lib_count = tefstd_vector_size(&shared_plugin_libraries.handles);
+        TEKLOG_DEBUG("Registering all plugin symbols to %zu shared libraries", lib_count);
+
+        for (size_t i = 0; i < plugin_count; ++i) {
+            plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
+            if (!plugin_ptr || !*plugin_ptr) continue;
+
+            plugin_handle_t* plugin = *plugin_ptr;
+
+            // 检查插件是否有符号
+            const size_t sym_count = tefstd_vector_size(&plugin->sym_names);
+            if (sym_count == 0) {
+                TEKLOG_DEBUG("Plugin %zu has no symbols to register (handle: %p)",
+                            i, (void*)plugin);
+                continue;
+            }
+
+            TEKLOG_DEBUG("Registering %zu symbols for plugin %zu (handle: %p)",
+                       sym_count, i, (void*)plugin);
+
+            if (!tpf_register_plugin_symbols(plugin)) {
+                TEKLOG_ERROR("Failed to register symbols for plugin %zu", i);
+                all_success = false;
+            } else {
+                TEKLOG_DEBUG("Plugin %zu symbols registered successfully", i);
+            }
+        }
+    } else {
+        TEKLOG_WARN("Shared libraries not initialized, cannot register symbols");
+    }
+
+    TEKLOG_INFO("All plugins initialization completed: %s",
+                all_success ? "success" : "with errors");
+    return all_success;
 }
 
 #define TPF_KERNEL_SYMBOL(func) \
@@ -359,6 +476,14 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 
 #include "tefstd/hashmap.h"
 #include "tefstd/skipmap.h"
+#include "patchlib/field.h"
+#include "patchlib/method.h"
+#include "patchlib/property.h"
+#include "patchlib/type.h"
+#include "patchlib/struct/array.h"
+#include "patchlib/struct/dictionary.h"
+#include "patchlib/struct/list.h"
+#include "patchlib/struct/string.h"
 
 void tpf_init_libtefkernel() {
     TEKLOG_INFO("Initializing libtefkernel - creating TPF instance");
@@ -376,10 +501,7 @@ void tpf_init_libtefkernel() {
         shared_plugin_libraries.initialized = true;
     }
 
-    // 创建内核自身的TPF实例（内核作为特殊插件）
-    // 这里我们注册内核提供的核心符号
-
-    // 首先创建内核插件句柄
+    // 创建内核自身的TPF实例
     plugin_handle_t* kernel_plugin = malloc(sizeof(plugin_handle_t));
     if (!kernel_plugin) {
         TEKLOG_ERROR("Failed to allocate memory for kernel plugin");
@@ -387,16 +509,16 @@ void tpf_init_libtefkernel() {
     }
 
     // 初始化内核插件结构
-    kernel_plugin->handle = NULL;  // 内核没有外部句柄
-    kernel_plugin->ops = NULL;     // 内核不需要标准插件操作
+    kernel_plugin->handle = NULL;
+    kernel_plugin->ops = NULL;
     tefstd_vector_init(&kernel_plugin->sym_names, sizeof(const char*));
     tefstd_vector_init(&kernel_plugin->sym_addrs, sizeof(void*));
-    kernel_plugin->index = 0;      // 内核是第一个插件
+    kernel_plugin->index = 0;
 
     // 注册内核提供的核心符号
     TEKLOG_DEBUG("Registering kernel symbols");
 
-    // 注册memdl相关符号
+    // 注册memdl相关符号（所有平台都需要）
     TPF_KERNEL_SYMBOL(memdl_open_file);
     TPF_KERNEL_SYMBOL(memdl_open);
     TPF_KERNEL_SYMBOL(memdl_sym);
@@ -406,7 +528,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(memdl_validate);
     TPF_KERNEL_SYMBOL(memdl_get_platform);
 
-    // 注册std相关符号 - hashmap
+    // 注册std相关符号 - hashmap（所有平台都需要）
     TEKLOG_DEBUG("Registering hashmap symbols");
     TPF_KERNEL_SYMBOL(tefstd_hash_str);
     TPF_KERNEL_SYMBOL(tefstd_hash_mem);
@@ -421,7 +543,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(tefstd_hashmap_iter);
     TPF_KERNEL_SYMBOL(tefstd_hashmap_next);
 
-    // 注册std相关符号 - skipmap
+    // 注册std相关符号 - skipmap（所有平台都需要）
     TEKLOG_DEBUG("Registering skipmap symbols");
     TPF_KERNEL_SYMBOL(tefstd_skipmap_init);
     TPF_KERNEL_SYMBOL(tefstd_skipmap_free);
@@ -433,7 +555,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(tefstd_skipmap_range);
     TPF_KERNEL_SYMBOL(tefstd_skipmap_next);
 
-    // 注册std相关符号 - vector
+    // 注册std相关符号 - vector（所有平台都需要）
     TEKLOG_DEBUG("Registering vector symbols");
     TPF_KERNEL_SYMBOL(tefstd_vector_init);
     TPF_KERNEL_SYMBOL(tefstd_vector_destroy);
@@ -445,18 +567,138 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(tefstd_vector_clear);
     TPF_KERNEL_SYMBOL(tefstd_vector_reserve);
     TPF_KERNEL_SYMBOL(tefstd_vector_erase);
+    TPF_KERNEL_SYMBOL(tefstd_vector_remove_value);
+    TPF_KERNEL_SYMBOL(tefstd_vector_init_from_array);
+
+    // ==================== 注册所有patchlib核心API ====================
+    TEKLOG_DEBUG("Registering patchlib core symbols");
+
+    // 基础类型和工具函数
+    TPF_KERNEL_SYMBOL(get_size_from_patch_type);
+    TPF_KERNEL_SYMBOL(patchlib_is_valid);
+
+    // 类型操作API
+    TPF_KERNEL_SYMBOL(patchlib_type_get_type);
+    TPF_KERNEL_SYMBOL(patchlib_get_basic_type);
+    TPF_KERNEL_SYMBOL(patchlib_type_new_instance);
+    TPF_KERNEL_SYMBOL(patchlib_type_make_generic_type);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_mono_type);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_name);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_namespace);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_full_name);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_parent);
+
+    // 类型成员获取API
+    TPF_KERNEL_SYMBOL(patchlib_type_get_inner_type);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_field);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_property);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_method);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_method_by_param_count);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_method_by_param_names);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_method_by_param_types);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_method_by_signature);
+
+    // 类型批量成员获取API
+    TPF_KERNEL_SYMBOL(patchlib_type_get_inner_types);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_methods);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_fields);
+    TPF_KERNEL_SYMBOL(patchlib_type_get_properties);
+
+    // 字段操作API
+    TPF_KERNEL_SYMBOL(patchlib_field_get_name);
+    TPF_KERNEL_SYMBOL(patchlib_field_is_static);
+    TPF_KERNEL_SYMBOL(patchlib_field_is_instance);
+    TPF_KERNEL_SYMBOL(patchlib_field_is_const);
+    TPF_KERNEL_SYMBOL(patchlib_field_is_thread_static);
+    TPF_KERNEL_SYMBOL(patchlib_field_get_value);
+    TPF_KERNEL_SYMBOL(patchlib_field_set_value);
+    TPF_KERNEL_SYMBOL(patchlib_field_get_type);
+
+    // 方法操作API
+    TPF_KERNEL_SYMBOL(patchlib_method_get_name);
+    TPF_KERNEL_SYMBOL(patchlib_method_get_param_count);
+    TPF_KERNEL_SYMBOL(patchlib_method_is_instance);
+    TPF_KERNEL_SYMBOL(patchlib_method_is_static);
+    TPF_KERNEL_SYMBOL(patchlib_method_make_generic_instance);
+    TPF_KERNEL_SYMBOL(patchlib_method_invoke_args);
+    TPF_KERNEL_SYMBOL(patchlib_method_invoke);
+    TPF_KERNEL_SYMBOL(patchlib_method_get_token);
+    TPF_KERNEL_SYMBOL(patchlib_method_get_signature);
+    TPF_KERNEL_SYMBOL(patchlib_method_signature_free);
+    TPF_KERNEL_SYMBOL(patchlib_install_prepost_hook);
+    TPF_KERNEL_SYMBOL(patchlib_uninstall_hook);
+
+    // 属性操作API
+    TPF_KERNEL_SYMBOL(patchlib_property_get_name);
+    TPF_KERNEL_SYMBOL(patchlib_property_get_get_method);
+    TPF_KERNEL_SYMBOL(patchlib_property_get_set_method);
+
+    // 集合操作API - Array
+    TPF_KERNEL_SYMBOL(patchlib_array_create);
+    TPF_KERNEL_SYMBOL(patchlib_array_at);
+    TPF_KERNEL_SYMBOL(patchlib_array_set);
+    TPF_KERNEL_SYMBOL(patchlib_array_fill);
+    TPF_KERNEL_SYMBOL(patchlib_array_empty);
+    TPF_KERNEL_SYMBOL(patchlib_array_length);
+    TPF_KERNEL_SYMBOL(patchlib_array_clear);
+
+    // 集合操作API - List
+    TPF_KERNEL_SYMBOL(patchlib_list_create);
+    TPF_KERNEL_SYMBOL(patchlib_list_copy_from);
+    TPF_KERNEL_SYMBOL(patchlib_list_add);
+    TPF_KERNEL_SYMBOL(patchlib_list_remove);
+    TPF_KERNEL_SYMBOL(patchlib_list_remove_at);
+    TPF_KERNEL_SYMBOL(patchlib_list_clear);
+    TPF_KERNEL_SYMBOL(patchlib_list_get_array);
+
+    // 集合操作API - Dictionary
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_create);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_add);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_get_value);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_set_value);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_clear);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_length);
+    TPF_KERNEL_SYMBOL(patchlib_dictionary_remove);
+
+    // 字符串操作API
+    TPF_KERNEL_SYMBOL(patchlib_string_create);
+    TPF_KERNEL_SYMBOL(patchlib_string_cstr16);
+    TPF_KERNEL_SYMBOL(patchlib_string_cstr);
+    TPF_KERNEL_SYMBOL(patchlib_string_empty);
+    TPF_KERNEL_SYMBOL(patchlib_string_length);
+
+    // Android平台特定API
+#if __ANDROID__
+    TEKLOG_DEBUG("Registering Android-specific symbols");
+    TPF_KERNEL_SYMBOL(patchlib_field_get_pointer);
+    TPF_KERNEL_SYMBOL(patchlib_field_get_size);
+    TPF_KERNEL_SYMBOL(patchlib_method_get_pointer);
+#endif
+
+    // 在Android平台，不需要注册资源管理相关的符号，因为它们被宏定义为空操作
+#if !defined(__ANDROID__)
+    // 非Android平台需要注册这些资源管理符号
+    TEKLOG_DEBUG("Registering resource management symbols for non-Android platform");
+
+    // 字段资源管理
+    TPF_KERNEL_SYMBOL(patchlib_field_free);
+
+    // 方法资源管理
+    TPF_KERNEL_SYMBOL(patchlib_method_free);
+
+    // 属性资源管理
+    TPF_KERNEL_SYMBOL(patchlib_property_free);
+
+    // 类型和对象资源管理
+    TPF_KERNEL_SYMBOL(patchlib_type_free);
+    TPF_KERNEL_SYMBOL(patchlib_object_free);
+    TPF_KERNEL_SYMBOL(patchlib_object_persist);
+#endif
 
     // 将内核插件添加到全局列表
     if (tefstd_vector_push_back(&g_tpf_symbols.plugin_handles, &kernel_plugin)) {
         TEKLOG_INFO("Kernel TPF instance created successfully with %zu symbols",
                    tefstd_vector_size(&kernel_plugin->sym_names));
-
-        // 立即将内核符号注册到所有已注册的共享库
-        if (shared_plugin_libraries.initialized &&
-            tefstd_vector_size(&shared_plugin_libraries.handles) > 0) {
-            TEKLOG_DEBUG("Registering kernel symbols to shared libraries");
-            tpf_register_plugin_symbols(kernel_plugin);
-        }
     } else {
         TEKLOG_ERROR("Failed to add kernel plugin to global list");
         // 清理资源

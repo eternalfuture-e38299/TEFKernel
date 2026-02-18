@@ -108,6 +108,13 @@ void patchlib_field_set_value(const patch_handle_t field, const patch_handle_t i
     if (net_field_set_value(field, instance, value)) TEKLOG_DEBUG("Field value set successfully");
 }
 
+patch_type_t patchlib_field_get_type(const patch_handle_t field) {
+    if (!patchlib_is_valid(field))
+        return PATCH_VOID;
+
+    return net_field_get_type(field);
+}
+
 bool patchlib_field_free(const patch_handle_t field) {
     TEKLOG_DEBUG("Field freed: %d", field);
     net_field_free(field);

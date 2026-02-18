@@ -575,6 +575,7 @@ void tefkernel_log_write_net(const tefkernel_log_level_t level, const char *file
 #endif
 }
 
+
 void tefkernel_log_cleanup(void) {
     if (g_log_ctx.running) {
         // 写入关闭日志

@@ -25,54 +25,57 @@
 #include "il2cpp_api.h"
 #include "internal/log.h"
 
-void *create_type_array_from_vector(const tef_vector_t *type_vector) {
-    TEKLOG_DEBUG("create_type_array_from_vector called: type_vector=%p, size=%zu",
-                 type_vector, type_vector ? tefstd_vector_size(type_vector) : 0);
+typedef struct il2cpp_array_t {
+    void *m_class;
+    void *m_monitor;
+    void *m_bounds;
+    int m_length;
+    // void *m_values;
+} il2cpp_array_t;
+
+void *create_type_array_from_vector(const tef_vector_t *type_vector, void *elementTypeClass) {
+    if (!elementTypeClass) {
+        TEKLOG_ERROR("elementTypeClass is NULL");
+        return NULL;
+    }
+
+    TEKLOG_DEBUG("create_type_array_from_vector called: type_vector=%p, size=%zu, elementTypeClass=%p",
+                 type_vector, type_vector ? tefstd_vector_size(type_vector) : 0, elementTypeClass);
 
     if (!type_vector || tefstd_vector_size(type_vector) == 0) {
         TEKLOG_WARN("Invalid or empty type vector");
         return NULL;
     }
 
-    const void *corlib = il2cpp_get_corlib();
-    if (!corlib) {
-        TEKLOG_ERROR("Failed to get corlib");
-        return NULL;
-    }
-
-    void *typeClass = il2cpp_class_from_name(corlib, "System", "Type");
-    if (!typeClass) {
-        TEKLOG_ERROR("Failed to get System.Type class");
-        return NULL;
-    }
-
     const size_t count = tefstd_vector_size(type_vector);
     TEKLOG_DEBUG("Creating type array with %zu elements", count);
 
-    void *array = il2cpp_array_new(typeClass, count);
+    void *array = il2cpp_array_new(elementTypeClass, (uintptr_t)count);
     if (!array) {
         TEKLOG_ERROR("Failed to create array");
         return NULL;
     }
 
     // 获取数组类型的 TypeInfo 并计算元素大小
-    const int elementSize = il2cpp_array_element_size(typeClass);
+    int elementSize = il2cpp_array_element_size(elementTypeClass);
+    if (elementSize <= 0)
+        // 对于引用类型数组，元素是指针
+        elementSize = sizeof(void*);
     TEKLOG_DEBUG("Array element size: %d", elementSize);
 
     // 计算元素数据起始地址
-    // Il2CppArray 布局：[Il2CppObject][Il2CppArrayBounds][uint32_t max_length][elements...]
-    char *dataStart = (char *) array + sizeof(void *) * 2 + sizeof(void *) + sizeof(uint32_t);
+    char *dataStart = (char *) array + sizeof(il2cpp_array_t);
     TEKLOG_DEBUG("Array data start: %p", dataStart);
 
     // 逐个复制指针
     int copied_count = 0;
     for (size_t i = 0; i < count; ++i) {
-        void *obj = *(void **) tefstd_vector_at(type_vector, i);
+        void ** obj = tefstd_vector_at(type_vector, i);
         if (obj) {
             void **elemPtr = (void **) (dataStart + i * elementSize);
-            *elemPtr = obj;
+            *elemPtr = *obj;
             copied_count++;
-            TEKLOG_TRACE("Copied type %zu: %p to array position %zu", i, obj, i);
+            TEKLOG_TRACE("Copied type %zu: %p to array position %zu", i, *obj, i);
         } else {
             TEKLOG_WARN("Type at index %zu is NULL, skipping", i);
         }

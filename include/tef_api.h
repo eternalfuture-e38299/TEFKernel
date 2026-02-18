@@ -54,12 +54,21 @@ API_EXPORT ret API_CALL name(__VA_ARGS__);
 
 #else
 
+
+#ifdef __cplusplus
+#define DEFINE_FUNCTION(ret, name, ...) \
+inline API_EXPORT ret (API_CALL *name)(__VA_ARGS__) = NULL;
+#else
 #define DEFINE_FUNCTION(ret, name, ...) \
 API_EXPORT ret (API_CALL *name)(__VA_ARGS__) = NULL;
-
+#endif
 #endif
 
+#ifdef __cplusplus
+#define DEFINE_API_FUNCTION(ret, name, ...) \
+inline API_EXPORT ret (API_CALL *name)(__VA_ARGS__) = NULL;
+#else
 #define DEFINE_API_FUNCTION(ret, name, ...) \
 API_EXPORT ret (API_CALL *name)(__VA_ARGS__) = NULL;
-
+#endif
 #endif //TEFKERNEL_TEF_API_H

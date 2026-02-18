@@ -206,10 +206,10 @@ public static class Method
         return true;
     }
 
-    public static ushort HookMethod(int methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook) =>
+    public static short HookMethod(int methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook) =>
         HookManager.HookMethod((MethodBase)Asset.MethodInfos[methodHandle], methodSignature, prefixHook, postfixHook);
 
-    public static bool UnHookMethod(ushort nodeIndex) => HookManager.UnhookMethodByNode(nodeIndex);
+    public static bool UnHookMethod(short nodeIndex) => HookManager.UnhookMethodByNode(nodeIndex);
 
     public static bool HasSingleHookNode(int methodHandle) => HookManager.HasSingleHookNode((MethodBase)Asset.MethodInfos[methodHandle]);
 
@@ -217,7 +217,18 @@ public static class Method
 
     public static IntPtr GetHookedMethodSig(int methodHandle) => HookManager.GetMethodSig((MethodBase)Asset.MethodInfos[methodHandle]);
 
-    public static int GetMethodByNode(ushort nodeIndex) => HookManager.GetMethodByNode(nodeIndex);
+    public static int GetMethodByNode(short nodeIndex) => HookManager.GetMethodByNode(nodeIndex);
+
+    public static int GetMethodToken(int methodHandle)
+    {
+        var memberInfo = Asset.MethodInfos[methodHandle];
+        if (memberInfo is MethodInfo methodInfo)
+            return methodInfo.MetadataToken;
+        
+        return ((ConstructorInfo)memberInfo).MetadataToken;
+    }
+
+    public static int CloneMethod(int methodHandle) => Asset.MethodInfos.Add(Asset.MethodInfos[methodHandle]);
     
     public static void Free(int methodHandle)
     {

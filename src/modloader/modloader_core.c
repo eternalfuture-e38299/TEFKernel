@@ -21,6 +21,7 @@
  *******************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "internal/log.h"
 #include "internal/modloader/modloader_core_imp.h"
@@ -67,6 +68,7 @@ static void free_modloader(ml_handle_t *ml_handle) {
 
     // 释放分配的内存
     if (ml_handle->ml_entry) {
+        free((void*)ml_handle->ml_entry->private_dir);
         free(ml_handle->ml_entry);
         ml_handle->ml_entry = NULL;
     }
@@ -115,11 +117,23 @@ bool tefkernel_load_ml(void *handle, tefpkg_handle_t* pkg_handle, const char* pr
         return false;
     }
 
+    char* private_dir_copy = NULL;
+    if (private_dir) {
+        private_dir_copy = strdup(private_dir);
+        if (!private_dir_copy) {
+            TEKLOG_ERROR("Failed to duplicate private directory string");
+            free(new_ml_entry);
+            free(new_ml);
+            memdl_close(handle);
+            return false;
+        }
+    }
+
     // 初始化模组加载器句柄
     new_ml->handle = handle;
     new_ml_entry->ops = ml_ops;
     new_ml_entry->pkg_handle = pkg_handle;
-    new_ml_entry->private_dir = private_dir;
+    new_ml_entry->private_dir = private_dir_copy;
 
     // 获取模组加载器信息
     if (ml_ops->get_ml_info) {

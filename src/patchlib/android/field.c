@@ -103,7 +103,7 @@ void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, voi
     TEKLOG_DEBUG("Field value retrieved successfully");
 }
 
-void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, const void *value) {
+void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, void *value) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_ERROR("Invalid field handle");
         return;
@@ -127,6 +127,41 @@ void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, con
 
     memcpy(field_pointer, value, field_size);
     TEKLOG_DEBUG("Field value set successfully");
+}
+
+patch_type_t patchlib_field_get_type(const patch_handle_t field) {
+    if (!patchlib_is_valid(field)) {
+        TEKLOG_WARN("Invalid field handle");
+        return PATCH_VOID;
+    }
+
+    patch_type_t result;
+    const int field_type = il2cpp_type_get_type(il2cpp_field_get_parent(field));
+
+    switch (field_type) {
+        case IL2CPP_TYPE_VOID:    result = PATCH_VOID; break;
+        case IL2CPP_TYPE_BOOLEAN: result = PATCH_BOOL; break;     // bool
+        case IL2CPP_TYPE_CHAR:    result = PATCH_CHAR; break;     // char
+        case IL2CPP_TYPE_I1:      result = PATCH_INT8; break;     // sbyte
+        case IL2CPP_TYPE_U1:      result = PATCH_UINT8; break;    // byte
+        case IL2CPP_TYPE_I2:      result = PATCH_INT16; break;    // short
+        case IL2CPP_TYPE_U2:      result = PATCH_UINT16; break;   // ushort
+        case IL2CPP_TYPE_I4:      result = PATCH_INT32; break;    // int
+        case IL2CPP_TYPE_U4:      result = PATCH_UINT32; break;   // uint
+        case IL2CPP_TYPE_I8:      result = PATCH_INT64; break;    // long
+        case IL2CPP_TYPE_U8:      result = PATCH_UINT64; break;   // ulong
+        case IL2CPP_TYPE_R4:      result = PATCH_FLOAT; break;    // float
+        case IL2CPP_TYPE_R8:      result = PATCH_DOUBLE; break;   // double
+        case IL2CPP_TYPE_STRING:  result = PATCH_OBJECT; break;   // string
+        case IL2CPP_TYPE_PTR:     result = PATCH_POINTER; break;  // pointer
+        case IL2CPP_TYPE_I:       result = PATCH_POINTER; break;  // IntPtr
+        case IL2CPP_TYPE_U:       result = PATCH_POINTER; break;  // UIntPtr
+        default:
+            result = PATCH_OBJECT;
+            break;
+    }
+
+    return result;
 }
 
 size_t patchlib_field_get_size(patch_handle_t field) {
@@ -198,9 +233,4 @@ void * patchlib_field_get_pointer(patch_handle_t field, void *instance) {
     TEKLOG_DEBUG("Instance field pointer: %p (instance=%p, offset=%zu, isValueType=%s)",
                  result, instance, offset, isValueType ? "true" : "false");
     return result;
-}
-
-bool patchlib_field_free(patch_handle_t field) {
-    TEKLOG_DEBUG("Field freed: %p", field);
-    return true;
 }

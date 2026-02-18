@@ -24,33 +24,91 @@ namespace tefloader.NetApi;
 
 public static class Field
 {
-    public static string GetName(int fieldHandle) => Asset.FieldInfos[fieldHandle].Name;
+    public static string GetName(int fieldHandle)
+    {
+        return Asset.FieldInfos[fieldHandle].Name;
+    }
 
-    public static bool IsStatic(int fieldHandle) => Asset.FieldInfos[fieldHandle].IsStatic;
+    public static bool IsStatic(int fieldHandle)
+    {
+        return Asset.FieldInfos[fieldHandle].IsStatic;
+    }
 
-    public static bool IsConst(int fieldHandle) => Asset.FieldInfos[fieldHandle].IsLiteral;
+    public static bool IsConst(int fieldHandle)
+    {
+        return Asset.FieldInfos[fieldHandle].IsLiteral;
+    }
 
-    public static bool IsThreadStatic(int fieldHandle) => Attribute.IsDefined(Asset.FieldInfos[fieldHandle], typeof(ThreadStaticAttribute));
+    public static bool IsThreadStatic(int fieldHandle)
+    {
+        return Attribute.IsDefined(Asset.FieldInfos[fieldHandle], typeof(ThreadStaticAttribute));
+    }
 
     public static bool GetValue(int fieldHandle, int objectHandle, IntPtr valueOut)
     {
-        var fieldInfo = Asset.FieldInfos[fieldHandle];
-        var instance = objectHandle == -1 ? null : Asset.Objects[objectHandle];
-        var value = fieldInfo.IsLiteral ? fieldInfo.GetRawConstantValue() : fieldInfo.GetValue(instance);
+        try
+        {
+            var fieldInfo = Asset.FieldInfos[fieldHandle];
 
-        return Utils.SetNativeValue(valueOut, value);
+            object? instance = null;
+            if (objectHandle != -1) instance = Asset.Objects[objectHandle];
+
+            object? value;
+            if (fieldInfo.IsLiteral)
+            {
+                value = fieldInfo.GetRawConstantValue();
+            }
+            else
+            {
+                if (!fieldInfo.IsStatic && instance == null) return false;
+                value = fieldInfo.GetValue(instance);
+            }
+
+            return Utils.SetNativeValue(valueOut, value);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"GetValue failed: {ex.Message}");
+            return false;
+        }
     }
 
     public static bool SetValue(int fieldHandle, int objectHandle, IntPtr valuePtr)
     {
-        var fieldInfo = Asset.FieldInfos[fieldHandle];
-        var instance = objectHandle == -1 ? null : Asset.Objects[objectHandle];
-        var value = Utils.GetNativeValue(valuePtr, fieldInfo.GetType());
+        try
+        {
+            var fieldInfo = Asset.FieldInfos[fieldHandle];
 
-        fieldInfo.SetValue(instance, value);
+            if (fieldInfo.IsInitOnly || fieldInfo.IsLiteral) return false; // 只读字段或常量
 
-        return true;
+            object? instance = null;
+            if (objectHandle != -1) instance = Asset.Objects[objectHandle];
+
+            // 检查实例是否为null（对于非静态字段）
+            if (!fieldInfo.IsStatic && instance == null) return false;
+
+            // 从native指针获取值
+            var value = Utils.GetNativeValue(valuePtr, fieldInfo.FieldType);
+
+            // 设置字段值
+            fieldInfo.SetValue(instance, value);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"SetValue failed: {ex.Message}");
+            return false;
+        }
     }
 
-    public static void Free(int fieldHandle) => Asset.FieldInfos.RemoveAt(fieldHandle);
+    public static int GetType(int fieldHandle)
+    {
+        return Utils.GetPatchTypeByType(Asset.FieldInfos[fieldHandle].FieldType);
+    }
+
+    public static void Free(int fieldHandle)
+    {
+        Asset.FieldInfos.RemoveAt(fieldHandle);
+    }
 }

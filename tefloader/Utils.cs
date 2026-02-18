@@ -201,6 +201,37 @@ public static class Utils
             return null;
         }
     }
-    
-    
+    public static int GetPatchTypeByType(Type type)
+    {
+        if (type == typeof(void))
+            return (int)NetApi.Type.PatchType.PatchVoid;
+        if (type == typeof(sbyte))
+            return (int)NetApi.Type.PatchType.PatchInt8;
+        if (type == typeof(short))
+            return (int)NetApi.Type.PatchType.PatchInt16;
+        if (type == typeof(int))
+            return (int)NetApi.Type.PatchType.PatchInt32;
+        if (type == typeof(long))
+            return (int)NetApi.Type.PatchType.PatchInt64;
+        if (type == typeof(byte))
+            return (int)NetApi.Type.PatchType.PatchUint8;
+        if (type == typeof(ushort))
+            return (int)NetApi.Type.PatchType.PatchUint16;
+        if (type == typeof(uint))
+            return (int)NetApi.Type.PatchType.PatchUint32;
+        if (type == typeof(ulong))
+            return (int)NetApi.Type.PatchType.PatchUint64;
+        if (type == typeof(bool))
+            return (int)NetApi.Type.PatchType.PatchBool;
+        if (type == typeof(float))
+            return (int)NetApi.Type.PatchType.PatchFloat;
+        if (type == typeof(double))
+            return (int)NetApi.Type.PatchType.PatchDouble;
+        if (type == typeof(char))
+            return (int)NetApi.Type.PatchType.PatchChar;
+        if (type.IsPointer)
+            return (int)NetApi.Type.PatchType.PatchPointer;
+        
+        return (int)NetApi.Type.PatchType.PatchObject;
+    }
 }

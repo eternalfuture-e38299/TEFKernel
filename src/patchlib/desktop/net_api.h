@@ -257,7 +257,6 @@ DEFINE_NETAPI_FUNCTION(bool, net_field_get_value, patch_handle_t field, patch_ha
  */
 DEFINE_NETAPI_FUNCTION(bool, net_field_set_value, patch_handle_t field, patch_handle_t instance, void *value);
 
-
 /**
  * @brief 卸载字段句柄
  * @param field 字段句柄
@@ -366,7 +365,7 @@ DEFINE_NETAPI_FUNCTION(bool, net_method_invoke, patch_handle_t method, patch_han
  * @param postfix_hook 后缀Hook回调
  * @return Hook节点ID，0表示失败
  */
-DEFINE_NETAPI_FUNCTION(int, net_hook_method, patch_handle_t method, void* method_signature,
+DEFINE_NETAPI_FUNCTION(short, net_hook_method, patch_handle_t method, void* method_signature,
                        void* prefix_hook,
                        void* postfix_hook);
 
@@ -375,7 +374,7 @@ DEFINE_NETAPI_FUNCTION(int, net_hook_method, patch_handle_t method, void* method
  * @param node_index Hook节点ID
  * @return 是否成功
  */
-DEFINE_NETAPI_FUNCTION(bool, net_unhook_method, uint16_t node_index);
+DEFINE_NETAPI_FUNCTION(bool, net_unhook_method, short node_index);
 
 /**
  * @brief 检查方法是否只有一个Hook节点
@@ -389,7 +388,7 @@ DEFINE_NETAPI_FUNCTION(bool, net_has_single_hook_node, patch_handle_t method);
  * @param id hook节点
  * @return 函数句柄
  */
-DEFINE_NETAPI_FUNCTION(patch_handle_t, net_get_method_by_hook_node, uint16_t id);
+DEFINE_NETAPI_FUNCTION(patch_handle_t, net_get_method_by_hook_node, short id);
 
 /**
  * @brief 检查方法是否已被Hook
@@ -608,6 +607,27 @@ DEFINE_NETAPI_FUNCTION(int, net_dictionary_length, int dictionary)
  * @return 执行结果
  */
 DEFINE_NETAPI_FUNCTION(bool, net_dictionary_remove, int dictionary, void* key)
+
+/**
+ * @brief 获取函数token
+ * @param method 函数句柄
+ * @return token
+ */
+DEFINE_NETAPI_FUNCTION(int, net_method_get_token, patch_handle_t method)
+
+/**
+ * @brief 克隆函数句柄
+ * @param method 函数句柄
+ * @return 新句柄
+ */
+DEFINE_NETAPI_FUNCTION(patch_handle_t, net_method_clone, patch_handle_t method)
+
+/**
+ * @brief 获取字段类型
+ * @param field 字段句柄
+ * @return 类型枚举
+ */
+DEFINE_NETAPI_FUNCTION(int, net_field_get_type, patch_handle_t field)
 
 #ifdef __cplusplus
 }

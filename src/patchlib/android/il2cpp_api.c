@@ -83,6 +83,8 @@ void il2cpp_api_init(void *handle) {
     LOAD_SYMBOL(il2cpp_method_get_declaring_type);
     LOAD_SYMBOL(il2cpp_method_get_object);
     LOAD_SYMBOL(il2cpp_method_get_from_reflection);
+    LOAD_SYMBOL(il2cpp_method_get_class);
+    LOAD_SYMBOL(il2cpp_method_get_token);
 
     // 加载类型相关API
     LOAD_SYMBOL(il2cpp_type_get_type);
@@ -97,6 +99,11 @@ void il2cpp_api_init(void *handle) {
     LOAD_SYMBOL(il2cpp_string_length);
     LOAD_SYMBOL(il2cpp_string_chars);
     LOAD_SYMBOL(il2cpp_string_new);
+
+    //加载runtime相关API
+    LOAD_SYMBOL(il2cpp_runtime_invoke);
+
+    LOAD_SYMBOL(il2cpp_object_unbox);
 }
 
 void * il2cpp_object_get_class(void *object) {

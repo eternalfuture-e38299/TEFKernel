@@ -31,8 +31,6 @@
 #ifndef TEFKERNEL_METHOD_H
 #define TEFKERNEL_METHOD_H
 
-#include <stdint.h>
-
 #include "type.h"
 
 #ifdef __cplusplus
@@ -117,8 +115,8 @@ DEFINE_FUNCTION(bool, patchlib_method_invoke, patch_handle_t method, patch_handl
 
 // ==================== 高级 ====================
 
-typedef uint16_t patch_hook_id_t;
-#define PATCH_HOOK_INVALID_ID 0 // 无效 ID 的定义
+typedef short patch_hook_id_t;
+#define PATCH_HOOK_INVALID_ID (-1) // 无效 ID 的定义
 
 typedef struct patch_method_signature_t {
     patch_handle_t method;  ///< 函数句柄
@@ -126,7 +124,15 @@ typedef struct patch_method_signature_t {
     patch_type_t return_type; ///< 返回类型
     tef_vector_t arg_types; ///< patch_type_t，参数类型
     tef_vector_t arg_names; ///< const char*, 参数名称
+    int token;              ///< Token
 } patch_method_signature_t;
+
+/**
+ * @brief 获取函数token
+ * @param method 函数句柄
+ * @return 唯一token
+ */
+DEFINE_FUNCTION(int, patchlib_method_get_token, patch_handle_t method)
 
 /**
  * @brief 获取函数签名

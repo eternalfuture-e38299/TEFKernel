@@ -320,7 +320,7 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_object_persist, patch_handle_t object);
 
 #    define patchlib_type_free(handle) ((void)0)
 #    define patchlib_object_free(handle) ((void)0)
-#    define patchlib_object_persist(handle) ((void)0)
+#    define patchlib_object_persist(handle) handle
 
 #endif
 

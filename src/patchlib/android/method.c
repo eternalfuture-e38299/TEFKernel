@@ -24,10 +24,13 @@
 
 #include <ffi.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "il2cpp_api.h"
 #include "private.h"
 #include "internal/log.h"
+#include "patchlib/property.h"
+#include "patchlib/struct/string.h"
 
 const char *patchlib_method_get_name(patch_handle_t method) {
     if (!patchlib_is_valid(method)) {
@@ -59,29 +62,6 @@ bool patchlib_method_is_instance(patch_handle_t method) {
 
     bool result = il2cpp_method_is_instance(method);
     TEKLOG_DEBUG("Method is instance: %s", result ? "true" : "false");
-    return result;
-}
-
-patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tef_vector_t *template_types) {
-    TEKLOG_DEBUG("patchlib_method_make_generic_instance called: method=%p, template_types_count=%zu",
-                 method, template_types ? tefstd_vector_size(template_types) : 0);
-
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_ERROR("Invalid method handle");
-        return PATCH_NULL;
-    }
-
-    void *ref_method = il2cpp_method_get_object(method, il2cpp_method_get_declaring_type(method));
-    void *type_array = create_type_array_from_vector(template_types);
-
-    TEKLOG_DEBUG("Creating generic method: ref_method=%p, type_array=%p", ref_method, type_array);
-
-    const void *generic_method = ((void*(*)(void *, void *)) patchlib_method_get_pointer(
-        patchlib_MakeGenericMethod_impl))(
-        ref_method, type_array);
-
-    patch_handle_t result = il2cpp_method_get_from_reflection(generic_method);
-    TEKLOG_DEBUG("Generic method created: %p", result);
     return result;
 }
 
@@ -126,6 +106,11 @@ static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
     return result;
 }
 
+int patchlib_method_get_token(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) return 0;
+    return (int)il2cpp_method_get_token(method);
+}
+
 bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature_t* signature) {
     TEKLOG_DEBUG("patchlib_method_get_signature called: method=%p", method);
 
@@ -135,6 +120,7 @@ bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature
     }
 
     signature->method = method;
+    signature->token = patchlib_method_get_token(signature->method);
     signature->return_type = il2cpp_type_to_patch_type(il2cpp_method_get_return_type(method));
     signature->is_instance = patchlib_method_is_instance(method);
     tefstd_vector_init(&signature->arg_types, sizeof(patch_type_t));
@@ -271,7 +257,32 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     return true;
 }
 
-bool patchlib_method_free(patch_handle_t method) {
-    TEKLOG_DEBUG("Method freed: %p", method);
-    return true;
+patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tef_vector_t *template_types) {
+    TEKLOG_DEBUG("Manual generic method instantiation without symbols");
+
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("Invalid method handle");
+        return PATCH_NULL;
+    }
+
+    patch_handle_t declaring_class = il2cpp_method_get_declaring_type(method);
+    void* reflection_method = il2cpp_method_get_object(method, declaring_class);
+
+    if (!reflection_method) {
+        TEKLOG_ERROR("Failed to get reflection method object");
+        return PATCH_NULL;
+    }
+
+    void* type_array = create_type_array_from_vector(template_types, il2cpp_class_from_name(il2cpp_get_corlib(), "System", "Type"));
+
+    void* result_obj = ((void*(*)(void*, void*))patchlib_method_get_pointer(patchlib_MakeGenericMethod_impl))(reflection_method, type_array);
+
+    void* result_method = il2cpp_method_get_from_reflection(result_obj);
+    if (!result_method) {
+        TEKLOG_ERROR("Failed to convert reflection result to MethodInfo");
+        return PATCH_NULL;
+    }
+
+    TEKLOG_DEBUG("Generic method created successfully: %p", result_method);
+    return result_method;
 }

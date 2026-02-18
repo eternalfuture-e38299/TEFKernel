@@ -37,11 +37,12 @@ extern "C" {
  * @brief 从 vector_t（元素为 void*）创建 Il2CppArray<System.Type>
  *
  * @param type_vector 指向已初始化的 vector_t，其中每个元素是一个 Il2CppObject*（即 Type 对象）
+ * @param elementTypeClass Il2CppClass 类
  * @return 成功返回 Il2CppArray*；失败或空输入返回 NULL
  *
  * @note 要求 vector_t 的 elem_size == sizeof(void*)
  */
-void *create_type_array_from_vector(const tef_vector_t *type_vector);
+void *create_type_array_from_vector(const tef_vector_t *type_vector, void *elementTypeClass);
 
 /**
  * @brief 转换为ffi type

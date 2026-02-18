@@ -39,7 +39,7 @@ public static class Struct
         {
             var array = Asset.Objects[arrayHandle] as System.Array;
             var value = array?.GetValue(index);
-
+            
             if (value != null)
                 Utils.SetNativeValue(outValue, value);
 

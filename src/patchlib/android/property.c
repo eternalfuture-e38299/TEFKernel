@@ -63,16 +63,3 @@ patch_handle_t patchlib_property_get_set_method(patch_handle_t property) {
     TEKLOG_DEBUG("Property setter method: %p", result);
     return result;
 }
-
-bool patchlib_property_free(patch_handle_t property) {
-    TEKLOG_DEBUG("patchlib_property_free called: property=%p", property);
-
-    if (!patchlib_is_valid(property)) {
-        TEKLOG_WARN("Attempted to free invalid property");
-        return false;
-    }
-
-    // 这里可以添加实际的清理逻辑（如果有的话）
-    TEKLOG_DEBUG("Property freed successfully");
-    return true;
-}

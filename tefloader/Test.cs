@@ -27,9 +27,11 @@ namespace tefloader;
 
 public class Test
 {
+    private static Test i = new();
+    private int bb = 1114514;
     private static int Hello(int a)
     {
-        Logger.Info("Hello!");
+        Logger.Info($"Hello! {a}");
         return 0;
     }
 
@@ -45,7 +47,7 @@ public class Test
         NetApi.Initialization.StructInit.InitAll();
 
         
-        var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("Test"));
+        var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("init_tefkernel"));
         t();
     }
 }

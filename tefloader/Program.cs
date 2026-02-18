@@ -44,7 +44,7 @@ public abstract class Program
     public static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-
+        
         if (!File.Exists(LaunchConfig))
         {
             const string defaultJson = """
@@ -69,13 +69,9 @@ public abstract class Program
             _exePath = exePath;
 
         Logger.Initialize(TefKernelLib);
-        NetApi.Initialization.MethodInit.Init();
-        NetApi.Initialization.TypeApi.Init();
-        NetApi.Initialization.FieldApi.Init();
-        NetApi.Initialization.PropertyApi.Init();
-        NetApi.Initialization.StructInit.InitAll();
+        NetApi.Initialization.InitializeAllApis();
         
-        _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_ary"));
+        _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_tefkernel"));
 
         Launch(args);
     }

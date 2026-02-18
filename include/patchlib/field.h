@@ -109,6 +109,13 @@ DEFINE_FUNCTION(void *, patchlib_field_get_pointer, patch_handle_t field, void *
 DEFINE_FUNCTION(size_t, patchlib_field_get_size, patch_handle_t field)
 #endif
 
+/**
+ * @brief 获取字段类型
+ * @param field 字段句柄
+ * @return 类型
+ */
+DEFINE_FUNCTION(patch_type_t, patchlib_field_get_type, patch_handle_t field)
+
 // ==================== 资源管理 ====================
 /**
  * @brief 释放字段相关资源

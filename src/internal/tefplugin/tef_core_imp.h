@@ -29,6 +29,7 @@
 #ifdef __cplusplus
 extern "C" {
 
+
 #endif
 
 #include <stdbool.h>
@@ -75,6 +76,17 @@ bool tpf_cleanup_plugin(plugin_handle_t *plugin);
  * @note 每个共享库由一个独立线程处理
  */
 bool tpf_register_plugin_symbols(plugin_handle_t *plugin);
+
+/**
+ * @brief 初始化所有已加载的插件并将其注册到所有共享库
+ *
+ * 这个函数会遍历所有已加载的插件，调用它们的初始化函数，并将所有插件的符号
+ * 注册到已注册的共享库中。这样可以确保所有插件都能互相访问彼此的API。
+ *
+ * @return true 所有插件都成功初始化和注册
+ * @return false 有一个或多个插件初始化或注册失败
+ */
+bool tpf_initialize_all_plugins();
 
 /**
  * @brief 初始化内核依赖

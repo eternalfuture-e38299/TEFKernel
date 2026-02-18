@@ -45,7 +45,7 @@ int patchlib_method_get_param_count(patch_handle_t method) {
         return -1;
     }
 
-    const int result = (int) net_method_get_param_count(method);
+    const int result = net_method_get_param_count(method);
     TEKLOG_DEBUG("Method parameter count: %d", result);
     return result;
 }
@@ -75,27 +75,33 @@ patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, cons
     return result;
 }
 
+int patchlib_method_get_token(const patch_handle_t method) {
+    if (!patchlib_is_valid(method)) return 0;
+    return net_method_get_token(method);
+}
+
 bool patchlib_method_get_signature(const patch_handle_t method, patch_method_signature_t* signature) {
     TEKLOG_DEBUG("patchlib_method_get_signature called: method=%d", method);
 
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_ERROR("Invalid method handle");
+    if (!patchlib_is_valid(method) || !signature) {
+        TEKLOG_ERROR("Invalid method handle || Invalid method signature");
         return false;
     }
 
-    signature->method = method;
-    signature->return_type = net_type_to_patchlib_type(net_method_get_return_type(method));
-    signature->is_instance = patchlib_method_is_instance(method);
+    signature->method = net_method_clone(method);
+    signature->token = patchlib_method_get_token(signature->method);
+    signature->return_type = net_type_to_patchlib_type(net_method_get_return_type(signature->method));
+    signature->is_instance = patchlib_method_is_instance(signature->method);
     tefstd_vector_init(&signature->arg_types, sizeof(patch_type_t));
     tefstd_vector_init(&signature->arg_names, sizeof(char*)); // 存储char*指针
 
-    const int param_count = patchlib_method_get_param_count(method);
+    const int param_count = patchlib_method_get_param_count(signature->method);
     TEKLOG_DEBUG("Method signature: return_type=%d, is_instance=%s, param_count=%d",
                  signature->return_type, signature->is_instance ? "true" : "false", param_count);
 
     for (int i = 0; i < param_count; ++i) {
-        patch_type_t t = net_type_to_patchlib_type(net_method_get_param(method, i));
-        const char* original_name = net_method_get_param_name(method, i);
+        patch_type_t t = net_type_to_patchlib_type(net_method_get_param(signature->method, i));
+        const char* original_name = net_method_get_param_name(signature->method, i);
 
         // 复制字符串
         char* name_copy = NULL;
@@ -145,6 +151,7 @@ bool patchlib_method_signature_free(patch_method_signature_t* signature) {
     return true;
 }
 
+
 bool patchlib_method_invoke_args(const patch_handle_t method, const patch_handle_t instance,
                                 void *return_value, void** args) {
     TEKLOG_DEBUG("patchlib_method_invoke_args called: method=%d, instance=%d, return_value=%p",
@@ -171,14 +178,51 @@ bool patchlib_method_invoke_args(const patch_handle_t method, const patch_handle
 }
 
 patch_hook_id_t patchlib_install_prepost_hook(const patch_handle_t method, const prefix_callback_t prefix, const postfix_callback_t postfix) {
-    const bool is_hooked = net_is_method_hooked(method);
-    patch_method_signature_t* sig = NULL;
-    if (is_hooked) {
-        sig = malloc(sizeof(patch_method_signature_t));
-        patchlib_method_get_signature(method, sig);
+    TEKLOG_DEBUG("patchlib_install_prepost_hook called: method=%d, prefix=%p, postfix=%p",
+                 method, prefix, postfix);
+
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("Invalid method handle: %d", method);
+        return PATCH_HOOK_INVALID_ID;
     }
 
-    return net_hook_method(method, sig, prefix, postfix);
+    // 检查是否至少有一个回调函数
+    if (prefix == NULL && postfix == NULL) {
+        TEKLOG_ERROR("Both prefix and postfix callbacks are NULL");
+        return PATCH_HOOK_INVALID_ID;
+    }
+
+    const bool is_hooked = net_is_method_hooked(method);
+    TEKLOG_DEBUG("Method %d is already hooked: %s", method, is_hooked ? "true" : "false");
+
+    patch_method_signature_t* sig = NULL;
+    if (!is_hooked) {
+        TEKLOG_DEBUG("Getting method signature for method %d", method);
+        sig = malloc(sizeof(patch_method_signature_t));
+        if (!patchlib_method_get_signature(method, sig)) {
+            TEKLOG_ERROR("Failed to get method signature for method %d", method);
+            free(sig);
+            return PATCH_HOOK_INVALID_ID;
+        }
+        TEKLOG_DEBUG("Method signature obtained successfully: return_type=%d, arg_count=%zu",
+                     sig->return_type, tefstd_vector_size(&sig->arg_types));
+    } else {
+        TEKLOG_DEBUG("Method %d is already hooked, skipping signature retrieval", method);
+    }
+
+    TEKLOG_DEBUG("Calling net_hook_method for method %d", method);
+    const patch_hook_id_t hook_id = net_hook_method(method, sig, prefix, postfix);
+
+    if (hook_id == PATCH_HOOK_INVALID_ID) {
+        TEKLOG_ERROR("net_hook_method failed for method %d", method);
+        if (sig != NULL) {
+            free(sig);
+        }
+    } else {
+        TEKLOG_DEBUG("Hook installed successfully: method=%d, hook_id=%d", method, hook_id);
+    }
+
+    return hook_id;
 }
 
 bool patchlib_uninstall_hook(const patch_hook_id_t hook_id) {
