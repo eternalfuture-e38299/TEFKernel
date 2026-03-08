@@ -1,0 +1,270 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="modloader__core_8h" kind="file" language="C++">
+    <compoundname>modloader_core.h</compoundname>
+    <includes local="yes">../tefstd/vector.h</includes>
+    <includes refid="tefpkg_8h" local="yes">../tefpackage/tefpkg.h</includes>
+    <includedby refid="modloader__core__imp_8h" local="yes">src/internal/modloader/modloader_core_imp.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>../tefstd/vector.h</label>
+      </node>
+      <node id="1">
+        <label>include/modloader/modloader_core.h</label>
+        <link refid="modloader__core_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="6">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="3">
+        <label>../tefpackage/tefpkg.h</label>
+        <link refid="tefpkg_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+      <node id="5">
+        <label>stdio.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>include/modloader/modloader_core.h</label>
+        <link refid="modloader__core_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="2">
+        <label>src/internal/modloader/modloader_core_imp.h</label>
+        <link refid="modloader__core__imp_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structmod__manifest__t" prot="public">mod_manifest_t</innerclass>
+    <innerclass refid="structmultiplayer__mod__info__t" prot="public">multiplayer_mod_info_t</innerclass>
+    <innerclass refid="structml__info__t" prot="public">ml_info_t</innerclass>
+    <innerclass refid="structml__ops__t" prot="public">ml_ops_t</innerclass>
+    <innerclass refid="structml__entry__t" prot="public">ml_entry_t</innerclass>
+    <sectiondef kind="enum">
+      <memberdef kind="enum" id="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" prot="public" static="no" strong="no">
+        <type></type>
+        <name>ml_result_t</name>
+        <enumvalue id="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfbaef383a56d65f7e67713962af75624589" prot="public">
+          <name>ML_SUCCESS</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba7d27df0c9c1f91487039b0006a48487d" prot="public">
+          <name>ML_ERROR</name>
+          <initializer>= -1</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba38fdec51b6f075a4c2ec5828387baafd" prot="public">
+          <name>ML_ERROR_INVALID_PARAM</name>
+          <initializer>= -2</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba3ff1d9c73efdf5bce68c96e0b25d8060" prot="public">
+          <name>ML_ERROR_NOT_FOUND</name>
+          <initializer>= -3</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="41" column="1" bodyfile="include/modloader/modloader_core.h" bodystart="41" bodyend="46"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="modloader__core_8h_1ac6610280732da27340ed02a42f687986" prot="public" static="no">
+        <type>struct <ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref></type>
+        <definition>typedef struct ml_entry_t ml_entry_t</definition>
+        <argsstring></argsstring>
+        <name>ml_entry_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="62" column="25" bodyfile="include/modloader/modloader_core.h" bodystart="62" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="modloader__core_8h_1a688c90ff7c48396f9ed02dc0ab05a60d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref> const <ref refid="structml__ops__t" kindref="compound">ml_ops_t</ref> *<ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref></type>
+        <definition>API_EXPORT const ml_ops_t *API_CALL ml_create</definition>
+        <argsstring>(void)</argsstring>
+        <name>ml_create</name>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+<para>创建ModLoader </para>
+        </briefdescription>
+        <detaileddescription>
+<para>ModLoader必须导出的唯一函数，返回ModLoader的操作函数表。</para>
+<para><simplesect kind="return"><para>ModLoader操作函数表指针</para>
+</simplesect>
+<simplesect kind="note"><para>必须返回静态内存，不要动态分配 </para>
+</simplesect>
+<simplesect kind="note"><para>此函数在ModLoader加载时调用一次 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="152" column="37" declfile="include/modloader/modloader_core.h" declline="152" declcolumn="37"/>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>File:<sp/>modloader_core</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Project:<sp/>tefkernel</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/11/23</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>Github:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>MIT<sp/>License</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>Permission<sp/>is<sp/>hereby<sp/>granted,<sp/>free<sp/>of<sp/>charge,<sp/>to<sp/>any<sp/>person<sp/>obtaining<sp/>a<sp/>copy</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>of<sp/>this<sp/>software<sp/>and<sp/>associated<sp/>documentation<sp/>files<sp/>(the<sp/>&quot;Software&quot;),<sp/>to<sp/>deal</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>in<sp/>the<sp/>Software<sp/>without<sp/>restriction,<sp/>including<sp/>without<sp/>limitation<sp/>the<sp/>rights</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>to<sp/>use,<sp/>copy,<sp/>modify,<sp/>merge,<sp/>publish,<sp/>distribute,<sp/>sublicense,<sp/>and/or<sp/>sell</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>copies<sp/>of<sp/>the<sp/>Software,<sp/>and<sp/>to<sp/>permit<sp/>persons<sp/>to<sp/>whom<sp/>the<sp/>Software<sp/>is</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*<sp/>furnished<sp/>to<sp/>do<sp/>so,<sp/>subject<sp/>to<sp/>the<sp/>following<sp/>conditions:</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>The<sp/>above<sp/>copyright<sp/>notice<sp/>and<sp/>this<sp/>permission<sp/>notice<sp/>shall<sp/>be<sp/>included<sp/>in<sp/>all</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>copies<sp/>or<sp/>substantial<sp/>portions<sp/>of<sp/>the<sp/>Software.</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="22"><highlight class="comment"><sp/>*<sp/>THE<sp/>SOFTWARE<sp/>IS<sp/>PROVIDED<sp/>&quot;AS<sp/>IS&quot;,<sp/>WITHOUT<sp/>WARRANTY<sp/>OF<sp/>ANY<sp/>KIND,<sp/>EXPRESS<sp/>OR</highlight></codeline>
+<codeline lineno="23"><highlight class="comment"><sp/>*<sp/>IMPLIED,<sp/>INCLUDING<sp/>BUT<sp/>NOT<sp/>LIMITED<sp/>TO<sp/>THE<sp/>WARRANTIES<sp/>OF<sp/>MERCHANTABILITY,</highlight></codeline>
+<codeline lineno="24"><highlight class="comment"><sp/>*<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE<sp/>AND<sp/>NONINFRINGEMENT.<sp/>IN<sp/>NO<sp/>EVENT<sp/>SHALL<sp/>THE</highlight></codeline>
+<codeline lineno="25"><highlight class="comment"><sp/>*<sp/>AUTHORS<sp/>OR<sp/>COPYRIGHT<sp/>HOLDERS<sp/>BE<sp/>LIABLE<sp/>FOR<sp/>ANY<sp/>CLAIM,<sp/>DAMAGES<sp/>OR<sp/>OTHER</highlight></codeline>
+<codeline lineno="26"><highlight class="comment"><sp/>*<sp/>LIABILITY,<sp/>WHETHER<sp/>IN<sp/>AN<sp/>ACTION<sp/>OF<sp/>CONTRACT,<sp/>TORT<sp/>OR<sp/>OTHERWISE,<sp/>ARISING<sp/>FROM,</highlight></codeline>
+<codeline lineno="27"><highlight class="comment"><sp/>*<sp/>OUT<sp/>OF<sp/>OR<sp/>IN<sp/>CONNECTION<sp/>WITH<sp/>THE<sp/>SOFTWARE<sp/>OR<sp/>THE<sp/>USE<sp/>OR<sp/>OTHER<sp/>DEALINGS<sp/>IN<sp/>THE</highlight></codeline>
+<codeline lineno="28"><highlight class="comment"><sp/>*<sp/>SOFTWARE.</highlight></codeline>
+<codeline lineno="29"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_MODLOADER_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_MODLOADER_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;../tefstd/vector.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;../tefpackage/tefpkg.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight></codeline>
+<codeline lineno="41" refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="42" refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfbaef383a56d65f7e67713962af75624589" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfbaef383a56d65f7e67713962af75624589" kindref="member">ML_SUCCESS</ref><sp/>=<sp/>0,</highlight></codeline>
+<codeline lineno="43" refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba7d27df0c9c1f91487039b0006a48487d" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba7d27df0c9c1f91487039b0006a48487d" kindref="member">ML_ERROR</ref><sp/>=<sp/>-1,</highlight></codeline>
+<codeline lineno="44" refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba38fdec51b6f075a4c2ec5828387baafd" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba38fdec51b6f075a4c2ec5828387baafd" kindref="member">ML_ERROR_INVALID_PARAM</ref><sp/>=<sp/>-2,</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba3ff1d9c73efdf5bce68c96e0b25d8060" kindref="member">ML_ERROR_NOT_FOUND</ref><sp/>=<sp/>-3</highlight></codeline>
+<codeline lineno="46" refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfba3ff1d9c73efdf5bce68c96e0b25d8060" refkind="member"><highlight class="normal">}<sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref>;</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight></codeline>
+<codeline lineno="48" refid="structmod__manifest__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="49" refid="structmod__manifest__t_1a386b50c4c86dae8d35557af95c990872" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmod__manifest__t_1a386b50c4c86dae8d35557af95c990872" kindref="member">path</ref>;</highlight></codeline>
+<codeline lineno="50" refid="structmod__manifest__t_1a0df7d4712d2ad1cfdd4e4d769a6b6545" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmod__manifest__t_1a0df7d4712d2ad1cfdd4e4d769a6b6545" kindref="member">mod_id</ref>;</highlight></codeline>
+<codeline lineno="51" refid="structmod__manifest__t_1a82eab915bf9198dcbbaf22f376321b1f" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmod__manifest__t_1a82eab915bf9198dcbbaf22f376321b1f" kindref="member">private_dir</ref>;</highlight></codeline>
+<codeline lineno="52" refid="structmod__manifest__t_1a9be3620d4e011e616bca3af42a0514a2" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmod__manifest__t_1a9be3620d4e011e616bca3af42a0514a2" kindref="member">logs_dir</ref>;</highlight></codeline>
+<codeline lineno="53"><highlight class="normal">}<sp/><ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref>;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight></codeline>
+<codeline lineno="55" refid="structmultiplayer__mod__info__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="56" refid="structmultiplayer__mod__info__t_1ab2bb6869daecb578dbb72c067bd525c4" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmultiplayer__mod__info__t_1ab2bb6869daecb578dbb72c067bd525c4" kindref="member">mod_id</ref>;<sp/></highlight></codeline>
+<codeline lineno="57" refid="structmultiplayer__mod__info__t_1aae96ab0b49fcf92bab125a9c6b5c453c" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structmultiplayer__mod__info__t_1aae96ab0b49fcf92bab125a9c6b5c453c" kindref="member">is_multiplayer_safe</ref>;<sp/></highlight></codeline>
+<codeline lineno="58" refid="structmultiplayer__mod__info__t_1ac63fb1f3d04da83a1421c978fe684f57" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structmultiplayer__mod__info__t_1ac63fb1f3d04da83a1421c978fe684f57" kindref="member">version_code</ref>;<sp/></highlight></codeline>
+<codeline lineno="59" refid="structmultiplayer__mod__info__t_1aa5cef07657f92dec07fdb59ae011ec7c" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structmultiplayer__mod__info__t_1aa5cef07657f92dec07fdb59ae011ec7c" kindref="member">version</ref>;<sp/></highlight></codeline>
+<codeline lineno="60"><highlight class="normal">}<sp/><ref refid="structmultiplayer__mod__info__t" kindref="compound">multiplayer_mod_info_t</ref>;</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="62" refid="modloader__core_8h_1ac6610280732da27340ed02a42f687986" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref><sp/><ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref>;</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"></highlight></codeline>
+<codeline lineno="64" refid="structml__info__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="65" refid="structml__info__t_1af47ce231f5858701ad34849b4f652929" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structml__info__t_1af47ce231f5858701ad34849b4f652929" kindref="member">pkg_id</ref>;<sp/></highlight></codeline>
+<codeline lineno="66" refid="structml__info__t_1a361f51bb9392a8172bca08f3f3daacae" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structml__info__t_1a361f51bb9392a8172bca08f3f3daacae" kindref="member">version_code</ref>;<sp/></highlight></codeline>
+<codeline lineno="67" refid="structml__info__t_1a1399321834d3c09e3762ed9283b5c821" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structml__info__t_1a1399321834d3c09e3762ed9283b5c821" kindref="member">version</ref>;<sp/></highlight></codeline>
+<codeline lineno="68" refid="structml__info__t_1a7fea95c9e4889fd5a5b6ea05c240a2f8" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structml__info__t_1a7fea95c9e4889fd5a5b6ea05c240a2f8" kindref="member">api_version</ref>;<sp/></highlight></codeline>
+<codeline lineno="69" refid="structml__info__t_1ad2798b62e8f206743a24151f97834093" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structml__info__t_1ad2798b62e8f206743a24151f97834093" kindref="member">plugin_dependencies_sizes</ref>;<sp/></highlight></codeline>
+<codeline lineno="70" refid="structml__info__t_1a5c32abcdac86897282e829d0cf93290d" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>**<ref refid="structml__info__t_1a5c32abcdac86897282e829d0cf93290d" kindref="member">plugin_dependencies</ref>;<sp/></highlight></codeline>
+<codeline lineno="71"><highlight class="normal">}<sp/><ref refid="structml__info__t" kindref="compound">ml_info_t</ref>;</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight></codeline>
+<codeline lineno="73" refid="structml__ops__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="80" refid="structml__ops__t_1a6c3a177638a9422b55e567294e3639dd" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>*<sp/>(*load_mod)(<ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref><sp/>*mod_manifest);</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight></codeline>
+<codeline lineno="87" refid="structml__ops__t_1ad09fd56e5c5540d0c3bc7ce8e3c1b7e1" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>(*unload_mod)(<ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref><sp/>*mod_manifest);</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight></codeline>
+<codeline lineno="95" refid="structml__ops__t_1a8f6e4ad24f9d7a328fdf9286c26c5a24" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>*<sp/>(*reload_mod)(<ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref><sp/>*mod_manifest);</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="103" refid="structml__ops__t_1aaf4b7bbb51ea97bc945796268242b93a" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>(*init_mod)(<ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref><sp/>*mod_manifest);</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"></highlight></codeline>
+<codeline lineno="112" refid="structml__ops__t_1a2cbc156c801b90f1d6145da8d3f2dbcd" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structmultiplayer__mod__info__t" kindref="compound">multiplayer_mod_info_t</ref><sp/>*<sp/>(*get_multiplayer_info)(<ref refid="structmod__manifest__t" kindref="compound">mod_manifest_t</ref><sp/>*mod_manifest);</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"></highlight></codeline>
+<codeline lineno="118" refid="structml__ops__t_1a7316f2ae6e1c1ad6784e195176aff520" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>(*init_ml)(<ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref>*<sp/>ml_entry);</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="124" refid="structml__ops__t_1a906a75e0f9aba0145cb723a84554f530" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref><sp/>(*cleanup_ml)(<ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref>*<sp/>ml_entry);</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"></highlight></codeline>
+<codeline lineno="131" refid="structml__ops__t_1ab1548f894ab4fe5b1f1324e0a10770b8" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structml__info__t" kindref="compound">ml_info_t</ref><sp/>*(*get_info)(void);</highlight></codeline>
+<codeline lineno="132"><highlight class="normal">}<sp/><ref refid="structml__ops__t" kindref="compound">ml_ops_t</ref>;</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"></highlight></codeline>
+<codeline lineno="134" refid="structml__entry__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="135" refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="structml__info__t" kindref="compound">ml_info_t</ref><sp/>*<ref refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" kindref="member">info</ref>;</highlight></codeline>
+<codeline lineno="136" refid="structml__entry__t_1ae639199e828e4cb4b2c3228c391e4dec" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="structml__ops__t" kindref="compound">ml_ops_t</ref><sp/>*<ref refid="structml__entry__t_1ae639199e828e4cb4b2c3228c391e4dec" kindref="member">ops</ref>;</highlight></codeline>
+<codeline lineno="137" refid="structml__entry__t_1afcd77cd2f5499ebfb3c306fef16ea1a0" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="structtefpkg__t" kindref="compound">tefpkg_t</ref><sp/>*<ref refid="structml__entry__t_1afcd77cd2f5499ebfb3c306fef16ea1a0" kindref="member">pkg_handle</ref>;</highlight></codeline>
+<codeline lineno="138" refid="structml__entry__t_1ad4ec36e4f3d85549a33f5a8bec6ff91c" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structml__entry__t_1ad4ec36e4f3d85549a33f5a8bec6ff91c" kindref="member">private_dir</ref>;</highlight></codeline>
+<codeline lineno="139" refid="structml__entry__t_1ae5c33ffaabb388f932256b1946bc3393" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structml__entry__t_1ae5c33ffaabb388f932256b1946bc3393" kindref="member">logs_dir</ref>;</highlight></codeline>
+<codeline lineno="140"><highlight class="normal">}<sp/><ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref>;</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"></highlight></codeline>
+<codeline lineno="152" refid="modloader__core_8h_1a688c90ff7c48396f9ed02dc0ab05a60d" refkind="member"><highlight class="normal"><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structml__ops__t" kindref="compound">ml_ops_t</ref><sp/>*<sp/><ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref><sp/><ref refid="modloader__core_8h_1a688c90ff7c48396f9ed02dc0ab05a60d" kindref="member">ml_create</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"></highlight></codeline>
+<codeline lineno="154"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="155"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="157"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//TEFKERNEL_MODLOADER_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="include/modloader/modloader_core.h"/>
+  </compounddef>
+</doxygen>

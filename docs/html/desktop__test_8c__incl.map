@@ -1,0 +1,13 @@
+<map id="src/desktop/desktop_test.c" name="src/desktop/desktop_test.c">
+<area shape="rect" id="Node000001" title=" " alt="" coords="207,5,360,45"/>
+<area shape="rect" id="Node000002" href="$log_8h.html" title=" " alt="" coords="5,93,113,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="231,48,106,91,104,86,229,43"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="137,93,277,119"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="267,47,230,85,226,81,263,44"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="301,93,420,119"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="304,44,342,82,338,85,300,47"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="445,93,607,119"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="342,43,478,86,477,92,341,48"/>
+<area shape="rect" id="Node000003" href="$tef__api_8h.html" title=" " alt="" coords="20,167,99,192"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="62,119,62,153,57,153,57,119"/>
+</map>

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structmod__manifest__t" kind="struct" language="C++" prot="public">
+    <compoundname>mod_manifest_t</compoundname>
+    <includes refid="modloader__core_8h" local="no">modloader_core.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structmod__manifest__t_1a386b50c4c86dae8d35557af95c990872" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* mod_manifest_t::path</definition>
+        <argsstring></argsstring>
+        <name>path</name>
+        <qualifiedname>mod_manifest_t::path</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="49" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="49" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af32cf174990017692dfdee41a6022825" compoundref="modloader__core_8c" startline="535" endline="557">tefkernel_ml_load_mod</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structmod__manifest__t_1a0df7d4712d2ad1cfdd4e4d769a6b6545" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* mod_manifest_t::mod_id</definition>
+        <argsstring></argsstring>
+        <name>mod_id</name>
+        <qualifiedname>mod_manifest_t::mod_id</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="50" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="50" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af32cf174990017692dfdee41a6022825" compoundref="modloader__core_8c" startline="535" endline="557">tefkernel_ml_load_mod</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structmod__manifest__t_1a82eab915bf9198dcbbaf22f376321b1f" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* mod_manifest_t::private_dir</definition>
+        <argsstring></argsstring>
+        <name>private_dir</name>
+        <qualifiedname>mod_manifest_t::private_dir</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="51" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="51" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structmod__manifest__t_1a9be3620d4e011e616bca3af42a0514a2" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* mod_manifest_t::logs_dir</definition>
+        <argsstring></argsstring>
+        <name>logs_dir</name>
+        <qualifiedname>mod_manifest_t::logs_dir</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="52" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="52" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="include/modloader/modloader_core.h" line="48" column="1" bodyfile="include/modloader/modloader_core.h" bodystart="48" bodyend="53"/>
+    <listofallmembers>
+      <member refid="structmod__manifest__t_1a9be3620d4e011e616bca3af42a0514a2" prot="public" virt="non-virtual"><scope>mod_manifest_t</scope><name>logs_dir</name></member>
+      <member refid="structmod__manifest__t_1a0df7d4712d2ad1cfdd4e4d769a6b6545" prot="public" virt="non-virtual"><scope>mod_manifest_t</scope><name>mod_id</name></member>
+      <member refid="structmod__manifest__t_1a386b50c4c86dae8d35557af95c990872" prot="public" virt="non-virtual"><scope>mod_manifest_t</scope><name>path</name></member>
+      <member refid="structmod__manifest__t_1a82eab915bf9198dcbbaf22f376321b1f" prot="public" virt="non-virtual"><scope>mod_manifest_t</scope><name>private_dir</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,751 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="android__runtime__core_8cpp" kind="file" language="C++">
+    <compoundname>android_runtime_core.cpp</compoundname>
+    <includes local="no">dlfcn.h</includes>
+    <includes local="no">cstdio</includes>
+    <includes local="no">cstring</includes>
+    <includes local="no">jni.h</includes>
+    <includes local="no">string</includes>
+    <includes local="no">unistd.h</includes>
+    <includes local="no">csignal</includes>
+    <includes local="no">asm-generic/signal.h</includes>
+    <includes local="no">asm-generic/siginfo.h</includes>
+    <includes local="yes">dobby.h</includes>
+    <includes refid="log_8h" local="yes">internal/log.h</includes>
+    <includes local="yes">patchlib/method.h</includes>
+    <includes local="yes">patchlib/type.h</includes>
+    <includes local="yes">../patchlib/android/il2cpp_api.h</includes>
+    <includes local="yes">patchlib/android/private.h</includes>
+    <incdepgraph>
+      <node id="16">
+        <label>../patchlib/android/il2cpp_api.h</label>
+      </node>
+      <node id="13">
+        <label>tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="1">
+        <label>src/android/android_runtime_core.cpp</label>
+        <link refid="android__runtime__core_8cpp"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="9" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+      </node>
+      <node id="12">
+        <label>internal/log.h</label>
+        <link refid="log_8h"/>
+        <childnode refid="13" relation="include">
+        </childnode>
+      </node>
+      <node id="10">
+        <label>asm-generic/siginfo.h</label>
+      </node>
+      <node id="9">
+        <label>asm-generic/signal.h</label>
+      </node>
+      <node id="8">
+        <label>csignal</label>
+      </node>
+      <node id="3">
+        <label>cstdio</label>
+      </node>
+      <node id="4">
+        <label>cstring</label>
+      </node>
+      <node id="2">
+        <label>dlfcn.h</label>
+      </node>
+      <node id="11">
+        <label>dobby.h</label>
+      </node>
+      <node id="5">
+        <label>jni.h</label>
+      </node>
+      <node id="17">
+        <label>patchlib/android/private.h</label>
+      </node>
+      <node id="14">
+        <label>patchlib/method.h</label>
+      </node>
+      <node id="15">
+        <label>patchlib/type.h</label>
+      </node>
+      <node id="6">
+        <label>string</label>
+      </node>
+      <node id="7">
+        <label>unistd.h</label>
+      </node>
+    </incdepgraph>
+    <sectiondef kind="var">
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" prot="public" static="no" mutable="no">
+        <type>int(*</type>
+        <definition>int(* orig_il2cpp_init) (const char *)</definition>
+        <argsstring>)(const char *)</argsstring>
+        <name>orig_il2cpp_init</name>
+        <initializer>= nullptr</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="153" column="1" bodyfile="src/android/android_runtime_core.cpp" bodystart="153" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" compoundref="android__runtime__core_8cpp" startline="154" endline="178">hook_il2cpp_init</referencedby>
+        <referencedby refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" prot="public" static="yes" mutable="no">
+        <type>__thread bool</type>
+        <definition>__thread bool in_hook</definition>
+        <argsstring></argsstring>
+        <name>in_hook</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="180" column="22" bodyfile="src/android/android_runtime_core.cpp" bodystart="180" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</referencedby>
+        <referencedby refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" compoundref="android__runtime__core_8cpp" startline="216" endline="236">new_dlsym</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" prot="public" static="yes" mutable="no">
+        <type>bool</type>
+        <definition>bool hooked</definition>
+        <argsstring></argsstring>
+        <name>hooked</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="181" column="13" bodyfile="src/android/android_runtime_core.cpp" bodystart="181" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" prot="public" static="no" mutable="no">
+        <type>void *(*</type>
+        <definition>void *(* old_dlopen) (const char *filename, int flag)</definition>
+        <argsstring>)(const char *filename, int flag)</argsstring>
+        <name>old_dlopen</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="183" column="1" bodyfile="src/android/android_runtime_core.cpp" bodystart="183" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+        <referencedby refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" prot="public" static="no" mutable="no">
+        <type>void *(*</type>
+        <definition>void *(* old_dlsym) (void *handle, const char *sym)</definition>
+        <argsstring>)(void *handle, const char *sym)</argsstring>
+        <name>old_dlsym</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="215" column="1" bodyfile="src/android/android_runtime_core.cpp" bodystart="215" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+        <referencedby refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" compoundref="android__runtime__core_8cpp" startline="216" endline="236">new_dlsym</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" prot="public" static="yes" mutable="no">
+        <type>volatile sig_atomic_t</type>
+        <definition>volatile sig_atomic_t in_signal_handler</definition>
+        <argsstring></argsstring>
+        <name>in_signal_handler</name>
+        <initializer>= 0</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="263" column="30" bodyfile="src/android/android_runtime_core.cpp" bodystart="263" bodyend="-1"/>
+        <referencedby refid="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" compoundref="android__runtime__core_8cpp" startline="265" endline="293">signal_handler</referencedby>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a35e658d0df46a9b6bbb36cdb360e30b6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>patch_handle_t</type>
+        <definition>patch_handle_t find_and_initialize_make_generic_method_impl</definition>
+        <argsstring>()</argsstring>
+        <name>find_and_initialize_make_generic_method_impl</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="80" column="16" bodyfile="src/android/android_runtime_core.cpp" bodystart="80" bodyend="149"/>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" compoundref="android__runtime__core_8cpp" startline="154" endline="178">hook_il2cpp_init</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a3af2ffc46c9ac06c9972dc521288afa0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void start_test</definition>
+        <argsstring>()</argsstring>
+        <name>start_test</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="151" column="6" bodyfile="src/android/android_test.cpp" bodystart="258" bodyend="266" declfile="src/android/android_runtime_core.cpp" declline="151" declcolumn="6"/>
+        <references refid="android__test_8cpp_1ae0c684ef0736e64fbf8e06534e1d983a" compoundref="android__test_8cpp" startline="254" endline="256">Initialize_AlmostEverything_post</references>
+        <references refid="android__test_8cpp_1ab2d1facb8afe7135c3752e5524e12010" compoundref="android__test_8cpp" startline="187" endline="230">Initialize_AlmostEverything_pre</references>
+        <referencedby refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" compoundref="android__runtime__core_8cpp" startline="154" endline="178">hook_il2cpp_init</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int hook_il2cpp_init</definition>
+        <argsstring>(const char *domain_name)</argsstring>
+        <name>hook_il2cpp_init</name>
+        <param>
+          <type>const char *</type>
+          <declname>domain_name</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="154" column="5" bodyfile="src/android/android_runtime_core.cpp" bodystart="154" bodyend="178"/>
+        <references refid="android__runtime__core_8cpp_1a35e658d0df46a9b6bbb36cdb360e30b6" compoundref="android__runtime__core_8cpp" startline="80" endline="149">find_and_initialize_make_generic_method_impl</references>
+        <references refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" compoundref="android__runtime__core_8cpp" startline="153">orig_il2cpp_init</references>
+        <references refid="android__runtime__core_8cpp_1a3af2ffc46c9ac06c9972dc521288afa0" compoundref="android__test_8cpp" startline="258" endline="266">start_test</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void *</type>
+        <definition>void * new_dlopen</definition>
+        <argsstring>(const char *filename, const int flag)</argsstring>
+        <name>new_dlopen</name>
+        <param>
+          <type>const char *</type>
+          <declname>filename</declname>
+        </param>
+        <param>
+          <type>const int</type>
+          <declname>flag</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="184" column="6" bodyfile="src/android/android_runtime_core.cpp" bodystart="184" bodyend="213"/>
+        <references refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" compoundref="tefpkg_8h" startline="166">filename</references>
+        <references refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" compoundref="android__runtime__core_8cpp" startline="154" endline="178">hook_il2cpp_init</references>
+        <references refid="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" compoundref="android__runtime__core_8cpp" startline="181">hooked</references>
+        <references refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" compoundref="android__runtime__core_8cpp" startline="180">in_hook</references>
+        <references refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" compoundref="android__runtime__core_8cpp" startline="183">old_dlopen</references>
+        <references refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" compoundref="android__runtime__core_8cpp" startline="153">orig_il2cpp_init</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void *</type>
+        <definition>void * new_dlsym</definition>
+        <argsstring>(void *handle, const char *sym)</argsstring>
+        <name>new_dlsym</name>
+        <param>
+          <type>void *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type>const char *</type>
+          <declname>sym</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="216" column="6" bodyfile="src/android/android_runtime_core.cpp" bodystart="216" bodyend="236"/>
+        <references refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" compoundref="android__runtime__core_8cpp" startline="180">in_hook</references>
+        <references refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" compoundref="android__runtime__core_8cpp" startline="215">old_dlsym</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a5f3b38bdf79892911d9bc39ae96e67e0" compoundref="log_8h" startline="92">TEKLOG_TRACE</references>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1ae9029d15ce730ee71dc6d3aedbf3ef2f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>JavaVM *</type>
+        <definition>JavaVM * GetJavaVMViaJNIStandard</definition>
+        <argsstring>()</argsstring>
+        <name>GetJavaVMViaJNIStandard</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="238" column="8" bodyfile="src/android/android_runtime_core.cpp" bodystart="238" bodyend="261"/>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void signal_handler</definition>
+        <argsstring>(const int sig, siginfo_t *info, void *context)</argsstring>
+        <name>signal_handler</name>
+        <param>
+          <type>const int</type>
+          <declname>sig</declname>
+        </param>
+        <param>
+          <type>siginfo_t *</type>
+          <declname>info</declname>
+        </param>
+        <param>
+          <type>void *</type>
+          <declname>context</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="265" column="6" bodyfile="src/android/android_runtime_core.cpp" bodystart="265" bodyend="293"/>
+        <references refid="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" compoundref="android__runtime__core_8cpp" startline="263">in_signal_handler</references>
+        <references refid="log_8h_1a0e55a37e3f059fb1512c59071164869e" compoundref="log_8c" startline="579" endline="616">tefkernel_log_cleanup</references>
+        <references refid="log_8h_1ab9bb6898a25e8efee464062fbd0d9dd6" compoundref="log_8h" startline="111">TEKLOG_CRITICAL</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" compoundref="android__runtime__core_8cpp" startline="295" endline="311">setup_signal_handlers</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void setup_signal_handlers</definition>
+        <argsstring>()</argsstring>
+        <name>setup_signal_handlers</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="295" column="6" bodyfile="src/android/android_runtime_core.cpp" bodystart="295" bodyend="311"/>
+        <references refid="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" compoundref="android__runtime__core_8cpp" startline="265" endline="293">signal_handler</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <referencedby refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" compoundref="android__runtime__core_8cpp" startline="313" endline="335">__attribute__</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>__attribute__</definition>
+        <argsstring>((constructor)) int init_ary()</argsstring>
+        <name>__attribute__</name>
+        <param>
+          <type>(constructor)</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/android/android_runtime_core.cpp" line="313" column="1" bodyfile="src/android/android_runtime_core.cpp" bodystart="313" bodyend="335"/>
+        <references refid="android__runtime__core_8cpp_1ae9029d15ce730ee71dc6d3aedbf3ef2f" compoundref="android__runtime__core_8cpp" startline="238" endline="261">GetJavaVMViaJNIStandard</references>
+        <references refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" compoundref="android__runtime__core_8cpp" startline="184" endline="213">new_dlopen</references>
+        <references refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" compoundref="android__runtime__core_8cpp" startline="216" endline="236">new_dlsym</references>
+        <references refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" compoundref="android__runtime__core_8cpp" startline="183">old_dlopen</references>
+        <references refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" compoundref="android__runtime__core_8cpp" startline="215">old_dlsym</references>
+        <references refid="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" compoundref="android__runtime__core_8cpp" startline="295" endline="311">setup_signal_handlers</references>
+        <references refid="log_8h_1a4b4c5cb4a19bc4c73b0640ca73f115e4" compoundref="log_8c" startline="422" endline="500">tefkernel_log_init</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>tefkernel<sp/>-<sp/>android_runtime_core</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(C)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>free<sp/>software:<sp/>you<sp/>can<sp/>redistribute<sp/>it<sp/>and/or<sp/>modify</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>it<sp/>under<sp/>the<sp/>terms<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>as<sp/>published<sp/>by</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/>the<sp/>Free<sp/>Software<sp/>Foundation,<sp/>either<sp/>version<sp/>3<sp/>of<sp/>the<sp/>License,<sp/>or</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>(at<sp/>your<sp/>option)<sp/>any<sp/>later<sp/>version.</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>distributed<sp/>in<sp/>the<sp/>hope<sp/>that<sp/>it<sp/>will<sp/>be<sp/>useful,</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>but<sp/>WITHOUT<sp/>ANY<sp/>WARRANTY;<sp/>without<sp/>even<sp/>the<sp/>implied<sp/>warranty<sp/>of</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>MERCHANTABILITY<sp/>or<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE.<sp/>See<sp/>the</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>for<sp/>more<sp/>details.</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>You<sp/>should<sp/>have<sp/>received<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>along<sp/>with<sp/>this<sp/>program.<sp/>If<sp/>not,<sp/>see<sp/>&lt;https://www.gnu.org/licenses/&gt;.</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>GitHub:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/12/14</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;dlfcn.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdio&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstring&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;jni.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;string&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;unistd.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;csignal&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;asm-generic/signal.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;asm-generic/siginfo.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;dobby.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="log_8h" kindref="compound">internal/log.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;patchlib/method.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;patchlib/type.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;../patchlib/android/il2cpp_api.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;patchlib/android/private.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="43"><highlight class="comment">void<sp/>Initialize_AlmostEverything_pre(patch_handle_t<sp/>orig_func,<sp/>patch_handle_t<sp/>instance,<sp/>void**<sp/>args,<sp/>const<sp/>patch_method_signature_t*<sp/>sig_info)<sp/>{</highlight></codeline>
+<codeline lineno="44"><highlight class="comment"><sp/><sp/><sp/><sp/>TEKLOG_INFO(&quot;Hook<sp/>triggered:<sp/>Initialize_AlmostEverything_pre<sp/>called<sp/>with<sp/>parameter&quot;);</highlight></codeline>
+<codeline lineno="45"><highlight class="comment"><sp/><sp/><sp/><sp/>//<sp/>TEKLOG_DEBUG(&quot;Game<sp/>initialization<sp/>hook<sp/>activated<sp/>successfully&quot;);</highlight></codeline>
+<codeline lineno="46"><highlight class="comment">}</highlight></codeline>
+<codeline lineno="47"><highlight class="comment"></highlight></codeline>
+<codeline lineno="48"><highlight class="comment"></highlight></codeline>
+<codeline lineno="49"><highlight class="comment">void<sp/>(*old_Initialize_AlmostEverything)(void*);</highlight></codeline>
+<codeline lineno="50"><highlight class="comment">void<sp/>Initialize_AlmostEverything_post(patch_handle_t<sp/>orig_func,<sp/>patch_handle_t<sp/>instance,<sp/>void**<sp/>args,<sp/>void*<sp/>result,<sp/>const<sp/>patch_method_signature_t*<sp/>sig_info)<sp/>{</highlight></codeline>
+<codeline lineno="51"><highlight class="comment"><sp/><sp/><sp/><sp/>//<sp/>old_Initialize_AlmostEverything(i);</highlight></codeline>
+<codeline lineno="52"><highlight class="comment"><sp/><sp/><sp/><sp/>TEKLOG_INFO(&quot;Hook<sp/>triggered:<sp/>Initialize_AlmostEverything_post<sp/>called<sp/>with<sp/>parameter&quot;);</highlight></codeline>
+<codeline lineno="53"><highlight class="comment"><sp/><sp/><sp/><sp/>//<sp/>TEKLOG_DEBUG(&quot;Game<sp/>initialization<sp/>hook<sp/>activated<sp/>successfully&quot;);</highlight></codeline>
+<codeline lineno="54"><highlight class="comment">}</highlight></codeline>
+<codeline lineno="55"><highlight class="comment"></highlight></codeline>
+<codeline lineno="56"><highlight class="comment"></highlight></codeline>
+<codeline lineno="57"><highlight class="comment">void<sp/>init()<sp/>{</highlight></codeline>
+<codeline lineno="58"><highlight class="comment"><sp/><sp/><sp/><sp/>TEKLOG_INFO(&quot;Starting<sp/>TEFKernel<sp/>initialization&quot;);</highlight></codeline>
+<codeline lineno="59"><highlight class="comment"></highlight></codeline>
+<codeline lineno="60"><highlight class="comment"><sp/><sp/><sp/><sp/>patch_handle_t<sp/>method<sp/>=<sp/>patchlib_type_get_method_by_param_count(</highlight></codeline>
+<codeline lineno="61"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>patchlib_type_get_type(&quot;Terraria&quot;,<sp/>&quot;Main&quot;),</highlight></codeline>
+<codeline lineno="62"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>&quot;.ctor&quot;,</highlight></codeline>
+<codeline lineno="63"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>0</highlight></codeline>
+<codeline lineno="64"><highlight class="comment"><sp/><sp/><sp/><sp/>);</highlight></codeline>
+<codeline lineno="65"><highlight class="comment"></highlight></codeline>
+<codeline lineno="66"><highlight class="comment"><sp/><sp/><sp/><sp/>if<sp/>(method)<sp/>{</highlight></codeline>
+<codeline lineno="67"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>TEKLOG_DEBUG(&quot;Found<sp/>target<sp/>method,<sp/>installing<sp/>hook&quot;);</highlight></codeline>
+<codeline lineno="68"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>patchlib_install_prepost_hook(method,<sp/>(void*)Initialize_AlmostEverything_pre,<sp/>(void*)Initialize_AlmostEverything_post);</highlight></codeline>
+<codeline lineno="69"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>//<sp/>DobbyHook(patchlib_method_get_pointer(method),<sp/>(void*)Initialize_AlmostEverything_post,<sp/>(void**)&amp;old_Initialize_AlmostEverything);</highlight></codeline>
+<codeline lineno="70"><highlight class="comment"></highlight></codeline>
+<codeline lineno="71"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>TEKLOG_INFO(&quot;Game<sp/>hook<sp/>installed<sp/>successfully&quot;);</highlight></codeline>
+<codeline lineno="72"><highlight class="comment"><sp/><sp/><sp/><sp/>}<sp/>else<sp/>{</highlight></codeline>
+<codeline lineno="73"><highlight class="comment"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>TEKLOG_ERROR(&quot;Failed<sp/>to<sp/>find<sp/>target<sp/>method<sp/>for<sp/>hooking&quot;);</highlight></codeline>
+<codeline lineno="74"><highlight class="comment"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="75"><highlight class="comment"></highlight></codeline>
+<codeline lineno="76"><highlight class="comment"><sp/><sp/><sp/><sp/>TEKLOG_INFO(&quot;TEFKernel<sp/>initialization<sp/>completed&quot;);</highlight></codeline>
+<codeline lineno="77"><highlight class="comment">}</highlight></codeline>
+<codeline lineno="78"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"></highlight></codeline>
+<codeline lineno="80" refid="android__runtime__core_8cpp_1a35e658d0df46a9b6bbb36cdb360e30b6" refkind="member"><highlight class="normal">patch_handle_t<sp/><ref refid="android__runtime__core_8cpp_1a35e658d0df46a9b6bbb36cdb360e30b6" kindref="member">find_and_initialize_make_generic_method_impl</ref>()<sp/>{</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>If<sp/>already<sp/>initialized,<sp/>return<sp/>immediately</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(patchlib_MakeGenericMethod_impl<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>patchlib_MakeGenericMethod_impl;</highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/><sp/><sp/>patch_handle_t<sp/>make_generic_method<sp/>=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>search_classes[]<sp/>=<sp/>{</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;System.Reflection.RuntimeMethodInfo&quot;</highlight><highlight class="normal">,</highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;System.Reflection.MonoMethod&quot;</highlight><highlight class="normal">,</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/>};</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Search<sp/>in<sp/>different<sp/>classes</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>class_idx<sp/>=<sp/>0;<sp/>search_classes[class_idx]<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;<sp/>class_idx++)<sp/>{</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>class_name<sp/>=<sp/>search_classes[class_idx];</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Extract<sp/>namespace<sp/>and<sp/>class<sp/>name</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>dot_pos<sp/>=<sp/>strrchr(class_name,<sp/></highlight><highlight class="charliteral">&apos;.&apos;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>namespace_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;System.Reflection&quot;</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>short_class_name<sp/>=<sp/>dot_pos<sp/>?<sp/>dot_pos<sp/>+<sp/>1<sp/>:<sp/>class_name;</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"></highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>patch_handle_t<sp/>class_handle<sp/>=<sp/>patchlib_type_get_type(namespace_name,<sp/>short_class_name);</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!class_handle)<sp/>{</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">continue</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"></highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Get<sp/>methods<sp/>for<sp/>this<sp/>class</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tef_vector_t<sp/>methods;</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!tefstd_vector_init(&amp;methods,<sp/></highlight><highlight class="keyword">sizeof</highlight><highlight class="normal">(patch_handle_t)))<sp/>{</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">continue</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"></highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!patchlib_type_get_methods(class_handle,<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">,<sp/>&amp;methods))<sp/>{</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tefstd_vector_destroy(&amp;methods);</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">continue</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"></highlight></codeline>
+<codeline lineno="118"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>method_count<sp/>=<sp/>tefstd_vector_size(&amp;methods);</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Search<sp/>for<sp/>MakeGenericMethod_impl</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>0;<sp/>i<sp/>&lt;<sp/>method_count;<sp/>i++)<sp/>{</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal">*<sp/>method_ptr<sp/>=<sp/></highlight><highlight class="keyword">static_cast&lt;</highlight><highlight class="normal">patch_handle_t<sp/>*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(tefstd_vector_at(&amp;methods,<sp/>i));</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"></highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!patchlib_is_valid(*method_ptr))<sp/>{</highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">continue</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>current_name<sp/>=<sp/>patchlib_method_get_name(*method_ptr);</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!current_name)<sp/>{</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">continue</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strcmp(current_name,<sp/></highlight><highlight class="stringliteral">&quot;MakeGenericMethod_impl&quot;</highlight><highlight class="normal">)<sp/>==<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>make_generic_method<sp/>=<sp/>*method_ptr;</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>patchlib_MakeGenericMethod_impl<sp/>=<sp/>make_generic_method;</highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tefstd_vector_destroy(&amp;methods);</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"></highlight></codeline>
+<codeline lineno="138"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;[MakeGenericMethod]<sp/>Found<sp/>MakeGenericMethod_impl<sp/>in<sp/>%s&quot;</highlight><highlight class="normal">,<sp/>class_name);</highlight></codeline>
+<codeline lineno="139"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>make_generic_method;</highlight></codeline>
+<codeline lineno="140"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"></highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Clean<sp/>up<sp/>for<sp/>this<sp/>class</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="144"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tefstd_vector_destroy(&amp;methods);</highlight></codeline>
+<codeline lineno="145"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="146"><highlight class="normal"></highlight></codeline>
+<codeline lineno="147"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" kindref="member">TEKLOG_ERROR</ref>(</highlight><highlight class="stringliteral">&quot;[MakeGenericMethod]<sp/>MakeGenericMethod_impl<sp/>not<sp/>found&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="148"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="149"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight></codeline>
+<codeline lineno="151"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1a3af2ffc46c9ac06c9972dc521288afa0" kindref="member">start_test</ref>();</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"></highlight></codeline>
+<codeline lineno="153" refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" refkind="member"><highlight class="normal">int<sp/>(*<ref refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" kindref="member">orig_il2cpp_init</ref>)(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*)<sp/>=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="154" refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" kindref="member">hook_il2cpp_init</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>domain_name)<sp/>{</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;il2cpp_init<sp/>hook<sp/>called,<sp/>domain:<sp/>%s&quot;</highlight><highlight class="normal">,<sp/>domain_name);</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"></highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" kindref="member">orig_il2cpp_init</ref><sp/>==<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="158"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" kindref="member">TEKLOG_ERROR</ref>(</highlight><highlight class="stringliteral">&quot;Original<sp/>function<sp/>pointer<sp/>is<sp/>NULL!&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="159"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline lineno="160"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="161"><highlight class="normal"></highlight></codeline>
+<codeline lineno="162"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Calling<sp/>original<sp/>il2cpp_init<sp/>function&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="163"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>r<sp/>=<sp/><ref refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" kindref="member">orig_il2cpp_init</ref>(domain_name);</highlight></codeline>
+<codeline lineno="164"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Original<sp/>il2cpp_init<sp/>returned:<sp/>%d&quot;</highlight><highlight class="normal">,<sp/>r);</highlight></codeline>
+<codeline lineno="165"><highlight class="normal"></highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Starting<sp/>TEFKernel<sp/>core<sp/>initialization&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>init();</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="168"><highlight class="normal"></highlight></codeline>
+<codeline lineno="169"><highlight class="normal"></highlight></codeline>
+<codeline lineno="170"><highlight class="normal"><sp/><sp/><sp/><sp/>patchlib_MakeGenericType<sp/>=<sp/>patchlib_type_get_method_by_param_count(patchlib_type_get_type(</highlight><highlight class="stringliteral">&quot;System&quot;</highlight><highlight class="normal">,<sp/></highlight><highlight class="stringliteral">&quot;RuntimeType&quot;</highlight><highlight class="normal">),<sp/></highlight><highlight class="stringliteral">&quot;MakeGenericType&quot;</highlight><highlight class="normal">,<sp/>2);</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a35e658d0df46a9b6bbb36cdb360e30b6" kindref="member">find_and_initialize_make_generic_method_impl</ref>();</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"></highlight></codeline>
+<codeline lineno="173"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;TEFKernel<sp/>core<sp/>initialization<sp/>completed&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="174"><highlight class="normal"></highlight></codeline>
+<codeline lineno="175"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a3af2ffc46c9ac06c9972dc521288afa0" kindref="member">start_test</ref>();</highlight></codeline>
+<codeline lineno="176"><highlight class="normal"></highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>r;</highlight></codeline>
+<codeline lineno="178"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"></highlight></codeline>
+<codeline lineno="180" refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/>__thread<sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref><sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="181" refid="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" kindref="member">hooked</ref><sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"></highlight></codeline>
+<codeline lineno="183" refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>(*old_dlopen)(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>flag);</highlight></codeline>
+<codeline lineno="184" refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/><ref refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" kindref="member">new_dlopen</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>flag)<sp/>{</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref>)<sp/>{</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" kindref="member">old_dlopen</ref>(<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/>flag);</highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"></highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref><sp/>=<sp/></highlight><highlight class="keyword">true</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;dlopen<sp/>intercepted,<sp/>loading:<sp/>%s&quot;</highlight><highlight class="normal">,<sp/><ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>);</highlight></codeline>
+<codeline lineno="191"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>r<sp/>=<sp/><ref refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" kindref="member">old_dlopen</ref>(<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/>flag);</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"></highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!<ref refid="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" kindref="member">hooked</ref><sp/>&amp;&amp;<sp/><ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref><sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal"><sp/>&amp;&amp;<sp/>strstr(<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/></highlight><highlight class="stringliteral">&quot;/libil2cpp.so&quot;</highlight><highlight class="normal">)<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Detected<sp/>il2cpp<sp/>library<sp/>loading:<sp/>%s&quot;</highlight><highlight class="normal">,<sp/><ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>);</highlight></codeline>
+<codeline lineno="195"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Initializing<sp/>il2cpp<sp/>API&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="196"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>il2cpp_api_init(r);</highlight></codeline>
+<codeline lineno="197"><highlight class="normal"></highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!DobbyHook(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(il2cpp_init),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(<ref refid="android__runtime__core_8cpp_1ab8341984406b4905c52be6920424e0a3" kindref="member">hook_il2cpp_init</ref>),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>**</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(&amp;<ref refid="android__runtime__core_8cpp_1afe883afafd2ae5952d133f1456ddc089" kindref="member">orig_il2cpp_init</ref>)))<sp/>{</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a90056d33feb17dc6208613ce3e45e92e" kindref="member">hooked</ref><sp/>=<sp/></highlight><highlight class="keyword">true</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="200"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;il2cpp_init<sp/>hook<sp/>installed<sp/>successfully&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="201"><highlight class="normal"></highlight></codeline>
+<codeline lineno="202"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Unhook<sp/>after<sp/>target<sp/>achieved</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="203"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>DobbyDestroy(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(dlopen));</highlight></codeline>
+<codeline lineno="204"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>DobbyDestroy(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(dlsym));</highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;dlopen/dlsym<sp/>hooks<sp/>removed&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="206"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" kindref="member">TEKLOG_ERROR</ref>(</highlight><highlight class="stringliteral">&quot;Failed<sp/>to<sp/>install<sp/>il2cpp_init<sp/>hook&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="209"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="210"><highlight class="normal"></highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref><sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>r;</highlight></codeline>
+<codeline lineno="213"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight></codeline>
+<codeline lineno="215" refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*(*old_dlsym)(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>handle,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>sym);</highlight></codeline>
+<codeline lineno="216" refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/><ref refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" kindref="member">new_dlsym</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>handle,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>sym)<sp/>{</highlight></codeline>
+<codeline lineno="217"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref>)<sp/>{</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" kindref="member">old_dlsym</ref>(handle,<sp/>sym);</highlight></codeline>
+<codeline lineno="219"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="220"><highlight class="normal"></highlight></codeline>
+<codeline lineno="221"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref><sp/>=<sp/></highlight><highlight class="keyword">true</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="222"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a5f3b38bdf79892911d9bc39ae96e67e0" kindref="member">TEKLOG_TRACE</ref>(</highlight><highlight class="stringliteral">&quot;dlsym<sp/>intercepted,<sp/>symbol:<sp/>%s,<sp/>handle:<sp/>%p&quot;</highlight><highlight class="normal">,<sp/>sym,<sp/>handle);</highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>result<sp/>=<sp/><ref refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" kindref="member">old_dlsym</ref>(handle,<sp/>sym);</highlight></codeline>
+<codeline lineno="224"><highlight class="normal"></highlight></codeline>
+<codeline lineno="225"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Log<sp/>important<sp/>symbol<sp/>resolutions</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="226"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(sym<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="227"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(sym,<sp/></highlight><highlight class="stringliteral">&quot;il2cpp&quot;</highlight><highlight class="normal">)<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="228"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Resolved<sp/>il2cpp<sp/>symbol:<sp/>%s<sp/>-&gt;<sp/>%p&quot;</highlight><highlight class="normal">,<sp/>sym,<sp/>result);</highlight></codeline>
+<codeline lineno="229"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(sym,<sp/></highlight><highlight class="stringliteral">&quot;JNI_&quot;</highlight><highlight class="normal">)<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="230"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Resolved<sp/>JNI<sp/>symbol:<sp/>%s<sp/>-&gt;<sp/>%p&quot;</highlight><highlight class="normal">,<sp/>sym,<sp/>result);</highlight></codeline>
+<codeline lineno="231"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="232"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="233"><highlight class="normal"></highlight></codeline>
+<codeline lineno="234"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a9748e36b2f80844a34c97a75114538e0" kindref="member">in_hook</ref><sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="235"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>result;</highlight></codeline>
+<codeline lineno="236"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="237"><highlight class="normal"></highlight></codeline>
+<codeline lineno="238" refid="android__runtime__core_8cpp_1ae9029d15ce730ee71dc6d3aedbf3ef2f" refkind="member"><highlight class="normal">JavaVM*<sp/><ref refid="android__runtime__core_8cpp_1ae9029d15ce730ee71dc6d3aedbf3ef2f" kindref="member">GetJavaVMViaJNIStandard</ref>()<sp/>{</highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Attempting<sp/>to<sp/>get<sp/>JavaVM<sp/>via<sp/>JNI<sp/>standard&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="240"><highlight class="normal"></highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>jniGetCreatedJavaVMs<sp/>=<sp/>DobbySymbolResolver(</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">,<sp/></highlight><highlight class="stringliteral">&quot;JNI_GetCreatedJavaVMs&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="242"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!jniGetCreatedJavaVMs)<sp/>{</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" kindref="member">TEKLOG_ERROR</ref>(</highlight><highlight class="stringliteral">&quot;Could<sp/>not<sp/>find<sp/>JNI_GetCreatedJavaVMs<sp/>symbol&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="246"><highlight class="normal"></highlight></codeline>
+<codeline lineno="247"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/>jint<sp/>(*JNI_GetCreatedJavaVMs_t)(JavaVM**,<sp/>jsize,<sp/>jsize*);</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>JNI_GetCreatedJavaVMs<sp/>=<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="normal">JNI_GetCreatedJavaVMs_t</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(jniGetCreatedJavaVMs);</highlight></codeline>
+<codeline lineno="249"><highlight class="normal"></highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/><sp/><sp/>JavaVM*<sp/>vm<sp/>=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"><sp/><sp/><sp/><sp/>jsize<sp/>numVMs<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="252"><highlight class="normal"></highlight></codeline>
+<codeline lineno="253"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>jint<sp/>result<sp/>=<sp/>JNI_GetCreatedJavaVMs(&amp;vm,<sp/>1,<sp/>&amp;numVMs);</highlight></codeline>
+<codeline lineno="254"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(result<sp/>==<sp/>JNI_OK<sp/>&amp;&amp;<sp/>numVMs<sp/>&gt;<sp/>0<sp/>&amp;&amp;<sp/>vm<sp/>!=<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">)<sp/>{</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Successfully<sp/>obtained<sp/>JavaVM:<sp/>%p<sp/>(number<sp/>of<sp/>VMs:<sp/>%d)&quot;</highlight><highlight class="normal">,<sp/>vm,<sp/>numVMs);</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>vm;</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="258"><highlight class="normal"></highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" kindref="member">TEKLOG_ERROR</ref>(</highlight><highlight class="stringliteral">&quot;JNI_GetCreatedJavaVMs<sp/>failed:<sp/>result=%d,<sp/>number<sp/>of<sp/>VMs=%d&quot;</highlight><highlight class="normal">,<sp/>result,<sp/>numVMs);</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="261"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="262"><highlight class="normal"></highlight></codeline>
+<codeline lineno="263" refid="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">volatile</highlight><highlight class="normal"><sp/>sig_atomic_t<sp/><ref refid="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" kindref="member">in_signal_handler</ref><sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight></codeline>
+<codeline lineno="265" refid="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" kindref="member">signal_handler</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>sig,<sp/>[[maybe_unused]]<sp/>siginfo_t*<sp/>info,<sp/>[[maybe_unused]]<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>context)<sp/>{</highlight></codeline>
+<codeline lineno="266"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" kindref="member">in_signal_handler</ref>)<sp/>{</highlight></codeline>
+<codeline lineno="267"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1ab9bb6898a25e8efee464062fbd0d9dd6" kindref="member">TEKLOG_CRITICAL</ref>(</highlight><highlight class="stringliteral">&quot;Recursive<sp/>signal<sp/>handler<sp/>detected,<sp/>emergency<sp/>exit&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="268"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>_exit(1);</highlight></codeline>
+<codeline lineno="269"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="270"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a9b42be9ad98cf7d350211ad7b6c991f5" kindref="member">in_signal_handler</ref><sp/>=<sp/>1;</highlight></codeline>
+<codeline lineno="271"><highlight class="normal"></highlight></codeline>
+<codeline lineno="272"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;UNKNOWN&quot;</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="273"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">switch</highlight><highlight class="normal">(sig)<sp/>{</highlight></codeline>
+<codeline lineno="274"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGSEGV:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGSEGV&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="275"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGABRT:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGABRT&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="276"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGILL:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGILL&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="277"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGFPE:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGFPE&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="278"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGBUS:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGBUS&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="279"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">case</highlight><highlight class="normal"><sp/>SIGTRAP:<sp/>sig_name<sp/>=<sp/></highlight><highlight class="stringliteral">&quot;SIGTRAP&quot;</highlight><highlight class="normal">;<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="280"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">default</highlight><highlight class="normal">:<sp/></highlight><highlight class="keywordflow">break</highlight><highlight class="normal">;</highlight></codeline>
+<codeline lineno="281"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="282"><highlight class="normal"></highlight></codeline>
+<codeline lineno="283"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1ab9bb6898a25e8efee464062fbd0d9dd6" kindref="member">TEKLOG_CRITICAL</ref>(</highlight><highlight class="stringliteral">&quot;Signal<sp/>captured:<sp/>%d<sp/>(%s)&quot;</highlight><highlight class="normal">,</highlight></codeline>
+<codeline lineno="284"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sig,<sp/>sig_name);</highlight></codeline>
+<codeline lineno="285"><highlight class="normal"></highlight></codeline>
+<codeline lineno="286"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Performing<sp/>emergency<sp/>cleanup<sp/>before<sp/>exit&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="287"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0e55a37e3f059fb1512c59071164869e" kindref="member">tefkernel_log_cleanup</ref>();</highlight></codeline>
+<codeline lineno="288"><highlight class="normal"></highlight></codeline>
+<codeline lineno="289"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Restore<sp/>default<sp/>handler<sp/>and<sp/>re-raise<sp/>signal</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="290"><highlight class="normal"><sp/><sp/><sp/><sp/>signal(sig,<sp/>0);</highlight></codeline>
+<codeline lineno="291"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Signal<sp/>handler<sp/>reset<sp/>to<sp/>default,<sp/>re-raising<sp/>signal&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="292"><highlight class="normal"><sp/><sp/><sp/><sp/>raise(sig);</highlight></codeline>
+<codeline lineno="293"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="294"><highlight class="normal"></highlight></codeline>
+<codeline lineno="295" refid="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" kindref="member">setup_signal_handlers</ref>()<sp/>{</highlight></codeline>
+<codeline lineno="296"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Setting<sp/>up<sp/>signal<sp/>handlers<sp/>for<sp/>crash<sp/>protection&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"></highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">sigaction<sp/>sa<sp/>=<sp/>{};</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"><sp/><sp/><sp/><sp/>sa.sa_sigaction<sp/>=<sp/><ref refid="android__runtime__core_8cpp_1a7d8219b35761d4e7ab12b4ccf3deadef" kindref="member">signal_handler</ref>;</highlight></codeline>
+<codeline lineno="300"><highlight class="normal"><sp/><sp/><sp/><sp/>sigemptyset(&amp;sa.sa_mask);</highlight></codeline>
+<codeline lineno="301"><highlight class="normal"><sp/><sp/><sp/><sp/>sa.sa_flags<sp/>=<sp/>SA_SIGINFO<sp/>|<sp/>SA_RESETHAND;</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"></highlight></codeline>
+<codeline lineno="303"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGSEGV,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="304"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGABRT,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="305"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGILL,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="306"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGFPE,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="307"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGBUS,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="308"><highlight class="normal"><sp/><sp/><sp/><sp/>sigaction(SIGTRAP,<sp/>&amp;sa,<sp/></highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="309"><highlight class="normal"></highlight></codeline>
+<codeline lineno="310"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Signal<sp/>handlers<sp/>configured<sp/>successfully&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="311"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="312"><highlight class="normal"></highlight></codeline>
+<codeline lineno="313" refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" refkind="member"><highlight class="normal"><ref refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" kindref="member">__attribute__</ref>((constructor))</highlight></codeline>
+<codeline lineno="314"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>init_ary()<sp/>{</highlight></codeline>
+<codeline lineno="315"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>Initialize<sp/>logging<sp/>system<sp/>first</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="316"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a4b4c5cb4a19bc4c73b0640ca73f115e4" kindref="member">tefkernel_log_init</ref>(</highlight><highlight class="keyword">nullptr</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="317"><highlight class="normal"></highlight></codeline>
+<codeline lineno="318"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Installing<sp/>system<sp/>function<sp/>hooks&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="319"><highlight class="normal"><sp/><sp/><sp/><sp/>DobbyHook(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(dlopen),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(<ref refid="android__runtime__core_8cpp_1a5c8a7b7217fe8f666a39e510436760b7" kindref="member">new_dlopen</ref>),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">**</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(&amp;<ref refid="android__runtime__core_8cpp_1abd16e366129cc23723c6339f150613e1" kindref="member">old_dlopen</ref>));</highlight></codeline>
+<codeline lineno="320"><highlight class="normal"><sp/><sp/><sp/><sp/>DobbyHook(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(dlsym),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(<ref refid="android__runtime__core_8cpp_1a5d17a31991bfeab1ffd48bdcc55f3871" kindref="member">new_dlsym</ref>),<sp/></highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>**</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(&amp;<ref refid="android__runtime__core_8cpp_1ace3a6d24f9009e1ace8c800729679db8" kindref="member">old_dlsym</ref>));</highlight></codeline>
+<codeline lineno="321"><highlight class="normal"></highlight></codeline>
+<codeline lineno="322"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Attempting<sp/>to<sp/>get<sp/>JNI<sp/>environment&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="323"><highlight class="normal"><sp/><sp/><sp/><sp/>JNIEnv<sp/>*env;</highlight></codeline>
+<codeline lineno="324"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(JavaVM*<sp/>vm<sp/>=<sp/><ref refid="android__runtime__core_8cpp_1ae9029d15ce730ee71dc6d3aedbf3ef2f" kindref="member">GetJavaVMViaJNIStandard</ref>();<sp/>vm<sp/>&amp;&amp;<sp/>vm-&gt;GetEnv(</highlight><highlight class="keyword">reinterpret_cast&lt;</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>**</highlight><highlight class="keyword">&gt;</highlight><highlight class="normal">(&amp;env),<sp/>JNI_VERSION_1_6)<sp/>==<sp/>JNI_OK)<sp/>{</highlight></codeline>
+<codeline lineno="325"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;JNI<sp/>environment<sp/>obtained<sp/>successfully:<sp/>%p&quot;</highlight><highlight class="normal">,<sp/>env);</highlight></codeline>
+<codeline lineno="326"><highlight class="normal"><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="327"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" kindref="member">TEKLOG_WARN</ref>(</highlight><highlight class="stringliteral">&quot;Failed<sp/>to<sp/>get<sp/>JNI<sp/>environment&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline lineno="329"><highlight class="normal"></highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" kindref="member">TEKLOG_DEBUG</ref>(</highlight><highlight class="stringliteral">&quot;Setting<sp/>up<sp/>crash<sp/>signal<sp/>handlers&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="android__runtime__core_8cpp_1a7df47e37fd55c553b8fd39cf996d786c" kindref="member">setup_signal_handlers</ref>();</highlight></codeline>
+<codeline lineno="332"><highlight class="normal"></highlight></codeline>
+<codeline lineno="333"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;TEFKernel<sp/>initialization<sp/>completed<sp/>successfully&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="334"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="335"><highlight class="normal">}</highlight></codeline>
+    </programlisting>
+    <location file="src/android/android_runtime_core.cpp"/>
+  </compounddef>
+</doxygen>

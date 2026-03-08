@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structml__entry__t" kind="struct" language="C++" prot="public">
+    <compoundname>ml_entry_t</compoundname>
+    <includes refid="modloader__core_8h" local="no">modloader_core.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" prot="public" static="no" mutable="no">
+        <type><ref refid="structml__info__t" kindref="compound">ml_info_t</ref> *</type>
+        <definition>ml_info_t* ml_entry_t::info</definition>
+        <argsstring></argsstring>
+        <name>info</name>
+        <qualifiedname>ml_entry_t::info</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="135" column="15" bodyfile="include/modloader/modloader_core.h" bodystart="135" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" compoundref="modloader__core_8c" startline="41" endline="99">cleanup_unreferenced_plugins</referencedby>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" compoundref="modloader__core_8c" startline="417" endline="480">tefkernel_cleanup_all_ml</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a63732dbf76d93673faa428801c86fdc0" compoundref="modloader__core_8c" startline="360" endline="412">tefkernel_cleanup_ml</referencedby>
+        <referencedby refid="modloader__core_8c_1a9fde8a8500ff56c1629a68b1f31c6762" compoundref="modloader__core_8c" startline="523" endline="530">tefkernel_get_ml_info</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__entry__t_1ae639199e828e4cb4b2c3228c391e4dec" prot="public" static="no" mutable="no">
+        <type><ref refid="structml__ops__t" kindref="compound">ml_ops_t</ref> *</type>
+        <definition>ml_ops_t* ml_entry_t::ops</definition>
+        <argsstring></argsstring>
+        <name>ops</name>
+        <qualifiedname>ml_entry_t::ops</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="136" column="14" bodyfile="include/modloader/modloader_core.h" bodystart="136" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+        <referencedby refid="modloader__core_8c_1af32cf174990017692dfdee41a6022825" compoundref="modloader__core_8c" startline="535" endline="557">tefkernel_ml_load_mod</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__entry__t_1afcd77cd2f5499ebfb3c306fef16ea1a0" prot="public" static="no" mutable="no">
+        <type><ref refid="structtefpkg__t" kindref="compound">tefpkg_t</ref> *</type>
+        <definition>tefpkg_t* ml_entry_t::pkg_handle</definition>
+        <argsstring></argsstring>
+        <name>pkg_handle</name>
+        <qualifiedname>ml_entry_t::pkg_handle</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="137" column="14" bodyfile="include/modloader/modloader_core.h" bodystart="137" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__entry__t_1ad4ec36e4f3d85549a33f5a8bec6ff91c" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* ml_entry_t::private_dir</definition>
+        <argsstring></argsstring>
+        <name>private_dir</name>
+        <qualifiedname>ml_entry_t::private_dir</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="138" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="138" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__entry__t_1ae5c33ffaabb388f932256b1946bc3393" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* ml_entry_t::logs_dir</definition>
+        <argsstring></argsstring>
+        <name>logs_dir</name>
+        <qualifiedname>ml_entry_t::logs_dir</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="139" column="16" bodyfile="include/modloader/modloader_core.h" bodystart="139" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>ml_entry_t</label>
+        <link refid="structml__entry__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>info</edgelabel>
+        </childnode>
+        <childnode refid="3" relation="usage">
+          <edgelabel>ops</edgelabel>
+        </childnode>
+        <childnode refid="5" relation="usage">
+          <edgelabel>pkg_handle</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>ml_info_t</label>
+        <link refid="structml__info__t"/>
+      </node>
+      <node id="3">
+        <label>ml_ops_t</label>
+        <link refid="structml__ops__t"/>
+        <childnode refid="4" relation="usage">
+          <edgelabel>get_multiplayer_info</edgelabel>
+        </childnode>
+        <childnode refid="2" relation="usage">
+          <edgelabel>get_info</edgelabel>
+        </childnode>
+      </node>
+      <node id="4">
+        <label>multiplayer_mod_info_t</label>
+        <link refid="structmultiplayer__mod__info__t"/>
+      </node>
+      <node id="5">
+        <label>tefpkg_t</label>
+        <link refid="structtefpkg__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="include/modloader/modloader_core.h" line="134" column="1" bodyfile="include/modloader/modloader_core.h" bodystart="134" bodyend="140"/>
+    <listofallmembers>
+      <member refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" prot="public" virt="non-virtual"><scope>ml_entry_t</scope><name>info</name></member>
+      <member refid="structml__entry__t_1ae5c33ffaabb388f932256b1946bc3393" prot="public" virt="non-virtual"><scope>ml_entry_t</scope><name>logs_dir</name></member>
+      <member refid="structml__entry__t_1ae639199e828e4cb4b2c3228c391e4dec" prot="public" virt="non-virtual"><scope>ml_entry_t</scope><name>ops</name></member>
+      <member refid="structml__entry__t_1afcd77cd2f5499ebfb3c306fef16ea1a0" prot="public" virt="non-virtual"><scope>ml_entry_t</scope><name>pkg_handle</name></member>
+      <member refid="structml__entry__t_1ad4ec36e4f3d85549a33f5a8bec6ff91c" prot="public" virt="non-virtual"><scope>ml_entry_t</scope><name>private_dir</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

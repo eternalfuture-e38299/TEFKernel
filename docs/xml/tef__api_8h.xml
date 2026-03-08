@@ -1,0 +1,283 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="tef__api_8h" kind="file" language="C++">
+    <compoundname>tef_api.h</compoundname>
+    <includedby refid="memdl_8h" local="yes">include/memdl/memdl.h</includedby>
+    <includedby refid="tefpkg_8h" local="yes">include/tefpackage/tefpkg.h</includedby>
+    <includedby refid="tpf__core_8h" local="yes">include/tefplugin/tpf_core.h</includedby>
+    <includedby refid="desktop__runtime__core_8c" local="yes">src/desktop/desktop_runtime_core.c</includedby>
+    <includedby refid="log_8h" local="yes">src/internal/log.h</includedby>
+    <invincdepgraph>
+      <node id="2">
+        <label>include/memdl/memdl.h</label>
+        <link refid="memdl_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="8">
+        <label>include/modloader/modloader_core.h</label>
+        <link refid="modloader__core_8h"/>
+        <childnode refid="9" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>include/tef_api.h</label>
+        <link refid="tef__api_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="13" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="15" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>include/tefpackage/tefpkg.h</label>
+        <link refid="tefpkg_8h"/>
+        <childnode refid="8" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="10" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="13">
+        <label>include/tefplugin/tpf_core.h</label>
+        <link refid="tpf__core_8h"/>
+        <childnode refid="14" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="16">
+        <label>src/android/android_runtime_core.cpp</label>
+        <link refid="android__runtime__core_8cpp"/>
+      </node>
+      <node id="17">
+        <label>src/android/android_test.cpp</label>
+        <link refid="android__test_8cpp"/>
+      </node>
+      <node id="3">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="18">
+        <label>src/desktop/desktop_test.c</label>
+        <link refid="desktop__test_8c"/>
+      </node>
+      <node id="15">
+        <label>src/internal/log.h</label>
+        <link refid="log_8h"/>
+        <childnode refid="16" relation="include">
+        </childnode>
+        <childnode refid="17" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="18" relation="include">
+        </childnode>
+        <childnode refid="19" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="9">
+        <label>src/internal/modloader/modloader_core_imp.h</label>
+        <link refid="modloader__core__imp_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="14">
+        <label>src/internal/tefplugin/tef_core_imp.h</label>
+        <link refid="tef__core__imp_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+      </node>
+      <node id="19">
+        <label>src/log.c</label>
+        <link refid="log_8c"/>
+      </node>
+      <node id="4">
+        <label>src/memdl/memdl.c</label>
+        <link refid="memdl_8c"/>
+      </node>
+      <node id="5">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+      <node id="11">
+        <label>src/tefpackage/compressor.c</label>
+        <link refid="compressor_8c"/>
+      </node>
+      <node id="10">
+        <label>src/tefpackage/compressor.h</label>
+        <link refid="compressor_8h"/>
+        <childnode refid="11" relation="include">
+        </childnode>
+        <childnode refid="12" relation="include">
+        </childnode>
+      </node>
+      <node id="12">
+        <label>src/tefpackage/tefpkg.c</label>
+        <link refid="tefpkg_8c"/>
+      </node>
+      <node id="6">
+        <label>src/tefplugin/tpf_core.c</label>
+        <link refid="tpf__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <sectiondef kind="define">
+      <memberdef kind="define" id="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" prot="public" static="no">
+        <name>API_EXPORT</name>
+        <initializer><ref refid="android__runtime__core_8cpp_1a6042abb8a7e0011e5c5f9dd7efcf46bf" kindref="member">__attribute__</ref>((visibility(&quot;default&quot;)))</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tef_api.h" line="41" column="10" bodyfile="include/tef_api.h" bodystart="41" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" prot="public" static="no">
+        <name>API_CALL</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tef_api.h" line="47" column="10" bodyfile="include/tef_api.h" bodystart="47" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" prot="public" static="no">
+        <name>DEFINE_FUNCTION</name>
+        <param><defname>ret</defname></param>
+        <param><defname>name</defname></param>
+        <param><defname>...</defname></param>
+        <initializer><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref> ret (<ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref> *name)(__VA_ARGS__) = NULL;</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tef_api.h" line="62" column="10" bodyfile="include/tef_api.h" bodystart="62" bodyend="63"/>
+      </memberdef>
+      <memberdef kind="define" id="tef__api_8h_1add66be2abfada469891d6db72685aef9" prot="public" static="no">
+        <name>DEFINE_API_FUNCTION</name>
+        <param><defname>ret</defname></param>
+        <param><defname>name</defname></param>
+        <param><defname>...</defname></param>
+        <initializer><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref> ret (<ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref> *name)(__VA_ARGS__) = NULL;</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tef_api.h" line="71" column="10" bodyfile="include/tef_api.h" bodystart="71" bodyend="72"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>File:<sp/>tef_api</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Project:<sp/>tefkernel</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/11/23</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>Github:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>MIT<sp/>License</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>Permission<sp/>is<sp/>hereby<sp/>granted,<sp/>free<sp/>of<sp/>charge,<sp/>to<sp/>any<sp/>person<sp/>obtaining<sp/>a<sp/>copy</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>of<sp/>this<sp/>software<sp/>and<sp/>associated<sp/>documentation<sp/>files<sp/>(the<sp/>&quot;Software&quot;),<sp/>to<sp/>deal</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>in<sp/>the<sp/>Software<sp/>without<sp/>restriction,<sp/>including<sp/>without<sp/>limitation<sp/>the<sp/>rights</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>to<sp/>use,<sp/>copy,<sp/>modify,<sp/>merge,<sp/>publish,<sp/>distribute,<sp/>sublicense,<sp/>and/or<sp/>sell</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>copies<sp/>of<sp/>the<sp/>Software,<sp/>and<sp/>to<sp/>permit<sp/>persons<sp/>to<sp/>whom<sp/>the<sp/>Software<sp/>is</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*<sp/>furnished<sp/>to<sp/>do<sp/>so,<sp/>subject<sp/>to<sp/>the<sp/>following<sp/>conditions:</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>The<sp/>above<sp/>copyright<sp/>notice<sp/>and<sp/>this<sp/>permission<sp/>notice<sp/>shall<sp/>be<sp/>included<sp/>in<sp/>all</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>copies<sp/>or<sp/>substantial<sp/>portions<sp/>of<sp/>the<sp/>Software.</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="22"><highlight class="comment"><sp/>*<sp/>THE<sp/>SOFTWARE<sp/>IS<sp/>PROVIDED<sp/>&quot;AS<sp/>IS&quot;,<sp/>WITHOUT<sp/>WARRANTY<sp/>OF<sp/>ANY<sp/>KIND,<sp/>EXPRESS<sp/>OR</highlight></codeline>
+<codeline lineno="23"><highlight class="comment"><sp/>*<sp/>IMPLIED,<sp/>INCLUDING<sp/>BUT<sp/>NOT<sp/>LIMITED<sp/>TO<sp/>THE<sp/>WARRANTIES<sp/>OF<sp/>MERCHANTABILITY,</highlight></codeline>
+<codeline lineno="24"><highlight class="comment"><sp/>*<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE<sp/>AND<sp/>NONINFRINGEMENT.<sp/>IN<sp/>NO<sp/>EVENT<sp/>SHALL<sp/>THE</highlight></codeline>
+<codeline lineno="25"><highlight class="comment"><sp/>*<sp/>AUTHORS<sp/>OR<sp/>COPYRIGHT<sp/>HOLDERS<sp/>BE<sp/>LIABLE<sp/>FOR<sp/>ANY<sp/>CLAIM,<sp/>DAMAGES<sp/>OR<sp/>OTHER</highlight></codeline>
+<codeline lineno="26"><highlight class="comment"><sp/>*<sp/>LIABILITY,<sp/>WHETHER<sp/>IN<sp/>AN<sp/>ACTION<sp/>OF<sp/>CONTRACT,<sp/>TORT<sp/>OR<sp/>OTHERWISE,<sp/>ARISING<sp/>FROM,</highlight></codeline>
+<codeline lineno="27"><highlight class="comment"><sp/>*<sp/>OUT<sp/>OF<sp/>OR<sp/>IN<sp/>CONNECTION<sp/>WITH<sp/>THE<sp/>SOFTWARE<sp/>OR<sp/>THE<sp/>USE<sp/>OR<sp/>OTHER<sp/>DEALINGS<sp/>IN<sp/>THE</highlight></codeline>
+<codeline lineno="28"><highlight class="comment"><sp/>*<sp/>SOFTWARE.</highlight></codeline>
+<codeline lineno="29"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_TEF_API_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_TEF_API_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>defined(_WIN32)<sp/>||<sp/>defined(_WIN64)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>BUILDING_DLL</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>API_EXPORT<sp/>__declspec(dllexport)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>API_EXPORT<sp/>__declspec(dllimport)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41" refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>API_EXPORT<sp/>__attribute__((visibility(&quot;default&quot;)))</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>defined(_WIN32)<sp/>||<sp/>defined(_WIN64)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>API_CALL<sp/>__cdecl</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47" refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>API_CALL</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>IS_TEFKERNEL_BUILD</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>DEFINE_FUNCTION(ret,<sp/>name,<sp/>...)<sp/>\</highlight></codeline>
+<codeline lineno="53"><highlight class="preprocessor">API_EXPORT<sp/>ret<sp/>API_CALL<sp/>name(__VA_ARGS__);</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>DEFINE_FUNCTION(ret,<sp/>name,<sp/>...)<sp/>\</highlight></codeline>
+<codeline lineno="60"><highlight class="preprocessor">inline<sp/>API_EXPORT<sp/>ret<sp/>(API_CALL<sp/>*name)(__VA_ARGS__)<sp/>=<sp/>NULL;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="62" refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>DEFINE_FUNCTION(ret,<sp/>name,<sp/>...)<sp/>\</highlight></codeline>
+<codeline lineno="63"><highlight class="preprocessor">API_EXPORT<sp/>ret<sp/>(API_CALL<sp/>*name)(__VA_ARGS__)<sp/>=<sp/>NULL;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"></highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>DEFINE_API_FUNCTION(ret,<sp/>name,<sp/>...)<sp/>\</highlight></codeline>
+<codeline lineno="69"><highlight class="preprocessor">inline<sp/>API_EXPORT<sp/>ret<sp/>(API_CALL<sp/>*name)(__VA_ARGS__)<sp/>=<sp/>NULL;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="71" refid="tef__api_8h_1add66be2abfada469891d6db72685aef9" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>DEFINE_API_FUNCTION(ret,<sp/>name,<sp/>...)<sp/>\</highlight></codeline>
+<codeline lineno="72"><highlight class="preprocessor">API_EXPORT<sp/>ret<sp/>(API_CALL<sp/>*name)(__VA_ARGS__)<sp/>=<sp/>NULL;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//TEFKERNEL_TEF_API_H</highlight></codeline>
+    </programlisting>
+    <location file="include/tef_api.h"/>
+  </compounddef>
+</doxygen>

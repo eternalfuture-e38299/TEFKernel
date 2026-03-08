@@ -79,7 +79,7 @@ DEFINE_FUNCTION(bool, patchlib_method_is_static, patch_handle_t method)
 * @note 如果在移动端中使用则一定要传入MonoType
 */
 DEFINE_FUNCTION(patch_handle_t, patchlib_method_make_generic_instance, patch_handle_t method,
-                const tef_vector_t *template_types)
+                const tefstd_vector_t *template_types)
 
 // ==================== 方法调用操作 ====================
 #if __ANDROID__
@@ -122,8 +122,8 @@ typedef struct patch_method_signature_t {
     patch_handle_t method;  ///< 函数句柄
     bool is_instance; ///< 是否为实例函数
     patch_type_t return_type; ///< 返回类型
-    tef_vector_t arg_types; ///< patch_type_t，参数类型
-    tef_vector_t arg_names; ///< const char*, 参数名称
+    tefstd_vector_t arg_types; ///< patch_type_t，参数类型
+    tefstd_vector_t arg_names; ///< const char*, 参数名称
     int token;              ///< Token
 } patch_method_signature_t;
 

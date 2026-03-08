@@ -1,0 +1,381 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="memdl_8h" kind="file" language="C++">
+    <compoundname>memdl.h</compoundname>
+    <includes local="no">stddef.h</includes>
+    <includes refid="tef__api_8h" local="yes">../tef_api.h</includes>
+    <includedby refid="desktop__runtime__core_8c" local="yes">src/desktop/desktop_runtime_core.c</includedby>
+    <includedby refid="memdl_8c" local="yes">src/memdl/memdl.c</includedby>
+    <includedby refid="modloader__core_8c" local="yes">src/modloader/modloader_core.c</includedby>
+    <includedby refid="tpf__core_8c" local="yes">src/tefplugin/tpf_core.c</includedby>
+    <incdepgraph>
+      <node id="1">
+        <label>include/memdl/memdl.h</label>
+        <link refid="memdl_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="2">
+        <label>stddef.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>include/memdl/memdl.h</label>
+        <link refid="memdl_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="3">
+        <label>src/memdl/memdl.c</label>
+        <link refid="memdl_8c"/>
+      </node>
+      <node id="4">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+      <node id="5">
+        <label>src/tefplugin/tpf_core.c</label>
+        <link refid="tpf__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <sectiondef kind="define">
+      <memberdef kind="define" id="memdl_8h_1aeb7c027c749b56509d3ea50bd869133c" prot="public" static="no">
+        <name>MEMDL_PLATFORM_UNKNOWN</name>
+        <initializer>0</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="43" column="9" bodyfile="include/memdl/memdl.h" bodystart="43" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1ac3cc1092dfcca61c1a5e99613b1ab846" prot="public" static="no">
+        <name>MEMDL_PLATFORM_LINUX</name>
+        <initializer>1</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="44" column="9" bodyfile="include/memdl/memdl.h" bodystart="44" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a360ec342a568009e82219466c64a46e7" prot="public" static="no">
+        <name>MEMDL_PLATFORM_ANDROID</name>
+        <initializer>2</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="45" column="9" bodyfile="include/memdl/memdl.h" bodystart="45" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a1e08be0360a9f04bf78a03ac20db5efa" prot="public" static="no">
+        <name>MEMDL_PLATFORM_MACOS</name>
+        <initializer>3</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="46" column="9" bodyfile="include/memdl/memdl.h" bodystart="46" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1aa4e0b0ec43fc173d9fc7c5f0379cf738" prot="public" static="no">
+        <name>MEMDL_PLATFORM_IOS</name>
+        <initializer>4</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="47" column="9" bodyfile="include/memdl/memdl.h" bodystart="47" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1aad76ceb5173cdec3cc6eaafb433cf81d" prot="public" static="no">
+        <name>MEMDL_PLATFORM_WINDOWS</name>
+        <initializer>5</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="48" column="9" bodyfile="include/memdl/memdl.h" bodystart="48" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a8bd338e6d1e4b565aae063f18f0366bd" prot="public" static="no">
+        <name>MEMDL_ARCH_UNKNOWN</name>
+        <initializer>0</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="51" column="9" bodyfile="include/memdl/memdl.h" bodystart="51" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a6f6bbc90fb4c30f6a78321a788057e59" prot="public" static="no">
+        <name>MEMDL_ARCH_X86</name>
+        <initializer>1</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="52" column="9" bodyfile="include/memdl/memdl.h" bodystart="52" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a245cb5db645291f9da43e063ab6bf92b" prot="public" static="no">
+        <name>MEMDL_ARCH_X86_64</name>
+        <initializer>2</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="53" column="9" bodyfile="include/memdl/memdl.h" bodystart="53" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a96b0d3fbf24eeb2852e90ccde9e99407" prot="public" static="no">
+        <name>MEMDL_ARCH_ARM</name>
+        <initializer>3</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="54" column="9" bodyfile="include/memdl/memdl.h" bodystart="54" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a12d9c9ab0cabed5f4cdbbecf28acffa5" prot="public" static="no">
+        <name>MEMDL_ARCH_ARM64</name>
+        <initializer>4</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="55" column="9" bodyfile="include/memdl/memdl.h" bodystart="55" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" prot="public" static="no">
+        <name>MEMDL_NOW</name>
+        <initializer>0x1</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="58" column="9" bodyfile="include/memdl/memdl.h" bodystart="58" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a897ff0176491587413d8e9854382d7c0" prot="public" static="no">
+        <name>MEMDL_LAZY</name>
+        <initializer>0x2</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="59" column="9" bodyfile="include/memdl/memdl.h" bodystart="59" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a74350226c13c47c9af3e6d23b98c321b" prot="public" static="no">
+        <name>MEMDL_LOCAL</name>
+        <initializer>0x4</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="60" column="9" bodyfile="include/memdl/memdl.h" bodystart="60" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="memdl_8h_1a46830b29c35651bafccb7fe1e362abce" prot="public" static="no">
+        <name>MEMDL_GLOBAL</name>
+        <initializer>0x8</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="61" column="9" bodyfile="include/memdl/memdl.h" bodystart="61" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" prot="public" static="no">
+        <type>void *</type>
+        <definition>typedef void* memdl_handle_t</definition>
+        <argsstring></argsstring>
+        <name>memdl_handle_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="63" column="14" bodyfile="include/memdl/memdl.h" bodystart="63" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="memdl_8h_1a595f1cb7b3298bde93457bb5a161a88a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>DEFINE_FUNCTION</definition>
+        <argsstring>(int, memdl_close, memdl_handle_t handle)</argsstring>
+        <name>DEFINE_FUNCTION</name>
+        <param>
+          <type>int</type>
+        </param>
+        <param>
+          <type>memdl_close</type>
+        </param>
+        <param>
+          <type><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref></type>
+          <declname>handle</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="72" column="1" declfile="include/memdl/memdl.h" declline="72" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="memdl_8h_1a58c995663593eaff324f4622c3e4559c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>DEFINE_FUNCTION</definition>
+        <argsstring>(const char *, memdl_error, void)</argsstring>
+        <name>DEFINE_FUNCTION</name>
+        <param>
+          <type>const char *</type>
+        </param>
+        <param>
+          <type><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref></type>
+        </param>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/memdl/memdl.h" line="74" column="1" declfile="include/memdl/memdl.h" declline="74" declcolumn="1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>File:<sp/>memdl</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Project:<sp/>tefkernel</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/11/23</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>Github:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>MIT<sp/>License</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>Permission<sp/>is<sp/>hereby<sp/>granted,<sp/>free<sp/>of<sp/>charge,<sp/>to<sp/>any<sp/>person<sp/>obtaining<sp/>a<sp/>copy</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>of<sp/>this<sp/>software<sp/>and<sp/>associated<sp/>documentation<sp/>files<sp/>(the<sp/>&quot;Software&quot;),<sp/>to<sp/>deal</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>in<sp/>the<sp/>Software<sp/>without<sp/>restriction,<sp/>including<sp/>without<sp/>limitation<sp/>the<sp/>rights</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>to<sp/>use,<sp/>copy,<sp/>modify,<sp/>merge,<sp/>publish,<sp/>distribute,<sp/>sublicense,<sp/>and/or<sp/>sell</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>copies<sp/>of<sp/>the<sp/>Software,<sp/>and<sp/>to<sp/>permit<sp/>persons<sp/>to<sp/>whom<sp/>the<sp/>Software<sp/>is</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*<sp/>furnished<sp/>to<sp/>do<sp/>so,<sp/>subject<sp/>to<sp/>the<sp/>following<sp/>conditions:</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>The<sp/>above<sp/>copyright<sp/>notice<sp/>and<sp/>this<sp/>permission<sp/>notice<sp/>shall<sp/>be<sp/>included<sp/>in<sp/>all</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>copies<sp/>or<sp/>substantial<sp/>portions<sp/>of<sp/>the<sp/>Software.</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="22"><highlight class="comment"><sp/>*<sp/>THE<sp/>SOFTWARE<sp/>IS<sp/>PROVIDED<sp/>&quot;AS<sp/>IS&quot;,<sp/>WITHOUT<sp/>WARRANTY<sp/>OF<sp/>ANY<sp/>KIND,<sp/>EXPRESS<sp/>OR</highlight></codeline>
+<codeline lineno="23"><highlight class="comment"><sp/>*<sp/>IMPLIED,<sp/>INCLUDING<sp/>BUT<sp/>NOT<sp/>LIMITED<sp/>TO<sp/>THE<sp/>WARRANTIES<sp/>OF<sp/>MERCHANTABILITY,</highlight></codeline>
+<codeline lineno="24"><highlight class="comment"><sp/>*<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE<sp/>AND<sp/>NONINFRINGEMENT.<sp/>IN<sp/>NO<sp/>EVENT<sp/>SHALL<sp/>THE</highlight></codeline>
+<codeline lineno="25"><highlight class="comment"><sp/>*<sp/>AUTHORS<sp/>OR<sp/>COPYRIGHT<sp/>HOLDERS<sp/>BE<sp/>LIABLE<sp/>FOR<sp/>ANY<sp/>CLAIM,<sp/>DAMAGES<sp/>OR<sp/>OTHER</highlight></codeline>
+<codeline lineno="26"><highlight class="comment"><sp/>*<sp/>LIABILITY,<sp/>WHETHER<sp/>IN<sp/>AN<sp/>ACTION<sp/>OF<sp/>CONTRACT,<sp/>TORT<sp/>OR<sp/>OTHERWISE,<sp/>ARISING<sp/>FROM,</highlight></codeline>
+<codeline lineno="27"><highlight class="comment"><sp/>*<sp/>OUT<sp/>OF<sp/>OR<sp/>IN<sp/>CONNECTION<sp/>WITH<sp/>THE<sp/>SOFTWARE<sp/>OR<sp/>THE<sp/>USE<sp/>OR<sp/>OTHER<sp/>DEALINGS<sp/>IN<sp/>THE</highlight></codeline>
+<codeline lineno="28"><highlight class="comment"><sp/>*<sp/>SOFTWARE.</highlight></codeline>
+<codeline lineno="29"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_MEMDL_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_MEMDL_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stddef.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;../tef_api.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="comment">//<sp/>平台定义</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43" refid="memdl_8h_1aeb7c027c749b56509d3ea50bd869133c" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_UNKNOWN<sp/><sp/><sp/>0</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="44" refid="memdl_8h_1ac3cc1092dfcca61c1a5e99613b1ab846" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_LINUX<sp/><sp/><sp/><sp/><sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="45" refid="memdl_8h_1a360ec342a568009e82219466c64a46e7" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_ANDROID<sp/><sp/><sp/>2</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="46" refid="memdl_8h_1a1e08be0360a9f04bf78a03ac20db5efa" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_MACOS<sp/><sp/><sp/><sp/><sp/>3</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47" refid="memdl_8h_1aa4e0b0ec43fc173d9fc7c5f0379cf738" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_IOS<sp/><sp/><sp/><sp/><sp/><sp/><sp/>4</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48" refid="memdl_8h_1aad76ceb5173cdec3cc6eaafb433cf81d" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_PLATFORM_WINDOWS<sp/><sp/><sp/>5</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="comment">//<sp/>架构定义</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="51" refid="memdl_8h_1a8bd338e6d1e4b565aae063f18f0366bd" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_ARCH_UNKNOWN<sp/><sp/><sp/><sp/><sp/><sp/><sp/>0</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="52" refid="memdl_8h_1a6f6bbc90fb4c30f6a78321a788057e59" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_ARCH_X86<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="53" refid="memdl_8h_1a245cb5db645291f9da43e063ab6bf92b" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_ARCH_X86_64<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>2</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="54" refid="memdl_8h_1a96b0d3fbf24eeb2852e90ccde9e99407" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_ARCH_ARM<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>3</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="55" refid="memdl_8h_1a12d9c9ab0cabed5f4cdbbecf28acffa5" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_ARCH_ARM64<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>4</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight><highlight class="comment">//<sp/>标志定义</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="58" refid="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_NOW<sp/><sp/><sp/><sp/>0x1<sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>立即解析符号</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="59" refid="memdl_8h_1a897ff0176491587413d8e9854382d7c0" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_LAZY<sp/><sp/><sp/>0x2<sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>延迟解析符号</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="60" refid="memdl_8h_1a74350226c13c47c9af3e6d23b98c321b" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_LOCAL<sp/><sp/>0x4<sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>局部符号</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="61" refid="memdl_8h_1a46830b29c35651bafccb7fe1e362abce" refkind="member"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MEMDL_GLOBAL<sp/>0x8<sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>全局符号</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63" refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*<ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref>;</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="comment">//<sp/>核心API</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(<ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref>,<sp/>memdl_open_file,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="tefpkg_8h_1a2ebe0aa636a766d2e46bad4c3aa03073" kindref="member">filename</ref>,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>flags)</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(<ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref>,<sp/>memdl_open,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*so_data,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>so_size,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>flags)</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*,<sp/>memdl_sym,<sp/><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*symbol)</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72" refid="memdl_8h_1a595f1cb7b3298bde93457bb5a161a88a" refkind="member"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">,<sp/>memdl_close,<sp/><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle);</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight></codeline>
+<codeline lineno="74" refid="memdl_8h_1a58c995663593eaff324f4622c3e4559c" refkind="member"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(const<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*,<sp/><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref>,<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight><highlight class="comment">//<sp/>高级功能</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">,<sp/><ref refid="memdl_8c_1afa4f3713ba508cd830c5f40c516ade9c" kindref="member">memdl_get_arch</ref>,<sp/>const<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*so_data,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>so_size)</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">,<sp/><ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate</ref>,<sp/>const<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*so_data,<sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>so_size)</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"></highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">,<sp/><ref refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" kindref="member">memdl_get_platform</ref>,<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//TEFKERNEL_MEMDL_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="include/memdl/memdl.h"/>
+  </compounddef>
+</doxygen>

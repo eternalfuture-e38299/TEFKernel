@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="dir_b9668221e0c21993174e67c5f6e2167c" kind="dir">
+    <compoundname>src/memdl</compoundname>
+    <innerfile refid="memdl_8c">memdl.c</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="src/memdl/"/>
+  </compounddef>
+</doxygen>

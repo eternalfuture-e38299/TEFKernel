@@ -167,7 +167,7 @@ patch_handle_t patchlib_type_get_inner_type(patch_handle_t parent, const char *n
 
     patch_handle_t result = PATCH_NULL;
 
-    tef_vector_t inner_types = {};
+    tefstd_vector_t inner_types = {};
     patchlib_type_get_inner_types(parent, false, &inner_types);
 
     const size_t inner_count = tefstd_vector_size(&inner_types);
@@ -214,7 +214,7 @@ patch_handle_t patchlib_type_get_method(patch_handle_t type, const char *name) {
     }
 
     patch_handle_t result = PATCH_NULL;
-    tef_vector_t methods = {};
+    tefstd_vector_t methods = {};
     patchlib_type_get_methods(type, false, &methods);
 
     const size_t method_count = tefstd_vector_size(&methods);

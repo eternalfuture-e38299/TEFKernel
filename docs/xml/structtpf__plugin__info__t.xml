@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structtpf__plugin__info__t" kind="struct" language="C++" prot="public">
+    <compoundname>tpf_plugin_info_t</compoundname>
+    <includes refid="tpf__core_8h" local="no">tpf_core.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structtpf__plugin__info__t_1a222f4215032d2ce68830b4ee1b7880f9" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* tpf_plugin_info_t::pkg_id</definition>
+        <argsstring></argsstring>
+        <name>pkg_id</name>
+        <qualifiedname>tpf_plugin_info_t::pkg_id</qualifiedname>
+        <briefdescription>
+<para>插件包名 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="48" column="16" bodyfile="include/tefplugin/tpf_core.h" bodystart="48" bodyend="-1"/>
+        <referencedby refid="tef__core__imp_8h_1ab60caed61fd1b08b9ea1abcc1f4a2646" compoundref="tpf__core_8c" startline="85" endline="121">tpf_get_plugin_by_id</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structtpf__plugin__info__t_1ae781c67b4517a93d4b3afc09f72bcac0" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* tpf_plugin_info_t::name</definition>
+        <argsstring></argsstring>
+        <name>name</name>
+        <qualifiedname>tpf_plugin_info_t::name</qualifiedname>
+        <briefdescription>
+<para>插件名称 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="49" column="16" bodyfile="include/tefplugin/tpf_core.h" bodystart="49" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structtpf__plugin__info__t_1ab00e16fdc09831cb2876e376edb3964a" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* tpf_plugin_info_t::author</definition>
+        <argsstring></argsstring>
+        <name>author</name>
+        <qualifiedname>tpf_plugin_info_t::author</qualifiedname>
+        <briefdescription>
+<para>作者 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="50" column="16" bodyfile="include/tefplugin/tpf_core.h" bodystart="50" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structtpf__plugin__info__t_1aee54160753edaeda3a749d6a2a28e132" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* tpf_plugin_info_t::version</definition>
+        <argsstring></argsstring>
+        <name>version</name>
+        <qualifiedname>tpf_plugin_info_t::version</qualifiedname>
+        <briefdescription>
+<para>版本 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="51" column="16" bodyfile="include/tefplugin/tpf_core.h" bodystart="51" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structtpf__plugin__info__t_1ab72e18001302feb1b606f7fad30d0d1c" prot="public" static="no" mutable="no">
+        <type>int</type>
+        <definition>int tpf_plugin_info_t::version_code</definition>
+        <argsstring></argsstring>
+        <name>version_code</name>
+        <qualifiedname>tpf_plugin_info_t::version_code</qualifiedname>
+        <briefdescription>
+<para>版本代码 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="52" column="9" bodyfile="include/tefplugin/tpf_core.h" bodystart="52" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>插件信息结构 </para>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="include/tefplugin/tpf_core.h" line="47" column="1" bodyfile="include/tefplugin/tpf_core.h" bodystart="47" bodyend="53"/>
+    <listofallmembers>
+      <member refid="structtpf__plugin__info__t_1ab00e16fdc09831cb2876e376edb3964a" prot="public" virt="non-virtual"><scope>tpf_plugin_info_t</scope><name>author</name></member>
+      <member refid="structtpf__plugin__info__t_1ae781c67b4517a93d4b3afc09f72bcac0" prot="public" virt="non-virtual"><scope>tpf_plugin_info_t</scope><name>name</name></member>
+      <member refid="structtpf__plugin__info__t_1a222f4215032d2ce68830b4ee1b7880f9" prot="public" virt="non-virtual"><scope>tpf_plugin_info_t</scope><name>pkg_id</name></member>
+      <member refid="structtpf__plugin__info__t_1aee54160753edaeda3a749d6a2a28e132" prot="public" virt="non-virtual"><scope>tpf_plugin_info_t</scope><name>version</name></member>
+      <member refid="structtpf__plugin__info__t_1ab72e18001302feb1b606f7fad30d0d1c" prot="public" virt="non-virtual"><scope>tpf_plugin_info_t</scope><name>version_code</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

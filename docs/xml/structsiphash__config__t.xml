@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structsiphash__config__t" kind="struct" language="C++" prot="public">
+    <compoundname>siphash_config_t</compoundname>
+    <includes refid="siphash_8h" local="no">siphash.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structsiphash__config__t_1a44bfbf9a512396e4ae99cf1921de3878" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* siphash_config_t::author</definition>
+        <argsstring></argsstring>
+        <name>author</name>
+        <qualifiedname>siphash_config_t::author</qualifiedname>
+        <briefdescription>
+<para>作者信息（用于密钥派生） </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/siphash.h" line="61" column="16" bodyfile="src/tefpackage/siphash.h" bodystart="61" bodyend="-1"/>
+        <referencedby refid="siphash_8c_1ab009fa6b0fa4f86f04db237151bbfc5e" compoundref="siphash_8c" startline="227" endline="265">siphash_make_key128</referencedby>
+        <referencedby refid="siphash_8c_1a326caf9ea5925693036063b1ffb71e18" compoundref="siphash_8c" startline="267" endline="297">siphash_make_key_to_file</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structsiphash__config__t_1ad6d490412208b1aead9acbcd35130052" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* siphash_config_t::organization</definition>
+        <argsstring></argsstring>
+        <name>organization</name>
+        <qualifiedname>siphash_config_t::organization</qualifiedname>
+        <briefdescription>
+<para>组织信息（用于密钥派生） </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/siphash.h" line="62" column="16" bodyfile="src/tefpackage/siphash.h" bodystart="62" bodyend="-1"/>
+        <referencedby refid="siphash_8c_1ab009fa6b0fa4f86f04db237151bbfc5e" compoundref="siphash_8c" startline="227" endline="265">siphash_make_key128</referencedby>
+        <referencedby refid="siphash_8c_1a326caf9ea5925693036063b1ffb71e18" compoundref="siphash_8c" startline="267" endline="297">siphash_make_key_to_file</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structsiphash__config__t_1ac2ca628d308c2c5f393cc09982ae3f2a" prot="public" static="no" mutable="no">
+        <type>const char *</type>
+        <definition>const char* siphash_config_t::location</definition>
+        <argsstring></argsstring>
+        <name>location</name>
+        <qualifiedname>siphash_config_t::location</qualifiedname>
+        <briefdescription>
+<para>位置信息（用于密钥派生） </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/siphash.h" line="63" column="16" bodyfile="src/tefpackage/siphash.h" bodystart="63" bodyend="-1"/>
+        <referencedby refid="siphash_8c_1ab009fa6b0fa4f86f04db237151bbfc5e" compoundref="siphash_8c" startline="227" endline="265">siphash_make_key128</referencedby>
+        <referencedby refid="siphash_8c_1a326caf9ea5925693036063b1ffb71e18" compoundref="siphash_8c" startline="267" endline="297">siphash_make_key_to_file</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+<para>SipHash密钥生成配置 </para>
+    </briefdescription>
+    <detaileddescription>
+<para>用于生成密钥时的配置参数，增强密钥的随机性和唯一性 </para>
+    </detaileddescription>
+    <location file="src/tefpackage/siphash.h" line="60" column="1" bodyfile="src/tefpackage/siphash.h" bodystart="60" bodyend="64"/>
+    <listofallmembers>
+      <member refid="structsiphash__config__t_1a44bfbf9a512396e4ae99cf1921de3878" prot="public" virt="non-virtual"><scope>siphash_config_t</scope><name>author</name></member>
+      <member refid="structsiphash__config__t_1ac2ca628d308c2c5f393cc09982ae3f2a" prot="public" virt="non-virtual"><scope>siphash_config_t</scope><name>location</name></member>
+      <member refid="structsiphash__config__t_1ad6d490412208b1aead9acbcd35130052" prot="public" virt="non-virtual"><scope>siphash_config_t</scope><name>organization</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

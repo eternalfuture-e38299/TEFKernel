@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['level_0',['level',['../structlog__node__t.html#a5c6e1c54e796296b57b715b9b72050ec',1,'log_node_t']]],
+  ['lib_5fhandle_1',['lib_handle',['../structtpf__thread__arg__t.html#a59785f9bb7caa2ee4075c9d9bd684c65',1,'tpf_thread_arg_t']]],
+  ['library_20📚_2',['memdl - Memory Dynamic Loading Library 📚',['../md_src_2memdl_2README-en.html',1,'']]],
+  ['load_5fmod_3',['load_mod',['../structml__ops__t.html#a6c3a177638a9422b55e567294e3639dd',1,'ml_ops_t']]],
+  ['loading_20fails_20📉_4',['Handling Strategy When Memory Loading Fails 📉',['../md_src_2memdl_2README-en.html#autotoc_md6',1,'']]],
+  ['loading_20library_20📚_5',['memdl - Memory Dynamic Loading Library 📚',['../md_src_2memdl_2README-en.html',1,'']]],
+  ['loading_20no_20filesystem_20operations_6',['✅ Pure Memory Loading (No Filesystem Operations)',['../md_src_2memdl_2README-en.html#autotoc_md4',1,'']]],
+  ['location_7',['location',['../structsiphash__config__t.html#ac2ca628d308c2c5f393cc09982ae3f2a',1,'siphash_config_t']]],
+  ['log_2ec_8',['log.c',['../log_8c.html',1,'']]],
+  ['log_2eh_9',['log.h',['../log_8h.html',1,'']]],
+  ['log_5fcontext_5ft_10',['log_context_t',['../structlog__context__t.html',1,'']]],
+  ['log_5ffile_11',['log_file',['../structlog__context__t.html#a023a14252f97feca9336bcdad7acb236',1,'log_context_t']]],
+  ['log_5fnode_5ft_12',['log_node_t',['../structlog__node__t.html',1,'log_node_t'],['../log_8c.html#a63f4d92f73813c24ef295aa1f1911c98',1,'log_node_t:&#160;log.c']]],
+  ['log_5fqueue_5fclear_13',['log_queue_clear',['../log_8c.html#a297178e8a813f0c2e17c031d98cd448e',1,'log.c']]],
+  ['log_5fqueue_5fdestroy_14',['log_queue_destroy',['../log_8c.html#a1c23c08040f71be5425ad450c5de4c14',1,'log.c']]],
+  ['log_5fqueue_5finit_15',['log_queue_init',['../log_8c.html#abfb4bc55efbdf797fd28c3316af6e974',1,'log.c']]],
+  ['log_5fqueue_5fpop_5fall_16',['log_queue_pop_all',['../log_8c.html#afdc211ae054bee7e384becdba4e87c0d',1,'log.c']]],
+  ['log_5fqueue_5fpush_17',['log_queue_push',['../log_8c.html#a024d90c20dedc91eb03b26bb425da982',1,'log.c']]],
+  ['log_5fqueue_5ft_18',['log_queue_t',['../structlog__queue__t.html',1,'']]],
+  ['log_5fthread_19',['log_thread',['../log_8c.html#a8cd98c0dcd03a66bfbb0cd16f4b27143',1,'log.c']]],
+  ['logs_5fdir_20',['logs_dir',['../structml__entry__t.html#ae5c33ffaabb388f932256b1946bc3393',1,'ml_entry_t::logs_dir'],['../structmod__manifest__t.html#a9be3620d4e011e616bca3af42a0514a2',1,'mod_manifest_t::logs_dir']]],
+  ['lz4_5fstream_21',['lz4_stream',['../structtefpkg__decompress__ctx__s.html#a15685ddb3a4cbbf7bb4e2b646f9f0fdf',1,'tefpkg_decompress_ctx_s::lz4_stream'],['../structtefpkg__compress__ctx__s.html#a3a415f63904d55bc984701a54f76a5df',1,'tefpkg_compress_ctx_s::lz4_stream']]]
+];

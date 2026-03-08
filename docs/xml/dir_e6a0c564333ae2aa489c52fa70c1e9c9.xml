@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="dir_e6a0c564333ae2aa489c52fa70c1e9c9" kind="dir">
+    <compoundname>src/android</compoundname>
+    <innerfile refid="android__runtime__core_8cpp">android_runtime_core.cpp</innerfile>
+    <innerfile refid="android__test_8cpp">android_test.cpp</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="src/android/"/>
+  </compounddef>
+</doxygen>

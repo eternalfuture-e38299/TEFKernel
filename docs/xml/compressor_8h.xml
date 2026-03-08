@@ -1,0 +1,1025 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="compressor_8h" kind="file" language="C++">
+    <compoundname>compressor.h</compoundname>
+    <includes local="no">stdint.h</includes>
+    <includes refid="tefpkg_8h" local="yes">tefpackage/tefpkg.h</includes>
+    <includedby refid="compressor_8c" local="yes">src/tefpackage/compressor.c</includedby>
+    <includedby refid="tefpkg_8c" local="yes">src/tefpackage/tefpkg.c</includedby>
+    <incdepgraph>
+      <node id="5">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="3">
+        <label>tefpackage/tefpkg.h</label>
+        <link refid="tefpkg_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/tefpackage/compressor.h</label>
+        <link refid="compressor_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>stdint.h</label>
+      </node>
+      <node id="4">
+        <label>stdio.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/tefpackage/compressor.c</label>
+        <link refid="compressor_8c"/>
+      </node>
+      <node id="1">
+        <label>src/tefpackage/compressor.h</label>
+        <link refid="compressor_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>src/tefpackage/tefpkg.c</label>
+        <link refid="tefpkg_8c"/>
+      </node>
+    </invincdepgraph>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="compressor_8h_1a81d5069539da407a2575238db937279a" prot="public" static="no">
+        <type>struct <ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_s</ref></type>
+        <definition>typedef struct tefpkg_compress_ctx_s tefpkg_compress_ctx_t</definition>
+        <argsstring></argsstring>
+        <name>tefpkg_compress_ctx_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="33" column="36" bodyfile="src/tefpackage/compressor.h" bodystart="33" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="typedef" id="compressor_8h_1a04748623dd32f9fb8b1b184b082e7b29" prot="public" static="no">
+        <type>struct <ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_s</ref></type>
+        <definition>typedef struct tefpkg_decompress_ctx_s tefpkg_decompress_ctx_t</definition>
+        <argsstring></argsstring>
+        <name>tefpkg_decompress_ctx_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="34" column="38" bodyfile="src/tefpackage/compressor.h" bodystart="34" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="compressor_8h_1a596ae8f2ad7217fa4e15a9dee4b0876d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_compress_data</definition>
+        <argsstring>(const uint8_t *src, uint32_t src_size, uint8_t *dst, tefpkg_compress_t compress_type, uint8_t compress_level)</argsstring>
+        <name>tefpkg_compress_data</name>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <param>
+          <type>uint8_t</type>
+          <declname>compress_level</declname>
+        </param>
+        <briefdescription>
+<para>压缩数据 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>目标缓冲区（必须足够大） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩级别（LZ4HC专用） </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>压缩后大小，失败返回TEF_ERROR </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="45" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="45" bodyend="89" declfile="src/tefpackage/compressor.h" declline="45" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <referencedby refid="compressor_8c_1a177d8ab1d8099cc42bde4be7784ecbbc" compoundref="compressor_8c" startline="365" endline="433">tefpkg_compress_file</referencedby>
+        <referencedby refid="compressor_8c_1aed44ed7d3852f9a09eac4f9c5e8e2571" compoundref="compressor_8c" startline="128" endline="153">tefpkg_compress_memory</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a14029dc0b1d313d367ac342a66a11000" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_decompress_data</definition>
+        <argsstring>(const uint8_t *src, uint32_t src_size, uint8_t *dst, uint32_t original_size, tefpkg_compress_t compress_type)</argsstring>
+        <name>tefpkg_decompress_data</name>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>original_size</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <briefdescription>
+<para>解压数据 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>目标缓冲区（必须足够存放解压后数据） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>original_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>预期的原始数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>解压后大小，失败返回TEF_ERROR </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="58" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="91" bodyend="126" declfile="src/tefpackage/compressor.h" declline="58" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <referencedby refid="compressor_8c_1a1ae5593b93fd48717036be7f11672d4d" compoundref="compressor_8c" startline="435" endline="502">tefpkg_decompress_file</referencedby>
+        <referencedby refid="compressor_8c_1a090086cb592998795023911dfa6c4ac9" compoundref="compressor_8c" startline="155" endline="178">tefpkg_decompress_memory</referencedby>
+        <referencedby refid="tefpkg_8c_1a75b7a9cc8c7f43d57aa092d1f63189ab" compoundref="tefpkg_8c" startline="767" endline="836">tefpkg_extract_entry_to_memory</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1aeebbda392563bd2e077c45631f0fc112" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_compress_memory</definition>
+        <argsstring>(const uint8_t *src, uint32_t src_size, uint8_t **dst, uint32_t *dst_size, tefpkg_compress_t compress_type, uint8_t compress_level)</argsstring>
+        <name>tefpkg_compress_memory</name>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t **</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>uint32_t *</type>
+          <declname>dst_size</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <param>
+          <type>uint8_t</type>
+          <declname>compress_level</declname>
+        </param>
+        <briefdescription>
+<para>压缩内存数据（自动分配内存） </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出压缩数据指针（需要调用者释放） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出压缩数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩级别 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>TEF_OK 成功，TEF_ERROR 失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="72" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="128" bodyend="153" declfile="src/tefpackage/compressor.h" declline="72" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99a63dc9ddc7680b46afc837a55e579a390" compoundref="tefpkg_8h" startline="54">TEF_OK</references>
+        <references refid="compressor_8c_1a3f70800f082bb66f2800122528bd4864" compoundref="compressor_8c" startline="45" endline="89">tefpkg_compress_data</references>
+        <references refid="compressor_8c_1a26b08faa8263ee01585797ece8e95225" compoundref="compressor_8c" startline="504" endline="508">tefpkg_max_compressed_size</references>
+        <referencedby refid="tefpkg_8c_1a3fef6fd9262996de28b2586962b9e180" compoundref="tefpkg_8c" startline="658" endline="722">tefpkg_add_entry_from_memory</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a0044c8d720288230f451e17ec254924f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_decompress_memory</definition>
+        <argsstring>(const uint8_t *src, uint32_t src_size, uint8_t **dst, uint32_t original_size, tefpkg_compress_t compress_type)</argsstring>
+        <name>tefpkg_decompress_memory</name>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t **</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>original_size</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <briefdescription>
+<para>解压内存数据（自动分配内存） </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出解压数据指针（需要调用者释放） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>original_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>预期的原始数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>TEF_OK 成功，TEF_ERROR 失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="85" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="155" bodyend="178" declfile="src/tefpackage/compressor.h" declline="85" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99a63dc9ddc7680b46afc837a55e579a390" compoundref="tefpkg_8h" startline="54">TEF_OK</references>
+        <references refid="compressor_8c_1a19907db86eca897e57dbb90b7c543381" compoundref="compressor_8c" startline="91" endline="126">tefpkg_decompress_data</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a8e808300a2f65a01393c2dd5d99272d7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="compressor_8h_1a81d5069539da407a2575238db937279a" kindref="member">tefpkg_compress_ctx_t</ref> *</type>
+        <definition>tefpkg_compress_ctx_t * tefpkg_compress_begin</definition>
+        <argsstring>(tefpkg_compress_t compress_type, uint8_t compress_level)</argsstring>
+        <name>tefpkg_compress_begin</name>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <param>
+          <type>uint8_t</type>
+          <declname>compress_level</declname>
+        </param>
+        <briefdescription>
+<para>开始流式压缩 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩级别 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>压缩上下文指针，失败返回NULL </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="95" column="23" bodyfile="src/tefpackage/compressor.c" bodystart="180" bodyend="221" declfile="src/tefpackage/compressor.h" declline="95" declcolumn="23"/>
+        <references refid="structtefpkg__compress__ctx__s_1a5290a6c60bdefec8f285c5be2a975619" compoundref="compressor_8c" startline="35">tefpkg_compress_ctx_s::compress_level</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="structtefpkg__compress__ctx__s_1a5713b22ca9d6057b77d09baec927696d" compoundref="compressor_8c" startline="34">tefpkg_compress_ctx_s::compress_type</references>
+        <references refid="structtefpkg__compress__ctx__s_1afb31e98bcb28fca4dc44891310c0c596" compoundref="compressor_8c" startline="36">tefpkg_compress_ctx_s::is_initialized</references>
+        <references refid="structtefpkg__compress__ctx__s_1a3a415f63904d55bc984701a54f76a5df" compoundref="compressor_8c" startline="33">tefpkg_compress_ctx_s::lz4_stream</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a43eb1adc65f12e3663fbc613bcc3d573" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_compress_chunk</definition>
+        <argsstring>(tefpkg_compress_ctx_t *ctx, const uint8_t *src, uint32_t src_size, uint8_t *dst, uint32_t *dst_size)</argsstring>
+        <name>tefpkg_compress_chunk</name>
+        <param>
+          <type><ref refid="compressor_8h_1a81d5069539da407a2575238db937279a" kindref="member">tefpkg_compress_ctx_t</ref> *</type>
+          <declname>ctx</declname>
+        </param>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>uint32_t *</type>
+          <declname>dst_size</declname>
+        </param>
+        <briefdescription>
+<para>压缩数据块 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ctx</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩上下文 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>源数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>目标缓冲区（必须足够大） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出压缩后大小 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>TEF_OK 成功，TEF_ERROR 失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="106" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="223" bodyend="271" declfile="src/tefpackage/compressor.h" declline="106" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="structtefpkg__compress__ctx__s_1a5713b22ca9d6057b77d09baec927696d" compoundref="compressor_8c" startline="34">tefpkg_compress_ctx_s::compress_type</references>
+        <references refid="structtefpkg__compress__ctx__s_1afb31e98bcb28fca4dc44891310c0c596" compoundref="compressor_8c" startline="36">tefpkg_compress_ctx_s::is_initialized</references>
+        <references refid="structtefpkg__compress__ctx__s_1a3a415f63904d55bc984701a54f76a5df" compoundref="compressor_8c" startline="33">tefpkg_compress_ctx_s::lz4_stream</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99a63dc9ddc7680b46afc837a55e579a390" compoundref="tefpkg_8h" startline="54">TEF_OK</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a48e8854210e802e1fa1358c358a12422" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void tefpkg_compress_end</definition>
+        <argsstring>(tefpkg_compress_ctx_t *ctx)</argsstring>
+        <name>tefpkg_compress_end</name>
+        <param>
+          <type><ref refid="compressor_8h_1a81d5069539da407a2575238db937279a" kindref="member">tefpkg_compress_ctx_t</ref> *</type>
+          <declname>ctx</declname>
+        </param>
+        <briefdescription>
+<para>结束流式压缩 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ctx</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩上下文 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="114" column="6" bodyfile="src/tefpackage/compressor.c" bodystart="273" bodyend="291" declfile="src/tefpackage/compressor.h" declline="114" declcolumn="6"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="structtefpkg__compress__ctx__s_1a5713b22ca9d6057b77d09baec927696d" compoundref="compressor_8c" startline="34">tefpkg_compress_ctx_s::compress_type</references>
+        <references refid="structtefpkg__compress__ctx__s_1a3a415f63904d55bc984701a54f76a5df" compoundref="compressor_8c" startline="33">tefpkg_compress_ctx_s::lz4_stream</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1ad9b4cdf100aa037c1c8594c759fc16e8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="compressor_8h_1a04748623dd32f9fb8b1b184b082e7b29" kindref="member">tefpkg_decompress_ctx_t</ref> *</type>
+        <definition>tefpkg_decompress_ctx_t * tefpkg_decompress_begin</definition>
+        <argsstring>(tefpkg_compress_t compress_type)</argsstring>
+        <name>tefpkg_decompress_begin</name>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <briefdescription>
+<para>开始流式解压 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>解压上下文指针，失败返回NULL </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="121" column="25" bodyfile="src/tefpackage/compressor.c" bodystart="294" bodyend="317" declfile="src/tefpackage/compressor.h" declline="121" declcolumn="25"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="structtefpkg__decompress__ctx__s_1a643e544db810a0992082e6836b4a78ee" compoundref="compressor_8c" startline="41">tefpkg_decompress_ctx_s::compress_type</references>
+        <references refid="structtefpkg__decompress__ctx__s_1af05fafc34343e093d2419b6f051891e5" compoundref="compressor_8c" startline="42">tefpkg_decompress_ctx_s::is_initialized</references>
+        <references refid="structtefpkg__decompress__ctx__s_1a15685ddb3a4cbbf7bb4e2b646f9f0fdf" compoundref="compressor_8c" startline="40">tefpkg_decompress_ctx_s::lz4_stream</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a6b1be3f0e0229245ce97ffe9c0a5b56b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_decompress_chunk</definition>
+        <argsstring>(tefpkg_decompress_ctx_t *ctx, const uint8_t *src, uint32_t src_size, uint8_t *dst, uint32_t dst_size)</argsstring>
+        <name>tefpkg_decompress_chunk</name>
+        <param>
+          <type><ref refid="compressor_8h_1a04748623dd32f9fb8b1b184b082e7b29" kindref="member">tefpkg_decompress_ctx_t</ref> *</type>
+          <declname>ctx</declname>
+        </param>
+        <param>
+          <type>const uint8_t *</type>
+          <declname>src</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>src_size</declname>
+        </param>
+        <param>
+          <type>uint8_t *</type>
+          <declname>dst</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>dst_size</declname>
+        </param>
+        <briefdescription>
+<para>解压数据块 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ctx</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>解压上下文 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据指针 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>src_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>目标缓冲区（必须足够存放解压后数据） </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>dst_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>目标缓冲区大小 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>解压后大小，失败返回TEF_ERROR </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="132" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="319" bodyend="352" declfile="src/tefpackage/compressor.h" declline="132" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa842b8cdf99faf8210ca85f719cb832eb" compoundref="tefpkg_8h" startline="49">COMPRESS_LZ4</references>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8613d0aec22ef60ce0de2d1b2cff7b2e" compoundref="tefpkg_8h" startline="50">COMPRESS_LZ4HC</references>
+        <references refid="structtefpkg__decompress__ctx__s_1a643e544db810a0992082e6836b4a78ee" compoundref="compressor_8c" startline="41">tefpkg_decompress_ctx_s::compress_type</references>
+        <references refid="structtefpkg__decompress__ctx__s_1af05fafc34343e093d2419b6f051891e5" compoundref="compressor_8c" startline="42">tefpkg_decompress_ctx_s::is_initialized</references>
+        <references refid="structtefpkg__decompress__ctx__s_1a15685ddb3a4cbbf7bb4e2b646f9f0fdf" compoundref="compressor_8c" startline="40">tefpkg_decompress_ctx_s::lz4_stream</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1abb6742bd0fd2471b68ac2691cda455b4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void tefpkg_decompress_end</definition>
+        <argsstring>(tefpkg_decompress_ctx_t *ctx)</argsstring>
+        <name>tefpkg_decompress_end</name>
+        <param>
+          <type><ref refid="compressor_8h_1a04748623dd32f9fb8b1b184b082e7b29" kindref="member">tefpkg_decompress_ctx_t</ref> *</type>
+          <declname>ctx</declname>
+        </param>
+        <briefdescription>
+<para>结束流式解压 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ctx</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>解压上下文 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="140" column="6" bodyfile="src/tefpackage/compressor.c" bodystart="354" bodyend="362" declfile="src/tefpackage/compressor.h" declline="140" declcolumn="6"/>
+        <references refid="structtefpkg__decompress__ctx__s_1a15685ddb3a4cbbf7bb4e2b646f9f0fdf" compoundref="compressor_8c" startline="40">tefpkg_decompress_ctx_s::lz4_stream</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a40b4cc7d730cebf1acdbc648b765571f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_compress_file</definition>
+        <argsstring>(const char *input_file, const char *output_file, tefpkg_compress_t compress_type, uint8_t compress_level)</argsstring>
+        <name>tefpkg_compress_file</name>
+        <param>
+          <type>const char *</type>
+          <declname>input_file</declname>
+        </param>
+        <param>
+          <type>const char *</type>
+          <declname>output_file</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <param>
+          <type>uint8_t</type>
+          <declname>compress_level</declname>
+        </param>
+        <briefdescription>
+<para>压缩文件 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>input_file</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输入文件名 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>output_file</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出文件名 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_level</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩级别 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>TEF_OK 成功，TEF_ERROR 失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="150" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="365" bodyend="433" declfile="src/tefpackage/compressor.h" declline="150" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99a63dc9ddc7680b46afc837a55e579a390" compoundref="tefpkg_8h" startline="54">TEF_OK</references>
+        <references refid="compressor_8c_1a3f70800f082bb66f2800122528bd4864" compoundref="compressor_8c" startline="45" endline="89">tefpkg_compress_data</references>
+        <references refid="compressor_8c_1a26b08faa8263ee01585797ece8e95225" compoundref="compressor_8c" startline="504" endline="508">tefpkg_max_compressed_size</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1a5dff6bb144e29d46c21de8d9a2564184" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int tefpkg_decompress_file</definition>
+        <argsstring>(const char *input_file, const char *output_file, tefpkg_compress_t compress_type, uint32_t original_size)</argsstring>
+        <name>tefpkg_decompress_file</name>
+        <param>
+          <type>const char *</type>
+          <declname>input_file</declname>
+        </param>
+        <param>
+          <type>const char *</type>
+          <declname>output_file</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <param>
+          <type>uint32_t</type>
+          <declname>original_size</declname>
+        </param>
+        <briefdescription>
+<para>解压文件 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>input_file</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输入文件名 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>output_file</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出文件名 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>original_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>预期的原始文件大小 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>TEF_OK 成功，TEF_ERROR 失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="161" column="5" bodyfile="src/tefpackage/compressor.c" bodystart="435" bodyend="502" declfile="src/tefpackage/compressor.h" declline="161" declcolumn="5"/>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99adf9e885d4d66e948037375382beefcbb" compoundref="tefpkg_8h" startline="55">TEF_ERROR</references>
+        <references refid="tefpkg_8h_1ad12958d2763eafd484098ca302969f99a63dc9ddc7680b46afc837a55e579a390" compoundref="tefpkg_8h" startline="54">TEF_OK</references>
+        <references refid="compressor_8c_1a19907db86eca897e57dbb90b7c543381" compoundref="compressor_8c" startline="91" endline="126">tefpkg_decompress_data</references>
+      </memberdef>
+      <memberdef kind="function" id="compressor_8h_1ad949c11b93d27d56485f09f4f8b4ff37" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>uint32_t</type>
+        <definition>uint32_t tefpkg_max_compressed_size</definition>
+        <argsstring>(uint32_t original_size, tefpkg_compress_t compress_type)</argsstring>
+        <name>tefpkg_max_compressed_size</name>
+        <param>
+          <type>uint32_t</type>
+          <declname>original_size</declname>
+        </param>
+        <param>
+          <type><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref></type>
+          <declname>compress_type</declname>
+        </param>
+        <briefdescription>
+<para>计算压缩后数据的最大可能大小 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>original_size</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>原始数据大小 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>compress_type</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>压缩类型 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>最大压缩后大小 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/tefpackage/compressor.h" line="170" column="10" bodyfile="src/tefpackage/compressor.c" bodystart="504" bodyend="508" declfile="src/tefpackage/compressor.h" declline="170" declcolumn="10"/>
+        <references refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3fa8169e186323cc23f0f8f305f45109da2" compoundref="tefpkg_8h" startline="48">COMPRESS_NONE</references>
+        <references refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" compoundref="tefpkg_8h" startline="199">compress_type</references>
+        <referencedby refid="compressor_8c_1a177d8ab1d8099cc42bde4be7784ecbbc" compoundref="compressor_8c" startline="365" endline="433">tefpkg_compress_file</referencedby>
+        <referencedby refid="compressor_8c_1aed44ed7d3852f9a09eac4f9c5e8e2571" compoundref="compressor_8c" startline="128" endline="153">tefpkg_compress_memory</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>tefpackage<sp/>-<sp/>compressor</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(C)<sp/>2025<sp/>EternalFuture</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>free<sp/>software:<sp/>you<sp/>can<sp/>redistribute<sp/>it<sp/>and/or<sp/>modify</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>it<sp/>under<sp/>the<sp/>terms<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>as<sp/>published<sp/>by</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/>the<sp/>Free<sp/>Software<sp/>Foundation,<sp/>either<sp/>version<sp/>3<sp/>of<sp/>the<sp/>License,<sp/>or</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>(at<sp/>your<sp/>option)<sp/>any<sp/>later<sp/>version.</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>distributed<sp/>in<sp/>the<sp/>hope<sp/>that<sp/>it<sp/>will<sp/>be<sp/>useful,</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>but<sp/>WITHOUT<sp/>ANY<sp/>WARRANTY;<sp/>without<sp/>even<sp/>the<sp/>implied<sp/>warranty<sp/>of</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>MERCHANTABILITY<sp/>or<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE.<sp/>See<sp/>the</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>for<sp/>more<sp/>details.</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>You<sp/>should<sp/>have<sp/>received<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>along<sp/>with<sp/>this<sp/>program.<sp/>If<sp/>not,<sp/>see<sp/>&lt;https://www.gnu.org/licenses/&gt;.</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>GitHub:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/11/8</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#pragma<sp/>once</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="tefpkg_8h" kindref="compound">tefpackage/tefpkg.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33" refid="compressor_8h_1a81d5069539da407a2575238db937279a" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_s</ref><sp/><ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_t</ref>;</highlight></codeline>
+<codeline lineno="34" refid="compressor_8h_1a04748623dd32f9fb8b1b184b082e7b29" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_s</ref><sp/><ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_t</ref>;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a596ae8f2ad7217fa4e15a9dee4b0876d" kindref="member">tefpkg_compress_data</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t*<sp/>dst,<sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>,</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t<sp/>compress_level);</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a14029dc0b1d313d367ac342a66a11000" kindref="member">tefpkg_decompress_data</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t*<sp/>dst,<sp/>uint32_t<sp/>original_size,</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>);</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1aeebbda392563bd2e077c45631f0fc112" kindref="member">tefpkg_compress_memory</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t**<sp/>dst,<sp/>uint32_t*<sp/>dst_size,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>,<sp/>uint8_t<sp/>compress_level);</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a0044c8d720288230f451e17ec254924f" kindref="member">tefpkg_decompress_memory</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t**<sp/>dst,<sp/>uint32_t<sp/>original_size,</highlight></codeline>
+<codeline lineno="87"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>);</highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_t</ref>*<sp/><ref refid="compressor_8h_1a8e808300a2f65a01393c2dd5d99272d7" kindref="member">tefpkg_compress_begin</ref>(<ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>,<sp/>uint8_t<sp/>compress_level);</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a43eb1adc65f12e3663fbc613bcc3d573" kindref="member">tefpkg_compress_chunk</ref>(<ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_t</ref>*<sp/>ctx,</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t*<sp/>dst,<sp/>uint32_t*<sp/>dst_size);</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"></highlight></codeline>
+<codeline lineno="114"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a48e8854210e802e1fa1358c358a12422" kindref="member">tefpkg_compress_end</ref>(<ref refid="structtefpkg__compress__ctx__s" kindref="compound">tefpkg_compress_ctx_t</ref>*<sp/>ctx);</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"></highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_t</ref>*<sp/><ref refid="compressor_8h_1ad9b4cdf100aa037c1c8594c759fc16e8" kindref="member">tefpkg_decompress_begin</ref>(<ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>);</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"></highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a6b1be3f0e0229245ce97ffe9c0a5b56b" kindref="member">tefpkg_decompress_chunk</ref>(<ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_t</ref>*<sp/>ctx,</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>uint8_t*<sp/>src,<sp/>uint32_t<sp/>src_size,</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>uint8_t*<sp/>dst,<sp/>uint32_t<sp/>dst_size);</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"></highlight></codeline>
+<codeline lineno="140"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1abb6742bd0fd2471b68ac2691cda455b4" kindref="member">tefpkg_decompress_end</ref>(<ref refid="structtefpkg__decompress__ctx__s" kindref="compound">tefpkg_decompress_ctx_t</ref>*<sp/>ctx);</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a40b4cc7d730cebf1acdbc648b765571f" kindref="member">tefpkg_compress_file</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>input_file,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>output_file,</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>,<sp/>uint8_t<sp/>compress_level);</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="compressor_8h_1a5dff6bb144e29d46c21de8d9a2564184" kindref="member">tefpkg_decompress_file</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>input_file,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>output_file,</highlight></codeline>
+<codeline lineno="162"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>,<sp/>uint32_t<sp/>original_size);</highlight></codeline>
+<codeline lineno="163"><highlight class="normal"></highlight></codeline>
+<codeline lineno="170"><highlight class="normal">uint32_t<sp/><ref refid="compressor_8h_1ad949c11b93d27d56485f09f4f8b4ff37" kindref="member">tefpkg_max_compressed_size</ref>(uint32_t<sp/>original_size,<sp/><ref refid="tefpkg_8h_1a8ac7ef007005045d6b4fbf6728a85b3f" kindref="member">tefpkg_compress_t</ref><sp/><ref refid="tefpkg_8h_1a821fb533938cd2586a96d6c29d595ee7" kindref="member">compress_type</ref>);</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"></highlight></codeline>
+<codeline lineno="172"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="173"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="174"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight></codeline>
+    </programlisting>
+    <location file="src/tefpackage/compressor.h"/>
+  </compounddef>
+</doxygen>

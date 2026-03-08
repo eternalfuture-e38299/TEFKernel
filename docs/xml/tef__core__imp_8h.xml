@@ -1,0 +1,442 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="tef__core__imp_8h" kind="file" language="C++">
+    <compoundname>tef_core_imp.h</compoundname>
+    <includes local="yes">tefstd/vector.h</includes>
+    <includes refid="tpf__core_8h" local="yes">tefplugin/tpf_core.h</includes>
+    <includes local="no">stdbool.h</includes>
+    <includedby refid="desktop__runtime__core_8c" local="yes">src/desktop/desktop_runtime_core.c</includedby>
+    <includedby refid="modloader__core_8c" local="yes">src/modloader/modloader_core.c</includedby>
+    <includedby refid="tpf__core_8c" local="yes">src/tefplugin/tpf_core.c</includedby>
+    <incdepgraph>
+      <node id="4">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="3">
+        <label>tefplugin/tpf_core.h</label>
+        <link refid="tpf__core_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/internal/tefplugin/tef_core_imp.h</label>
+        <link refid="tef__core__imp_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>stdbool.h</label>
+      </node>
+      <node id="2">
+        <label>tefstd/vector.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="1">
+        <label>src/internal/tefplugin/tef_core_imp.h</label>
+        <link refid="tef__core__imp_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+      <node id="4">
+        <label>src/tefplugin/tpf_core.c</label>
+        <link refid="tpf__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structplugin__handle__t" prot="public">plugin_handle_t</innerclass>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="tef__core__imp_8h_1ad693867fd6632e5ef53ed2285ee93381" prot="public" static="no">
+        <type>struct <ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref></type>
+        <definition>typedef struct plugin_handle_t plugin_handle_t</definition>
+        <argsstring></argsstring>
+        <name>plugin_handle_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="53" column="17"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="tef__core__imp_8h_1ab60caed61fd1b08b9ea1abcc1f4a2646" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref> *</type>
+        <definition>plugin_handle_t * tpf_get_plugin_by_id</definition>
+        <argsstring>(const char *pkg_id)</argsstring>
+        <name>tpf_get_plugin_by_id</name>
+        <param>
+          <type>const char *</type>
+          <declname>pkg_id</declname>
+        </param>
+        <briefdescription>
+<para>通过pkg_id获取插件句柄 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>pkg_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>插件包ID </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>插件句柄，如果不存在返回NULL </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="60" column="17" bodyfile="src/tefplugin/tpf_core.c" bodystart="85" bodyend="121" declfile="src/internal/tefplugin/tef_core_imp.h" declline="60" declcolumn="17"/>
+        <references refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96">g_tpf_symbols</references>
+        <references refid="structtpf__plugin__ops__t_1a8d38147f42d15beb5504f2ac082764a5" compoundref="tpf__core_8h" startline="80">tpf_plugin_ops_t::get_info</references>
+        <references refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" compoundref="tef__core__imp_8h" startline="43">plugin_handle_t::ops</references>
+        <references refid="structtpf__plugin__info__t_1a222f4215032d2ce68830b4ee1b7880f9" compoundref="tpf__core_8h" startline="48">tpf_plugin_info_t::pkg_id</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <referencedby refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" compoundref="modloader__core_8c" startline="41" endline="99">cleanup_unreferenced_plugins</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" compoundref="modloader__core_8c" startline="417" endline="480">tefkernel_cleanup_all_ml</referencedby>
+        <referencedby refid="tef__core__imp_8h_1af884bd094c09a87379d0bf9a57a2ce69" compoundref="tpf__core_8c" startline="71" endline="83">tpf_plugin_exists</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1af884bd094c09a87379d0bf9a57a2ce69" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tpf_plugin_exists</definition>
+        <argsstring>(const char *pkg_id)</argsstring>
+        <name>tpf_plugin_exists</name>
+        <param>
+          <type>const char *</type>
+          <declname>pkg_id</declname>
+        </param>
+        <briefdescription>
+<para>检查插件是否存在 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>pkg_id</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>插件包ID </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>如果插件存在返回true，否则返回false </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="67" column="6" bodyfile="src/tefplugin/tpf_core.c" bodystart="71" bodyend="83" declfile="src/internal/tefplugin/tef_core_imp.h" declline="67" declcolumn="6"/>
+        <references refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96">g_tpf_symbols</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="tpf__core_8c_1ab60caed61fd1b08b9ea1abcc1f4a2646" compoundref="tpf__core_8c" startline="85" endline="121">tpf_get_plugin_by_id</references>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1a49249e0cc052936ce535e519ad77f7dc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tpf_load_plugin</definition>
+        <argsstring>(void *handle, plugin_handle_t **out_plugin)</argsstring>
+        <name>tpf_load_plugin</name>
+        <param>
+          <type>void *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref> **</type>
+          <declname>out_plugin</declname>
+        </param>
+        <briefdescription>
+<para>加载一个插件 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>插件句柄 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>out_plugin[out]</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出的插件句柄 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>执行结果 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="75" column="6" declfile="src/internal/tefplugin/tef_core_imp.h" declline="75" declcolumn="6"/>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1a84465cf93000fb1e11583d1123e1e149" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tpf_cleanup_plugin</definition>
+        <argsstring>(plugin_handle_t *plugin)</argsstring>
+        <name>tpf_cleanup_plugin</name>
+        <param>
+          <type><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref> *</type>
+          <declname>plugin</declname>
+        </param>
+        <briefdescription>
+<para>卸载插件 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>plugin</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>插件句柄 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>执行结果 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="82" column="6" bodyfile="src/tefplugin/tpf_core.c" bodystart="125" bodyend="180" declfile="src/internal/tefplugin/tef_core_imp.h" declline="82" declcolumn="6"/>
+        <references refid="tpf__core_8c_1a6604f72633130190f987e542378281e2" compoundref="tpf__core_8c" startline="45" endline="69">free_plugin</references>
+        <references refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96">g_tpf_symbols</references>
+        <references refid="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" compoundref="tef__core__imp_8h" startline="52">plugin_handle_t::index</references>
+        <references refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882">shared_plugin_libraries</references>
+        <references refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" compoundref="tef__core__imp_8h" startline="46">plugin_handle_t::sym_names</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+        <referencedby refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" compoundref="modloader__core_8c" startline="41" endline="99">cleanup_unreferenced_plugins</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" compoundref="modloader__core_8c" startline="417" endline="480">tefkernel_cleanup_all_ml</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1aeb4dbbb29c68344f7e0c732253ef79b5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tpf_register_plugin_symbols</definition>
+        <argsstring>(plugin_handle_t *plugin)</argsstring>
+        <name>tpf_register_plugin_symbols</name>
+        <param>
+          <type><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref> *</type>
+          <declname>plugin</declname>
+        </param>
+        <briefdescription>
+<para>多线程注册插件符号到所有共享库（阻塞版本） </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>plugin</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>包含要注册符号的插件句柄 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>true-所有符号注册成功 false-部分或全部失败</para>
+</simplesect>
+<simplesect kind="note"><para>函数会阻塞直到所有线程完成符号注册 </para>
+</simplesect>
+<simplesect kind="note"><para>每个共享库由一个独立线程处理 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="92" column="6" bodyfile="src/tefplugin/tpf_core.c" bodystart="221" bodyend="323" declfile="src/internal/tefplugin/tef_core_imp.h" declline="92" declcolumn="6"/>
+        <references refid="structtpf__thread__arg__t_1a59785f9bb7caa2ee4075c9d9bd684c65" compoundref="tpf__core_8c" startline="184">tpf_thread_arg_t::lib_handle</references>
+        <references refid="structtpf__thread__arg__t_1aeb5318628827cf235172cd95967a85c1" compoundref="tpf__core_8c" startline="185">tpf_thread_arg_t::plugin</references>
+        <references refid="tpf__core_8c_1a0a35e419e237d210d4a58dc9df3443e7" compoundref="tpf__core_8c" startline="189" endline="219">register_symbols_thread</references>
+        <references refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882">shared_plugin_libraries</references>
+        <references refid="structtpf__thread__arg__t_1a57fb7d01d6e037a5aefabc5aab4314c6" compoundref="tpf__core_8c" startline="186">tpf_thread_arg_t::success</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+        <referencedby refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" compoundref="tpf__core_8c" startline="376" endline="456">tpf_initialize_all_plugins</referencedby>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tpf_initialize_all_plugins</definition>
+        <argsstring>()</argsstring>
+        <name>tpf_initialize_all_plugins</name>
+        <briefdescription>
+<para>初始化所有已加载的插件并将其注册到所有共享库 </para>
+        </briefdescription>
+        <detaileddescription>
+<para>这个函数会遍历所有已加载的插件，调用它们的初始化函数，并将所有插件的符号 注册到已注册的共享库中。这样可以确保所有插件都能互相访问彼此的API。</para>
+<para><simplesect kind="return"><para>true 所有插件都成功初始化和注册 </para>
+</simplesect>
+<simplesect kind="return"><para>false 有一个或多个插件初始化或注册失败 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="103" column="6" bodyfile="src/tefplugin/tpf_core.c" bodystart="376" bodyend="456" declfile="src/internal/tefplugin/tef_core_imp.h" declline="103" declcolumn="6"/>
+        <references refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96">g_tpf_symbols</references>
+        <references refid="structtpf__plugin__ops__t_1aa3c9c9789a766513c313e9585cb400e3" compoundref="tpf__core_8h" startline="69">tpf_plugin_ops_t::initialize</references>
+        <references refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" compoundref="tef__core__imp_8h" startline="43">plugin_handle_t::ops</references>
+        <references refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882">shared_plugin_libraries</references>
+        <references refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" compoundref="tef__core__imp_8h" startline="46">plugin_handle_t::sym_names</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+        <references refid="tpf__core_8c_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</references>
+        <references refid="tpf__core_8c_1aeb4dbbb29c68344f7e0c732253ef79b5" compoundref="tpf__core_8c" startline="221" endline="323">tpf_register_plugin_symbols</references>
+      </memberdef>
+      <memberdef kind="function" id="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void tpf_init_libtefkernel</definition>
+        <argsstring>()</argsstring>
+        <name>tpf_init_libtefkernel</name>
+        <briefdescription>
+<para>初始化内核依赖 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="108" column="6" bodyfile="src/tefplugin/tpf_core.c" bodystart="473" bodyend="721" declfile="src/internal/tefplugin/tef_core_imp.h" declline="108" declcolumn="6"/>
+        <references refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96">g_tpf_symbols</references>
+        <references refid="structplugin__handle__t_1aa93f1974b9bf5c4668cb6a1b565a7034" compoundref="tef__core__imp_8h" startline="40">plugin_handle_t::handle</references>
+        <references refid="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" compoundref="tef__core__imp_8h" startline="52">plugin_handle_t::index</references>
+        <references refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" compoundref="memdl_8c" startline="501" endline="503">memdl_error</references>
+        <references refid="memdl_8c_1afa4f3713ba508cd830c5f40c516ade9c" compoundref="memdl_8c" startline="148" endline="174">memdl_get_arch</references>
+        <references refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" compoundref="memdl_8c" startline="99" endline="113">memdl_get_platform</references>
+        <references refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" compoundref="memdl_8c" startline="116" endline="145">memdl_validate</references>
+        <references refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" compoundref="tef__core__imp_8h" startline="43">plugin_handle_t::ops</references>
+        <references refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882">shared_plugin_libraries</references>
+        <references refid="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" compoundref="tef__core__imp_8h" startline="49">plugin_handle_t::sym_addrs</references>
+        <references refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" compoundref="tef__core__imp_8h" startline="46">plugin_handle_t::sym_names</references>
+        <references refid="tefpkg_8h_1a1c47a2180e2b275fdd6c038545f228dc" compoundref="tefpkg_8h" startline="197">tefpkg_add_entry_from_file</references>
+        <references refid="tefpkg_8c_1a3fef6fd9262996de28b2586962b9e180" compoundref="tefpkg_8c" startline="658" endline="722">tefpkg_add_entry_from_memory</references>
+        <references refid="tefpkg_8c_1a7f9e1ebfa4dee6bfceb98212f029ae22" compoundref="tefpkg_8c" startline="630" endline="656">tefpkg_close</references>
+        <references refid="tefpkg_8c_1a3cbb04b12dcb98200b0a31dbd5bd90db" compoundref="tefpkg_8c" startline="336" endline="392">tefpkg_create_reserved_from_file</references>
+        <references refid="tefpkg_8h_1af0d603db703034f84d72f9911474cd79" compoundref="tefpkg_8h" startline="127">tefpkg_create_reserved_from_memory</references>
+        <references refid="tefpkg_8h_1abd201b02bf2ff07af62055e5f3423f27" compoundref="tefpkg_8h" startline="220">tefpkg_extract_entry_to_file</references>
+        <references refid="tefpkg_8c_1a75b7a9cc8c7f43d57aa092d1f63189ab" compoundref="tefpkg_8c" startline="767" endline="836">tefpkg_extract_entry_to_memory</references>
+        <references refid="tefpkg_8c_1a25f21c02e72cfc72af86e5d0929f17fd" compoundref="tefpkg_8c" startline="953" endline="956">tefpkg_get_entries_count</references>
+        <references refid="tefpkg_8c_1ac3690987248ad878b3dc71d8809b4de6" compoundref="tefpkg_8c" startline="875" endline="886">tefpkg_get_entry_info</references>
+        <references refid="tefpkg_8c_1aa8d118522d258a09b46d33e0f9d4b816" compoundref="tefpkg_8c" startline="958" endline="961">tefpkg_get_reserved_entries</references>
+        <references refid="tefpkg_8h_1a71041833d86acfd1d9807425693afa95" compoundref="tefpkg_8h" startline="146">tefpkg_open_from_memory</references>
+        <references refid="tefpkg_8c_1ad75bf94d8c5b4eed8a4b8802b39ee58d" compoundref="tefpkg_8c" startline="424" endline="487">tefpkg_open_readonly</references>
+        <references refid="tefpkg_8c_1a986d3725b357f33819ea1751de71c3b7" compoundref="tefpkg_8c" startline="537" endline="581">tefpkg_save_file</references>
+        <references refid="tefpkg_8h_1a92b6308b797fbd2f848d6f22797c4b95" compoundref="tefpkg_8h" startline="165">tefpkg_save_memory_file</references>
+        <references refid="tefpkg_8h_1a3c94f27f894d31c8ef819184c6601f3c" compoundref="tefpkg_8h" startline="280">tefpkg_sign_package</references>
+        <references refid="tefpkg_8h_1a334d3f2d0b4105f43a97ca6724811c16" compoundref="tefpkg_8h" startline="255">tefpkg_verify_entry</references>
+        <references refid="tefpkg_8c_1aa2ff43400f2805dff2a3c0923a8058d2" compoundref="tefpkg_8c" startline="909" endline="917">tefpkg_verify_pkg</references>
+        <references refid="tefpkg_8c_1a4576b2a1dd3d08530b8bc60395588d4c" compoundref="tefpkg_8c" startline="919" endline="935">tefpkg_verify_signature</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="tpf__core_8c_1a3bea221f405eddf32569d1195ef81491" compoundref="tpf__core_8c" startline="458" endline="459">TPF_KERNEL_SYMBOL</references>
+        <referencedby refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" compoundref="tpf__core_8c" startline="376" endline="456">tpf_initialize_all_plugins</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>tefkernel<sp/>-<sp/>tef_core_imp</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(C)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>free<sp/>software:<sp/>you<sp/>can<sp/>redistribute<sp/>it<sp/>and/or<sp/>modify</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>it<sp/>under<sp/>the<sp/>terms<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>as<sp/>published<sp/>by</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/>the<sp/>Free<sp/>Software<sp/>Foundation,<sp/>either<sp/>version<sp/>3<sp/>of<sp/>the<sp/>License,<sp/>or</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>(at<sp/>your<sp/>option)<sp/>any<sp/>later<sp/>version.</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>distributed<sp/>in<sp/>the<sp/>hope<sp/>that<sp/>it<sp/>will<sp/>be<sp/>useful,</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>but<sp/>WITHOUT<sp/>ANY<sp/>WARRANTY;<sp/>without<sp/>even<sp/>the<sp/>implied<sp/>warranty<sp/>of</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>MERCHANTABILITY<sp/>or<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE.<sp/>See<sp/>the</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>for<sp/>more<sp/>details.</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>You<sp/>should<sp/>have<sp/>received<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>along<sp/>with<sp/>this<sp/>program.<sp/>If<sp/>not,<sp/>see<sp/>&lt;https://www.gnu.org/licenses/&gt;.</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>GitHub:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/12/12</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_TEF_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_TEF_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;tefstd/vector.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="tpf__core_8h" kindref="compound">tefplugin/tpf_core.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdbool.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="38" refid="structplugin__handle__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>插件句柄</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40" refid="structplugin__handle__t_1aa93f1974b9bf5c4668cb6a1b565a7034" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*<ref refid="structplugin__handle__t_1aa93f1974b9bf5c4668cb6a1b565a7034" kindref="member">handle</ref>;</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>插件函数表</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43" refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="structtpf__plugin__ops__t" kindref="compound">tpf_plugin_ops_t</ref><sp/>*<ref refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" kindref="member">ops</ref>;</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>符号名称</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="46" refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tef_vector_t<sp/><ref refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" kindref="member">sym_names</ref>;<sp/></highlight><highlight class="comment">//<sp/>const<sp/>char*</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>符号地址</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49" refid="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tef_vector_t<sp/><ref refid="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" kindref="member">sym_addrs</ref>;<sp/></highlight><highlight class="comment">//<sp/>void*</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>插件引索</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="52" refid="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" kindref="member">index</ref>;</highlight></codeline>
+<codeline lineno="53" refid="tef__core__imp_8h_1ad693867fd6632e5ef53ed2285ee93381" refkind="member"><highlight class="normal">}<sp/><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref>;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>*<ref refid="tef__core__imp_8h_1ab60caed61fd1b08b9ea1abcc1f4a2646" kindref="member">tpf_get_plugin_by_id</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*pkg_id);</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1af884bd094c09a87379d0bf9a57a2ce69" kindref="member">tpf_plugin_exists</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*pkg_id);</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75" refid="tef__core__imp_8h_1a49249e0cc052936ce535e519ad77f7dc" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1a49249e0cc052936ce535e519ad77f7dc" kindref="member">tpf_load_plugin</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*handle,<sp/><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>**out_plugin);</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1a84465cf93000fb1e11583d1123e1e149" kindref="member">tpf_cleanup_plugin</ref>(<ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>*plugin);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1aeb4dbbb29c68344f7e0c732253ef79b5" kindref="member">tpf_register_plugin_symbols</ref>(<ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>*plugin);</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight></codeline>
+<codeline lineno="103"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" kindref="member">tpf_initialize_all_plugins</ref>();</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"></highlight></codeline>
+<codeline lineno="108"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" kindref="member">tpf_init_libtefkernel</ref>();</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"></highlight></codeline>
+<codeline lineno="110"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="111"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="113"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//TEFKERNEL_TEF_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/internal/tefplugin/tef_core_imp.h"/>
+  </compounddef>
+</doxygen>

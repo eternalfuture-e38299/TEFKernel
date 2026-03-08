@@ -1,0 +1,16 @@
+<map id="tefkernel_log_write_net" name="tefkernel_log_write_net">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,80,180,105"/>
+<area shape="rect" id="Node000002" href="$log_8c.html#ab2a186a7ea4ea47dd0d65078ddcf1c50" title=" " alt="" coords="447,80,593,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="180,90,433,90,433,95,180,95"/>
+<area shape="rect" id="Node000007" href="$log_8c.html#af3d4bd220bd0130cd530fa01b69f8968" title=" " alt="" coords="228,105,399,131"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="180,100,215,104,214,109,180,105"/>
+<area shape="rect" id="Node000003" href="$log_8c.html#a0e1141c4ee0b9bc63987f55b488d92bf" title=" " alt="" coords="673,5,795,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="548,77,640,39,665,32,667,37,642,45,550,82"/>
+<area shape="rect" id="Node000004" href="$log_8c.html#a1fdaa680ee19962f59d42fbfe4bc3ce0" title=" " alt="" coords="641,55,827,80"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="593,81,627,77,628,83,594,87"/>
+<area shape="rect" id="Node000005" href="$log_8c.html#a06a2ce6a6a8a2b3b4ba940addbfb0807" title=" " alt="" coords="671,104,797,129"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="594,98,657,105,657,111,593,104"/>
+<area shape="rect" id="Node000006" href="$log_8c.html#a024d90c20dedc91eb03b26bb425da982" title=" " alt="" coords="671,153,797,179"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="551,103,642,139,667,147,665,152,640,145,549,108"/>
+<area shape="poly" id="edge7_Node000007_Node000002" title=" " alt="" coords="398,105,433,101,433,106,399,110"/>
+</map>

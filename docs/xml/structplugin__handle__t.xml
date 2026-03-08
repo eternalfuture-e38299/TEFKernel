@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structplugin__handle__t" kind="struct" language="C++" prot="public">
+    <compoundname>plugin_handle_t</compoundname>
+    <includes refid="tef__core__imp_8h" local="no">tef_core_imp.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structplugin__handle__t_1aa93f1974b9bf5c4668cb6a1b565a7034" prot="public" static="no" mutable="no">
+        <type>void *</type>
+        <definition>void* plugin_handle_t::handle</definition>
+        <argsstring></argsstring>
+        <name>handle</name>
+        <qualifiedname>plugin_handle_t::handle</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="40" column="10" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="40" bodyend="-1"/>
+        <referencedby refid="tpf__core_8c_1a6604f72633130190f987e542378281e2" compoundref="tpf__core_8c" startline="45" endline="69">free_plugin</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" prot="public" static="no" mutable="no">
+        <type><ref refid="structtpf__plugin__ops__t" kindref="compound">tpf_plugin_ops_t</ref> *</type>
+        <definition>tpf_plugin_ops_t* plugin_handle_t::ops</definition>
+        <argsstring></argsstring>
+        <name>ops</name>
+        <qualifiedname>plugin_handle_t::ops</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="43" column="22" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="43" bodyend="-1"/>
+        <referencedby refid="tpf__core_8c_1a6604f72633130190f987e542378281e2" compoundref="tpf__core_8c" startline="45" endline="69">free_plugin</referencedby>
+        <referencedby refid="tef__core__imp_8h_1ab60caed61fd1b08b9ea1abcc1f4a2646" compoundref="tpf__core_8c" startline="85" endline="121">tpf_get_plugin_by_id</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</referencedby>
+        <referencedby refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" compoundref="tpf__core_8c" startline="376" endline="456">tpf_initialize_all_plugins</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" prot="public" static="no" mutable="no">
+        <type>tef_vector_t</type>
+        <definition>tef_vector_t plugin_handle_t::sym_names</definition>
+        <argsstring></argsstring>
+        <name>sym_names</name>
+        <qualifiedname>plugin_handle_t::sym_names</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="46" column="18" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="46" bodyend="-1"/>
+        <referencedby refid="tpf__core_8c_1a6604f72633130190f987e542378281e2" compoundref="tpf__core_8c" startline="45" endline="69">free_plugin</referencedby>
+        <referencedby refid="tpf__core_8c_1a0a35e419e237d210d4a58dc9df3443e7" compoundref="tpf__core_8c" startline="189" endline="219">register_symbols_thread</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a84465cf93000fb1e11583d1123e1e149" compoundref="tpf__core_8c" startline="125" endline="180">tpf_cleanup_plugin</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</referencedby>
+        <referencedby refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" compoundref="tpf__core_8c" startline="376" endline="456">tpf_initialize_all_plugins</referencedby>
+        <referencedby refid="tpf__core_8c_1a61bee02a9255a23d9eb7d31183b43317" compoundref="tpf__core_8c" startline="342" endline="374">tpf_register_symbol</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" prot="public" static="no" mutable="no">
+        <type>tef_vector_t</type>
+        <definition>tef_vector_t plugin_handle_t::sym_addrs</definition>
+        <argsstring></argsstring>
+        <name>sym_addrs</name>
+        <qualifiedname>plugin_handle_t::sym_addrs</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="49" column="18" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="49" bodyend="-1"/>
+        <referencedby refid="tpf__core_8c_1a6604f72633130190f987e542378281e2" compoundref="tpf__core_8c" startline="45" endline="69">free_plugin</referencedby>
+        <referencedby refid="tpf__core_8c_1a0a35e419e237d210d4a58dc9df3443e7" compoundref="tpf__core_8c" startline="189" endline="219">register_symbols_thread</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</referencedby>
+        <referencedby refid="tpf__core_8c_1a61bee02a9255a23d9eb7d31183b43317" compoundref="tpf__core_8c" startline="342" endline="374">tpf_register_symbol</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" prot="public" static="no" mutable="no">
+        <type>size_t</type>
+        <definition>size_t plugin_handle_t::index</definition>
+        <argsstring></argsstring>
+        <name>index</name>
+        <qualifiedname>plugin_handle_t::index</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/tefplugin/tef_core_imp.h" line="52" column="12" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="52" bodyend="-1"/>
+        <referencedby refid="tef__core__imp_8h_1a84465cf93000fb1e11583d1123e1e149" compoundref="tpf__core_8c" startline="125" endline="180">tpf_cleanup_plugin</referencedby>
+        <referencedby refid="tef__core__imp_8h_1a680f5e7e128fbe0515efee07107bce3d" compoundref="tpf__core_8c" startline="473" endline="721">tpf_init_libtefkernel</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="1">
+        <label>plugin_handle_t</label>
+        <link refid="structplugin__handle__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>ops</edgelabel>
+        </childnode>
+      </node>
+      <node id="3">
+        <label>tpf_plugin_info_t</label>
+        <link refid="structtpf__plugin__info__t"/>
+      </node>
+      <node id="2">
+        <label>tpf_plugin_ops_t</label>
+        <link refid="structtpf__plugin__ops__t"/>
+        <childnode refid="3" relation="usage">
+          <edgelabel>get_info</edgelabel>
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="src/internal/tefplugin/tef_core_imp.h" line="38" column="1" bodyfile="src/internal/tefplugin/tef_core_imp.h" bodystart="38" bodyend="53"/>
+    <listofallmembers>
+      <member refid="structplugin__handle__t_1aa93f1974b9bf5c4668cb6a1b565a7034" prot="public" virt="non-virtual"><scope>plugin_handle_t</scope><name>handle</name></member>
+      <member refid="structplugin__handle__t_1a19ab9375d4f6ea682e5e58f09d6b3096" prot="public" virt="non-virtual"><scope>plugin_handle_t</scope><name>index</name></member>
+      <member refid="structplugin__handle__t_1a7266aa56a250842b394b24f161069028" prot="public" virt="non-virtual"><scope>plugin_handle_t</scope><name>ops</name></member>
+      <member refid="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" prot="public" virt="non-virtual"><scope>plugin_handle_t</scope><name>sym_addrs</name></member>
+      <member refid="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" prot="public" virt="non-virtual"><scope>plugin_handle_t</scope><name>sym_names</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

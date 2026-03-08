@@ -1,0 +1,32 @@
+<map id="tefpkg_sign_package" name="tefpkg_sign_package">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,85,164,111"/>
+<area shape="rect" id="Node000002" href="$tefpkg_8c.html#adf8eaa6608e6faa98283d3140478ca9b" title=" " alt="" coords="471,135,645,175"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="143,108,212,121,340,136,457,146,457,151,339,141,212,126,142,113"/>
+<area shape="rect" id="Node000009" href="$tefpkg_8c.html#ae8789dfc9490e6347bc83bfac95c0413" title=" " alt="" coords="214,36,421,61"/>
+<area shape="poly" id="edge10_Node000001_Node000009" title=" " alt="" coords="145,83,243,62,244,67,146,88"/>
+<area shape="rect" id="Node000011" href="$tefpkg_8c.html#a1f5054fbc1f7736d014bfc1f9b89ca2d" title=" " alt="" coords="212,85,423,111"/>
+<area shape="poly" id="edge15_Node000001_Node000011" title=" " alt="" coords="165,95,198,95,198,101,165,101"/>
+<area shape="rect" id="Node000003" href="$siphash_8c.html#acf7837dd9ebfc124766cfcae39e5b509" title="完成SipHash计算并返回最终哈希值" alt="" coords="702,85,809,111"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="627,133,697,112,698,117,628,138"/>
+<area shape="rect" id="Node000006" href="$siphash_8c.html#a8a8f0bc9dc6a2f76bd500268551b738b" title="初始化SipHash计算上下文" alt="" coords="705,143,805,168"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="646,153,692,153,692,158,646,158"/>
+<area shape="rect" id="Node000007" href="$siphash_8c.html#a1e6e0367a691159672d00fa76e94c358" title="更新SipHash计算状态（流式处理）" alt="" coords="693,35,817,60"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="589,133,692,72,709,63,711,68,695,76,591,137"/>
+<area shape="rect" id="Node000004" href="$siphash_8c.html#ab11fee5f26800354078211d367b801ad" title=" " alt="" coords="1000,60,1121,85"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="809,98,877,98,952,94,999,86,1000,91,952,99,877,104,809,103"/>
+<area shape="rect" id="Node000005" href="$siphash_8c.html#a8a8b54d69ce501bb17e7d5dcc8fdfb32" title=" " alt="" coords="879,59,939,84"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="808,86,865,76,866,81,809,91"/>
+<area shape="poly" id="edge9_Node000007_Node000005" title=" " alt="" coords="818,54,866,62,865,67,817,60"/>
+<area shape="rect" id="Node000008" href="$siphash_8c.html#affc85a56adbd7108b190a6cee4ad4f72" title=" " alt="" coords="865,9,952,35"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="817,34,851,29,852,34,818,40"/>
+<area shape="poly" id="edge8_Node000008_Node000004" title=" " alt="" coords="949,32,1010,53,1008,58,947,37"/>
+<area shape="rect" id="Node000010" href="$siphash_8c.html#ad5290130e96ddb08ff2d5ba990419c87" title="单次计算数据的SipHash值（非流式）" alt="" coords="495,35,621,60"/>
+<area shape="poly" id="edge11_Node000009_Node000010" title=" " alt="" coords="421,45,482,45,482,50,421,51"/>
+<area shape="poly" id="edge12_Node000010_Node000003" title=" " alt="" coords="609,57,693,79,691,84,608,63"/>
+<area shape="poly" id="edge13_Node000010_Node000006" title=" " alt="" coords="583,58,695,121,718,134,716,138,692,126,580,62"/>
+<area shape="poly" id="edge14_Node000010_Node000007" title=" " alt="" coords="621,45,679,45,679,50,621,50"/>
+<area shape="poly" id="edge16_Node000011_Node000003" title=" " alt="" coords="423,95,689,95,689,101,423,101"/>
+<area shape="poly" id="edge17_Node000011_Node000006" title=" " alt="" coords="335,108,393,149,431,169,471,185,519,195,557,196,645,185,706,170,707,175,646,190,557,202,518,200,470,190,429,174,390,153,332,113"/>
+<area shape="poly" id="edge19_Node000011_Node000007" title=" " alt="" coords="396,83,421,72,435,60,444,46,453,32,469,21,500,11,532,5,597,5,658,14,708,28,707,33,657,19,597,10,533,10,502,16,472,26,457,36,448,49,440,63,424,76,398,88"/>
+<area shape="poly" id="edge18_Node000011_Node000010" title=" " alt="" coords="378,83,483,60,485,65,379,88"/>
+</map>

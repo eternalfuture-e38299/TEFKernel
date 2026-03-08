@@ -1,0 +1,12 @@
+<map id="tpf_cleanup_plugin" name="tpf_cleanup_plugin">
+<area shape="rect" id="Node000001" title="卸载插件" alt="" coords="627,42,772,67"/>
+<area shape="rect" id="Node000002" href="$modloader__core_8c.html#a7d1ebb55836adbf6edb34b12f68271b3" title="清理无引用的插件" alt="" coords="412,5,579,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="613,45,579,40,579,35,613,40"/>
+<area shape="rect" id="Node000004" href="$modloader__core_8c.html#a90988cbf15046dbfa6c9ae9726e3233e" title="清理所有modloader" alt="" coords="5,66,191,91"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="613,61,191,78,191,72,613,55"/>
+<area shape="rect" id="Node000003" href="$modloader__core_8c.html#af69d679a9527917b17bc01746d8c2753" title="内部清理函数" alt="" coords="239,17,364,42"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="398,30,364,31,364,25,398,25"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="236,48,152,69,151,63,235,43"/>
+<area shape="rect" id="Node000005" href="$modloader__core_8c.html#a63732dbf76d93673faa428801c86fdc0" title="卸载Mod加载器" alt="" coords="17,17,179,42"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="225,32,179,32,179,27,225,27"/>
+</map>

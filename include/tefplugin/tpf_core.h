@@ -49,6 +49,7 @@ typedef struct {
     const char *name; ///< 插件名称
     const char *author; ///< 作者
     const char *version; ///< 版本
+    int version_code;   ///< 版本代码
 } tpf_plugin_info_t;
 
 #if IS_TEFKERNEL_BUILD
@@ -119,32 +120,6 @@ DEFINE_FUNCTION(bool, tpf_register_symbol,
  * @warning 无线程安全
  */
 DEFINE_FUNCTION(bool, tpf_register_shared_plugin_library, void* handle)
-
-
-/**
- * @def TPF_PLUGIN(name, author, version, init_func, cleanup_func)
- * 声明插件的便捷宏
- *
- * @note 必须在全局作用域使用
- */
-#define TPF_PLUGIN(pkg_id_, name_, author_, version_, init_func_, cleanup_func_) \
-    static const tpf_plugin_info_t tpf_plugin_info = { \
-        .pkg_id = pkg_id_, \
-        .name = name_, \
-        .author = author_, \
-        .version = version_ \
-    }; \
-    static const tpf_plugin_info_t *tpf_plugin_get_info(void) { \
-        return &tpf_plugin_info; \
-    } \
-    const tpf_plugin_ops_t *tpf_create_plugin(void) { \
-        static const tpf_plugin_ops_t ops = { \
-            .initialize = init_func_, \
-            .cleanup = cleanup_func_, \
-            .get_info = tpf_plugin_get_info \
-        }; \
-        return &ops; \
-    }
 
 /**
  * @def TPF_SYMBOL(func)

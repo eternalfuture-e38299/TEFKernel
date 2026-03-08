@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="dir_68267d1309a1af8e8297ef4c3efbcdba" kind="dir">
+    <compoundname>src</compoundname>
+    <innerdir refid="dir_e6a0c564333ae2aa489c52fa70c1e9c9">src/android</innerdir>
+    <innerdir refid="dir_da0469c61beb2113561c044c06f303d1">src/desktop</innerdir>
+    <innerdir refid="dir_3756d50f4003bc63fa3fe49460f9c79d">src/internal</innerdir>
+    <innerdir refid="dir_b9668221e0c21993174e67c5f6e2167c">src/memdl</innerdir>
+    <innerdir refid="dir_b1f921cc96b5520976ea28d392784a4d">src/modloader</innerdir>
+    <innerdir refid="dir_005fd52e553d5c092473b5f16d0d6c5b">src/tefpackage</innerdir>
+    <innerdir refid="dir_7918aeb1e5e16f120a51217ee4069c99">src/tefplugin</innerdir>
+    <innerfile refid="log_8c">log.c</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="src/"/>
+  </compounddef>
+</doxygen>

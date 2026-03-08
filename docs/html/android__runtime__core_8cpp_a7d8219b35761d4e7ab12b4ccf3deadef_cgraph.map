@@ -1,0 +1,19 @@
+<map id="signal_handler" name="signal_handler">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,55,123,80"/>
+<area shape="rect" id="Node000002" href="$log_8c.html#a0e55a37e3f059fb1512c59071164869e" title="清理日志系统资源" alt="" coords="171,55,336,80"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="123,65,157,65,157,70,123,70"/>
+<area shape="rect" id="Node000003" href="$log_8c.html#a297178e8a813f0c2e17c031d98cd448e" title=" " alt="" coords="393,5,521,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="306,52,390,31,392,37,307,57"/>
+<area shape="rect" id="Node000004" href="$log_8c.html#a1c23c08040f71be5425ad450c5de4c14" title=" " alt="" coords="385,55,530,80"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="337,65,371,65,371,70,337,70"/>
+<area shape="rect" id="Node000005" href="$log_8c.html#ab2a186a7ea4ea47dd0d65078ddcf1c50" title=" " alt="" coords="384,104,531,129"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="307,77,392,98,390,103,306,83"/>
+<area shape="rect" id="Node000006" href="$log_8c.html#a0e1141c4ee0b9bc63987f55b488d92bf" title=" " alt="" coords="611,29,732,55"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="497,101,530,89,553,76,578,64,599,56,601,61,580,68,556,81,532,94,499,106"/>
+<area shape="rect" id="Node000007" href="$log_8c.html#a1fdaa680ee19962f59d42fbfe4bc3ce0" title=" " alt="" coords="579,79,764,104"/>
+<area shape="poly" id="edge6_Node000005_Node000007" title=" " alt="" coords="530,105,565,101,565,107,531,111"/>
+<area shape="rect" id="Node000008" href="$log_8c.html#a06a2ce6a6a8a2b3b4ba940addbfb0807" title=" " alt="" coords="608,128,735,153"/>
+<area shape="poly" id="edge7_Node000005_Node000008" title=" " alt="" coords="531,122,595,129,594,135,531,128"/>
+<area shape="rect" id="Node000009" href="$log_8c.html#a024d90c20dedc91eb03b26bb425da982" title=" " alt="" coords="608,177,735,203"/>
+<area shape="poly" id="edge8_Node000005_Node000009" title=" " alt="" coords="489,127,580,162,608,171,607,176,578,167,487,132"/>
+</map>

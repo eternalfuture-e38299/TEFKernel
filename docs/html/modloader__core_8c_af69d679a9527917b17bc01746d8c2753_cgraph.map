@@ -1,0 +1,13 @@
+<map id="free_modloader" name="free_modloader">
+<area shape="rect" id="Node000001" title="内部清理函数" alt="" coords="5,59,131,84"/>
+<area shape="rect" id="Node000002" href="$modloader__core_8c.html#a7d1ebb55836adbf6edb34b12f68271b3" title="清理无引用的插件" alt="" coords="179,22,345,62"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,59,165,54,166,59,131,65"/>
+<area shape="rect" id="Node000006" href="$tefpkg_8c.html#a7f9e1ebfa4dee6bfceb98212f029ae22" title=" " alt="" coords="209,87,315,112"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="131,78,196,87,195,92,131,83"/>
+<area shape="rect" id="Node000003" href="$tpf__core_8c.html#a84465cf93000fb1e11583d1123e1e149" title="卸载插件" alt="" coords="399,5,545,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="346,30,385,25,386,30,346,35"/>
+<area shape="rect" id="Node000005" href="$tpf__core_8c.html#ab60caed61fd1b08b9ea1abcc1f4a2646" title="通过pkg_id获取插件句柄" alt="" coords="393,55,551,80"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="346,49,380,54,379,59,346,55"/>
+<area shape="rect" id="Node000004" href="$tpf__core_8c.html#a6604f72633130190f987e542378281e2" title=" " alt="" coords="599,5,693,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="545,15,585,15,585,21,545,21"/>
+</map>

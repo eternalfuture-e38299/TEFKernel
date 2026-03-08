@@ -134,7 +134,7 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_type_new_instance, patch_handle_t type)
  * @note 如果在移动端中使用则一定要传入MonoType
  */
 DEFINE_FUNCTION(patch_handle_t, patchlib_type_make_generic_type, patch_handle_t generic_type_def,
-                const tef_vector_t* type_args)
+                const tefstd_vector_t* type_args)
 
 /**
  * @brief 获取类型的MonoType
@@ -263,7 +263,7 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_type_get_method_by_signature, patch_han
  * @param[out] array 返回的数组
  * @return 执行结果
  */
-DEFINE_FUNCTION(bool, patchlib_type_get_inner_types, patch_handle_t type, bool including_parent, tef_vector_t* array)
+DEFINE_FUNCTION(bool, patchlib_type_get_inner_types, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
 /**
  * @brief 获取类型的所有方法（数组版本）
@@ -272,7 +272,7 @@ DEFINE_FUNCTION(bool, patchlib_type_get_inner_types, patch_handle_t type, bool i
  * @param[out] array 返回的数组
  * @return 执行结果
  */
-DEFINE_FUNCTION(bool, patchlib_type_get_methods, patch_handle_t type, bool including_parent, tef_vector_t* array)
+DEFINE_FUNCTION(bool, patchlib_type_get_methods, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
 /**
  * @brief 获取类型的所有字段（数组版本）
@@ -281,7 +281,7 @@ DEFINE_FUNCTION(bool, patchlib_type_get_methods, patch_handle_t type, bool inclu
  * @param[out] array 返回的数组
  * @return 执行结果
  */
-DEFINE_FUNCTION(bool, patchlib_type_get_fields, patch_handle_t type, bool including_parent, tef_vector_t* array)
+DEFINE_FUNCTION(bool, patchlib_type_get_fields, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
 /**
  * @brief 获取类型的所有属性（数组版本）
@@ -290,7 +290,7 @@ DEFINE_FUNCTION(bool, patchlib_type_get_fields, patch_handle_t type, bool includ
  * @param[out] array 返回的数组
  * @return 执行结果
  */
-DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool including_parent, tef_vector_t* array)
+DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
 // ==================== 资源释放 ====================
 /**

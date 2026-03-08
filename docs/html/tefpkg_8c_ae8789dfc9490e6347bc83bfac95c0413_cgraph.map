@@ -1,0 +1,19 @@
+<map id="calculate_header_checksum" name="calculate_header_checksum">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,55,212,80"/>
+<area shape="rect" id="Node000002" href="$siphash_8c.html#ad5290130e96ddb08ff2d5ba990419c87" title="单次计算数据的SipHash值（非流式）" alt="" coords="260,55,385,80"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="213,65,246,65,246,70,213,70"/>
+<area shape="rect" id="Node000003" href="$siphash_8c.html#acf7837dd9ebfc124766cfcae39e5b509" title="完成SipHash计算并返回最终哈希值" alt="" coords="442,5,549,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="367,52,436,32,438,37,369,57"/>
+<area shape="rect" id="Node000006" href="$siphash_8c.html#a8a8f0bc9dc6a2f76bd500268551b738b" title="初始化SipHash计算上下文" alt="" coords="445,55,545,80"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="385,65,431,65,431,70,385,70"/>
+<area shape="rect" id="Node000007" href="$siphash_8c.html#a1e6e0367a691159672d00fa76e94c358" title="更新SipHash计算状态（流式处理）" alt="" coords="433,104,557,129"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="369,77,438,98,436,103,367,83"/>
+<area shape="rect" id="Node000004" href="$siphash_8c.html#ab11fee5f26800354078211d367b801ad" title=" " alt="" coords="740,55,861,80"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="549,20,692,39,738,49,737,54,692,45,548,25"/>
+<area shape="rect" id="Node000005" href="$siphash_8c.html#a8a8b54d69ce501bb17e7d5dcc8fdfb32" title=" " alt="" coords="619,55,679,80"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="536,28,607,51,605,56,535,33"/>
+<area shape="poly" id="edge9_Node000007_Node000005" title=" " alt="" coords="535,101,605,78,607,83,536,106"/>
+<area shape="rect" id="Node000008" href="$siphash_8c.html#affc85a56adbd7108b190a6cee4ad4f72" title=" " alt="" coords="605,104,692,129"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="558,114,592,114,592,119,558,119"/>
+<area shape="poly" id="edge8_Node000008_Node000004" title=" " alt="" coords="688,101,747,82,748,87,689,106"/>
+</map>

@@ -29,7 +29,7 @@
 #define TEFSTD_VECTOR_MIN_CAPACITY 32
 
 // 内部辅助函数：扩容
-static bool tefstd_vector_grow(tef_vector_t *vec) {
+static bool tefstd_vector_grow(tefstd_vector_t *vec) {
     const size_t new_cap = vec->capacity > 0 ? vec->capacity * 2 : TEFSTD_VECTOR_MIN_CAPACITY;
     void *new_data = realloc(vec->data, new_cap * vec->elem_size);
     if (!new_data)
@@ -42,7 +42,7 @@ static bool tefstd_vector_grow(tef_vector_t *vec) {
 
 // ==================== 公共 API 实现 ====================
 
-bool tefstd_vector_init(tef_vector_t *vec, const size_t elem_size) {
+bool tefstd_vector_init(tefstd_vector_t *vec, const size_t elem_size) {
     if (!vec || elem_size == 0)
         return false;
     vec->data = NULL;
@@ -52,7 +52,7 @@ bool tefstd_vector_init(tef_vector_t *vec, const size_t elem_size) {
     return true;
 }
 
-void tefstd_vector_destroy(tef_vector_t *vec) {
+void tefstd_vector_destroy(tefstd_vector_t *vec) {
     if (vec) {
         free(vec->data);
         vec->data = NULL;
@@ -62,7 +62,7 @@ void tefstd_vector_destroy(tef_vector_t *vec) {
     }
 }
 
-bool tefstd_vector_push_back(tef_vector_t *vec, const void *elem) {
+bool tefstd_vector_push_back(tefstd_vector_t *vec, const void *elem) {
     if (!vec || !elem || vec->elem_size == 0)
         return false;
 
@@ -76,7 +76,7 @@ bool tefstd_vector_push_back(tef_vector_t *vec, const void *elem) {
     return true;
 }
 
-bool tefstd_vector_pop_back(tef_vector_t *vec, void *out_elem) {
+bool tefstd_vector_pop_back(tefstd_vector_t *vec, void *out_elem) {
     if (!vec || vec->size == 0) {
         return false;
     }
@@ -91,27 +91,27 @@ bool tefstd_vector_pop_back(tef_vector_t *vec, void *out_elem) {
     return true;
 }
 
-void* tefstd_vector_at(const tef_vector_t *vec, const size_t index) {
+void* tefstd_vector_at(const tefstd_vector_t *vec, const size_t index) {
     if (!vec || index >= vec->size)
         return NULL;
     return (char*)vec->data + index * vec->elem_size;
 }
 
-size_t tefstd_vector_size(const tef_vector_t *vec) {
+size_t tefstd_vector_size(const tefstd_vector_t *vec) {
     return vec ? vec->size : 0;
 }
 
-size_t tefstd_vector_capacity(const tef_vector_t *vec) {
+size_t tefstd_vector_capacity(const tefstd_vector_t *vec) {
     return vec ? vec->capacity : 0;
 }
 
-void tefstd_vector_clear(tef_vector_t *vec) {
+void tefstd_vector_clear(tefstd_vector_t *vec) {
     if (vec) {
         vec->size = 0;
     }
 }
 
-bool tefstd_vector_reserve(tef_vector_t *vec, const size_t new_cap) {
+bool tefstd_vector_reserve(tefstd_vector_t *vec, const size_t new_cap) {
     if (!vec || new_cap == 0)
         return false;
 
@@ -127,7 +127,7 @@ bool tefstd_vector_reserve(tef_vector_t *vec, const size_t new_cap) {
     return true;
 }
 
-bool tefstd_vector_erase(tef_vector_t *vec, const size_t index, void *out_elem) {
+bool tefstd_vector_erase(tefstd_vector_t *vec, const size_t index, void *out_elem) {
     if (!vec || index >= vec->size) {
         return false;
     }
@@ -149,7 +149,7 @@ bool tefstd_vector_erase(tef_vector_t *vec, const size_t index, void *out_elem) 
     return true;
 }
 
-bool tefstd_vector_remove_value(tef_vector_t *vec, const void *value) {
+bool tefstd_vector_remove_value(tefstd_vector_t *vec, const void *value) {
     if (!vec || !value || vec->elem_size == 0) {
         return false;
     }
@@ -182,7 +182,7 @@ bool tefstd_vector_remove_value(tef_vector_t *vec, const void *value) {
     return removed;
 }
 
-bool tefstd_vector_init_from_array(tef_vector_t *vec, const size_t elem_size, void* array, const size_t array_length) {
+bool tefstd_vector_init_from_array(tefstd_vector_t *vec, const size_t elem_size, void* array, const size_t array_length) {
     // 参数验证
     if (!vec || elem_size == 0) {
         return false;  // 无效参数

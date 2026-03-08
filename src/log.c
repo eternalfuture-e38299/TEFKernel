@@ -570,7 +570,7 @@ void tefkernel_log_write_net(const tefkernel_log_level_t level, const char *file
 #else
     // 发布版本：过滤掉 TRACE 和 DEBUG 级别的日志
     if (level >= TEFKERNEL_LOG_LEVEL_INFO) {
-        tefkernel_log_write(level, msg);
+        tefkernel_log_write(level, "%s", msg);
     }
 #endif
 }

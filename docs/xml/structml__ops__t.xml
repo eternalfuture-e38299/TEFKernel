@@ -1,0 +1,241 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="structml__ops__t" kind="struct" language="C++" prot="public">
+    <compoundname>ml_ops_t</compoundname>
+    <includes refid="modloader__core_8h" local="no">modloader_core.h</includes>
+    <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="structml__ops__t_1a6c3a177638a9422b55e567294e3639dd" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref> *(*</type>
+        <definition>ml_result_t *(* ml_ops_t::load_mod) (mod_manifest_t *mod_manifest)</definition>
+        <argsstring>)(mod_manifest_t *mod_manifest)</argsstring>
+        <name>load_mod</name>
+        <qualifiedname>ml_ops_t::load_mod</qualifiedname>
+        <briefdescription>
+<para>加载单个Mod </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>mod_manifest</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod描述信息 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="80" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="80" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af32cf174990017692dfdee41a6022825" compoundref="modloader__core_8c" startline="535" endline="557">tefkernel_ml_load_mod</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1ad09fd56e5c5540d0c3bc7ce8e3c1b7e1" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref>(*</type>
+        <definition>ml_result_t(* ml_ops_t::unload_mod) (mod_manifest_t *mod_manifest)</definition>
+        <argsstring>)(mod_manifest_t *mod_manifest)</argsstring>
+        <name>unload_mod</name>
+        <qualifiedname>ml_ops_t::unload_mod</qualifiedname>
+        <briefdescription>
+<para>卸载单个Mod </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>mod_manifest</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod描述信息 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="87" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="87" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1a8f6e4ad24f9d7a328fdf9286c26c5a24" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref> *(*</type>
+        <definition>ml_result_t *(* ml_ops_t::reload_mod) (mod_manifest_t *mod_manifest)</definition>
+        <argsstring>)(mod_manifest_t *mod_manifest)</argsstring>
+        <name>reload_mod</name>
+        <qualifiedname>ml_ops_t::reload_mod</qualifiedname>
+        <briefdescription>
+<para>重新加载Mod（热重载） </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>mod_manifest</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod描述信息 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="95" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="95" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1aaf4b7bbb51ea97bc945796268242b93a" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref>(*</type>
+        <definition>ml_result_t(* ml_ops_t::init_mod) (mod_manifest_t *mod_manifest)</definition>
+        <argsstring>)(mod_manifest_t *mod_manifest)</argsstring>
+        <name>init_mod</name>
+        <qualifiedname>ml_ops_t::init_mod</qualifiedname>
+        <briefdescription>
+<para>初始化单个Mod </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>mod_manifest</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod描述信息 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="103" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="103" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1a2cbc156c801b90f1d6145da8d3f2dbcd" prot="public" static="no" mutable="no">
+        <type>const <ref refid="structmultiplayer__mod__info__t" kindref="compound">multiplayer_mod_info_t</ref> *(*</type>
+        <definition>const multiplayer_mod_info_t *(* ml_ops_t::get_multiplayer_info) (mod_manifest_t *mod_manifest)</definition>
+        <argsstring>)(mod_manifest_t *mod_manifest)</argsstring>
+        <name>get_multiplayer_info</name>
+        <qualifiedname>ml_ops_t::get_multiplayer_info</qualifiedname>
+        <briefdescription>
+<para>获取Mod的联机检测信息 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="warning"><para>内核不会卸载其信息，请注意内存管理</para>
+</simplesect>
+<parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>mod_manifest</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod描述信息 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>const multiplayer_mod_info_t* Mod联机信息 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="112" column="11" bodyfile="include/modloader/modloader_core.h" bodystart="112" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1a7316f2ae6e1c1ad6784e195176aff520" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref>(*</type>
+        <definition>ml_result_t(* ml_ops_t::init_ml) (ml_entry_t *ml_entry)</definition>
+        <argsstring>)(ml_entry_t *ml_entry)</argsstring>
+        <name>init_ml</name>
+        <qualifiedname>ml_ops_t::init_ml</qualifiedname>
+        <briefdescription>
+<para>初始化modloader </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="118" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="118" bodyend="-1"/>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1a906a75e0f9aba0145cb723a84554f530" prot="public" static="no" mutable="no">
+        <type><ref refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfb" kindref="member">ml_result_t</ref>(*</type>
+        <definition>ml_result_t(* ml_ops_t::cleanup_ml) (ml_entry_t *ml_entry)</definition>
+        <argsstring>)(ml_entry_t *ml_entry)</argsstring>
+        <name>cleanup_ml</name>
+        <qualifiedname>ml_ops_t::cleanup_ml</qualifiedname>
+        <briefdescription>
+<para>清理并关闭modloader </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>ml_result_t 结果码 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="124" column="5" bodyfile="include/modloader/modloader_core.h" bodystart="124" bodyend="-1"/>
+        <referencedby refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="structml__ops__t_1ab1548f894ab4fe5b1f1324e0a10770b8" prot="public" static="no" mutable="no">
+        <type>const <ref refid="structml__info__t" kindref="compound">ml_info_t</ref> *(*</type>
+        <definition>const ml_info_t *(* ml_ops_t::get_info) (void)</definition>
+        <argsstring>)(void)</argsstring>
+        <name>get_info</name>
+        <qualifiedname>ml_ops_t::get_info</qualifiedname>
+        <briefdescription>
+<para>获取Mod信息（加载后调用） </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>包含版本、依赖等信息的结构体指针 </para>
+</simplesect>
+<simplesect kind="note"><para>必须在静态内存中 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/modloader/modloader_core.h" line="131" column="11" bodyfile="include/modloader/modloader_core.h" bodystart="131" bodyend="-1"/>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <collaborationgraph>
+      <node id="3">
+        <label>ml_info_t</label>
+        <link refid="structml__info__t"/>
+      </node>
+      <node id="1">
+        <label>ml_ops_t</label>
+        <link refid="structml__ops__t"/>
+        <childnode refid="2" relation="usage">
+          <edgelabel>get_multiplayer_info</edgelabel>
+        </childnode>
+        <childnode refid="3" relation="usage">
+          <edgelabel>get_info</edgelabel>
+        </childnode>
+      </node>
+      <node id="2">
+        <label>multiplayer_mod_info_t</label>
+        <link refid="structmultiplayer__mod__info__t"/>
+      </node>
+    </collaborationgraph>
+    <location file="include/modloader/modloader_core.h" line="73" column="1" bodyfile="include/modloader/modloader_core.h" bodystart="73" bodyend="132"/>
+    <listofallmembers>
+      <member refid="structml__ops__t_1a906a75e0f9aba0145cb723a84554f530" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>cleanup_ml</name></member>
+      <member refid="structml__ops__t_1ab1548f894ab4fe5b1f1324e0a10770b8" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>get_info</name></member>
+      <member refid="structml__ops__t_1a2cbc156c801b90f1d6145da8d3f2dbcd" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>get_multiplayer_info</name></member>
+      <member refid="structml__ops__t_1a7316f2ae6e1c1ad6784e195176aff520" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>init_ml</name></member>
+      <member refid="structml__ops__t_1aaf4b7bbb51ea97bc945796268242b93a" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>init_mod</name></member>
+      <member refid="structml__ops__t_1a6c3a177638a9422b55e567294e3639dd" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>load_mod</name></member>
+      <member refid="structml__ops__t_1a8f6e4ad24f9d7a328fdf9286c26c5a24" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>reload_mod</name></member>
+      <member refid="structml__ops__t_1ad09fd56e5c5540d0c3bc7ce8e3c1b7e1" prot="public" virt="non-virtual"><scope>ml_ops_t</scope><name>unload_mod</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

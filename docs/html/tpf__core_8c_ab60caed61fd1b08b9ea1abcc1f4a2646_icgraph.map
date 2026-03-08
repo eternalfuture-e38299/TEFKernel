@@ -1,0 +1,16 @@
+<map id="tpf_get_plugin_by_id" name="tpf_get_plugin_by_id">
+<area shape="rect" id="Node000001" title="通过pkg_id获取插件句柄" alt="" coords="640,70,797,95"/>
+<area shape="rect" id="Node000002" href="$modloader__core_8c.html#a7d1ebb55836adbf6edb34b12f68271b3" title="清理无引用的插件" alt="" coords="425,5,592,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="657,69,582,48,583,43,659,64"/>
+<area shape="rect" id="Node000004" href="$modloader__core_8c.html#a90988cbf15046dbfa6c9ae9726e3233e" title="清理所有modloader" alt="" coords="5,67,191,93"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="626,85,191,83,191,78,626,80"/>
+<area shape="rect" id="Node000006" href="$tpf__core_8c.html#af884bd094c09a87379d0bf9a57a2ce69" title="检查插件是否存在" alt="" coords="442,121,575,146"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="653,101,563,123,561,118,651,96"/>
+<area shape="rect" id="Node000003" href="$modloader__core_8c.html#af69d679a9527917b17bc01746d8c2753" title="内部清理函数" alt="" coords="245,17,371,42"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="411,30,371,31,371,25,411,25"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="242,48,152,70,151,65,241,43"/>
+<area shape="rect" id="Node000005" href="$modloader__core_8c.html#a63732dbf76d93673faa428801c86fdc0" title="卸载Mod加载器" alt="" coords="17,17,179,42"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="231,32,180,32,180,27,231,27"/>
+<area shape="rect" id="Node000007" href="$modloader__core_8c.html#a4a4fe1372bae61550aa2cd2bfc034d94" title="加载ModLoader" alt="" coords="239,121,377,146"/>
+<area shape="poly" id="edge7_Node000006_Node000007" title=" " alt="" coords="429,136,377,136,377,131,429,131"/>
+</map>

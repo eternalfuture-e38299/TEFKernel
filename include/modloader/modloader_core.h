@@ -31,9 +31,8 @@
 #ifndef TEFKERNEL_MODLOADER_CORE_H
 #define TEFKERNEL_MODLOADER_CORE_H
 
-typedef void tefpkg_handle_t;
-
 #include "../tefstd/vector.h"
+#include "../tefpackage/tefpkg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +45,19 @@ typedef enum {
     ML_ERROR_NOT_FOUND = -3
 } ml_result_t;
 
+typedef struct {
+    const char *path;
+    const char *mod_id;
+    const char *private_dir;
+    const char *logs_dir;
+} mod_manifest_t;
+
+typedef struct {
+    const char *mod_id; ///< Mod唯一标识符
+    int is_multiplayer_safe; ///< 是否可联机（必须为1）
+    int version_code; ///< 版本代码
+    const char *version; ///< 版本字符串
+} multiplayer_mod_info_t;
 
 typedef struct ml_entry_t ml_entry_t;
 
@@ -54,36 +66,77 @@ typedef struct {
     int version_code; ///< 版本代码
     const char *version; ///< 版本
     int api_version; ///< api版本
+    int plugin_dependencies_sizes; ///< 依赖插件数组大小
     const char **plugin_dependencies; ///< 依赖插件(pkg_id)
-    size_t plugin_dependencies_sizes; ///< 依赖插件数组大小
 } ml_info_t;
 
 typedef struct {
-    // 初始化/关闭
-    ml_result_t (*initialize)(ml_entry_t *loader);
+    /**
+     * @brief 加载单个Mod
+     *
+     * @param mod_manifest Mod描述信息
+     * @return ml_result_t 结果码
+     */
+    ml_result_t * (*load_mod)(mod_manifest_t *mod_manifest);
 
-    void (*shutdown)(ml_entry_t *loader);
+    /**
+     * @brief 卸载单个Mod
+     * @param mod_manifest Mod描述信息
+     * @return ml_result_t 结果码
+     */
+    ml_result_t (*unload_mod)(mod_manifest_t *mod_manifest);
 
-    // Mod管理
-    ml_result_t (*load_mods)(ml_entry_t *loader);
+    /**
+     * @brief 重新加载Mod（热重载）
+     *
+     * @param mod_manifest Mod描述信息
+     * @return ml_result_t 结果码
+     */
+    ml_result_t * (*reload_mod)(mod_manifest_t *mod_manifest);
 
-    void (*unload_mods)(ml_entry_t *loader);
+    /**
+     * @brief 初始化单个Mod
+     *
+     * @param mod_manifest Mod描述信息
+     * @return ml_result_t 结果码
+     */
+    ml_result_t (*init_mod)(mod_manifest_t *mod_manifest);
 
-    // Mod生命周期
-    ml_result_t (*initialize_mods)(ml_entry_t *loader);
+    /**
+     * @brief 获取Mod的联机检测信息
+     * @warning 内核不会卸载其信息，请注意内存管理
+     *
+     * @param mod_manifest Mod描述信息
+     * @return const multiplayer_mod_info_t* Mod联机信息
+     */
+    const multiplayer_mod_info_t * (*get_multiplayer_info)(mod_manifest_t *mod_manifest);
 
-    // 信息查询
-    ml_info_t* (*get_ml_info)();
+    /**
+     * @brief 初始化modloader
+     * @return ml_result_t 结果码
+     */
+    ml_result_t (*init_ml)(ml_entry_t* ml_entry);
+
+    /**
+     * @brief 清理并关闭modloader
+     * @return ml_result_t 结果码
+     */
+    ml_result_t (*cleanup_ml)(ml_entry_t* ml_entry);
+
+    /**
+     * @brief 获取Mod信息（加载后调用）
+     * @return 包含版本、依赖等信息的结构体指针
+     * @note 必须在静态内存中
+     */
+    const ml_info_t *(*get_info)(void);
 } ml_ops_t;
 
 typedef struct ml_entry_t {
     ml_info_t *info;
     ml_ops_t *ops;
-    tefpkg_handle_t* pkg_handle;
+    tefpkg_t *pkg_handle;
     const char *private_dir;
-#if __ANDROID__
-    void *jni_env; // only android
-#endif
+    const char *logs_dir;
 } ml_entry_t;
 
 /**
@@ -97,104 +150,6 @@ typedef struct ml_entry_t {
  * @note 此函数在ModLoader加载时调用一次
  */
 API_EXPORT const ml_ops_t * API_CALL ml_create(void);
-
-
-/**
- * @def ML_DECLARE(pkg_id_, version_code_, version_, api_version_, plugin_deps_, plugin_deps_size_)
- * 声明ModLoader信息的便捷宏
- *
- * @param pkg_id_ 唯一包名
- * @param version_code_ 版本代码
- * @param version_ 版本字符串
- * @param api_version_ API版本
- * @param plugin_deps_ 插件依赖数组
- * @param plugin_deps_size_ 依赖数组大小
- *
- * @note 必须在全局作用域使用
- */
-#define ML_DECLARE(pkg_id_, version_code_, version_, api_version_, plugin_deps_, plugin_deps_size_) \
-    static const ml_info_t ml_info = { \
-        .pkg_id = pkg_id_, \
-        .version_code = version_code_, \
-        .version = version_, \
-        .api_version = api_version_, \
-        .plugin_dependencies = plugin_deps_, \
-        .plugin_dependencies_sizes = plugin_deps_size_ \
-    }; \
-    static ml_info_t* ml_get_info(void) { \
-        return (ml_info_t*)&ml_info; \
-    }
-
-/**
- * @def ML_DEFINE(init_func_, shutdown_func_, load_mods_func_, unload_mods_func_, init_mods_func_)
- * 定义ModLoader操作函数的便捷宏
- *
- * @param init_func_ 初始化函数指针
- * @param shutdown_func_ 关闭函数指针
- * @param load_mods_func_ 加载模组函数指针
- * @param unload_mods_func_ 卸载模组函数指针
- * @param init_mods_func_ 初始化模组函数指针
- *
- * @note 必须在全局作用域使用
- */
-#define ML_DEFINE(init_func_, shutdown_func_, load_mods_func_, unload_mods_func_, init_mods_func_) \
-    static const ml_ops_t ml_ops = { \
-        .initialize = init_func_, \
-        .shutdown = shutdown_func_, \
-        .load_mods = load_mods_func_, \
-        .unload_mods = unload_mods_func_, \
-        .initialize_mods = init_mods_func_, \
-        .get_ml_info = ml_get_info \
-    }; \
-    const ml_ops_t *ml_create(void) { \
-        return &ml_ops; \
-    }
-
-/**
- * @def ML_CREATE(pkg_id_, version_code_, version_, api_version_, plugin_deps_, plugin_deps_size_, \
- *                init_func_, shutdown_func_, load_mods_func_, unload_mods_func_, init_mods_func_)
- * 创建完整ModLoader的便捷宏（组合宏）
- *
- * 这个宏组合了ML_DECLARE和ML_DEFINE，提供一站式ModLoader创建。
- *
- * @example
- *     ML_CREATE(
- *         "com.example.mymodloader",  // pkg_id
- *         1,                          // version_code
- *         "1.0.0",                    // version
- *         1,                          // api_version
- *         NULL,                       // plugin_deps
- *         0,                          // plugin_deps_size
- *         my_initialize,              // init_func
- *         my_shutdown,                // shutdown_func
- *         my_load_mods,               // load_mods_func
- *         my_unload_mods,             // unload_mods_func
- *         my_init_mods                // init_mods_func
- *     )
- */
-#define ML_CREATE(pkg_id_, version_code_, version_, api_version_, plugin_deps_, plugin_deps_size_, \
-                  init_func_, shutdown_func_, load_mods_func_, unload_mods_func_, init_mods_func_) \
-    ML_DECLARE(pkg_id_, version_code_, version_, api_version_, plugin_deps_, plugin_deps_size_) \
-    ML_DEFINE(init_func_, shutdown_func_, load_mods_func_, unload_mods_func_, init_mods_func_)
-
-/**
- * @def ML_EMPTY_DEPENDENCIES
- * 定义空依赖数组的便捷宏
- */
-#define ML_EMPTY_DEPENDENCIES NULL, 0
-
-/**
- * @def ML_DEPENDENCIES(deps_array)
- * 定义依赖数组的便捷宏，自动计算数组大小
- *
- * @param deps_array 依赖数组（const char*类型）
- *
- * @example
- *     static const char* my_deps[] = {"plugin1", "plugin2", NULL};
- *     ML_DECLARE("my_loader", 1, "1.0", 1, my_deps, ML_DEPENDENCIES(my_deps));
- */
-#define ML_DEPENDENCIES(deps_array) \
-    deps_array, sizeof(deps_array) / sizeof((deps_array)[0])
 
 #ifdef __cplusplus
 }

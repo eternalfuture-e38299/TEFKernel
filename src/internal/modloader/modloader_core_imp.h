@@ -27,30 +27,32 @@
 
 #ifdef __cplusplus
 extern "C" {
+
 #endif
 
 typedef struct ml_handle_t {
-    void *handle;           ///< 动态库句柄
-    ml_entry_t* ml_entry;   ///< 条目指针
-    size_t index;           ///< 引索
+    void *handle; ///< 动态库句柄
+    ml_entry_t *ml_entry; ///< 条目指针
+    size_t index; ///< 引索
 } ml_handle_t;
 
+extern tefstd_vector_t g_ml_list; ///< 句柄(ml_handle_t*)
+extern bool g_ml_list_initialized; ///< 初始化状态
 
 /**
  * @brief 加载ModLoader
  * @param handle 动态库句柄
  * @param pkg_handle 包句柄(可空)
- * @param private_dir 私有目录
  * @param out_ml[out] 输出的句柄指针
  * @return 执行结果
  */
-bool tefkernel_load_ml(void* handle, tefpkg_handle_t* pkg_handle, const char* private_dir, ml_handle_t** out_ml);
+bool tefkernel_load_ml(void *handle, tefpkg_t *pkg_handle, ml_handle_t **out_ml);
 
 /**
  * @brief 卸载Mod加载器
  * @param ml_handle Mod加载器句柄
  */
-void tefkernel_cleanup_ml(ml_handle_t* ml_handle);
+void tefkernel_cleanup_ml(ml_handle_t *ml_handle);
 
 /**
  * @brief 清理所有modloader
@@ -62,7 +64,7 @@ void tefkernel_cleanup_all_ml(void);
  * @param index
  * @return 返回结果
  */
-ml_handle_t* tefkernel_get_ml_by_index(size_t index);
+ml_handle_t *tefkernel_get_ml_by_index(size_t index);
 
 /**
  * @brief 获取modloader数量

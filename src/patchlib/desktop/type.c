@@ -36,7 +36,7 @@ patch_handle_t patchlib_type_new_instance(const patch_handle_t type) {
     return net_new_instance(type);
 }
 
-patch_handle_t patchlib_type_make_generic_type(const patch_handle_t generic_type_def, const tef_vector_t *type_args) {
+patch_handle_t patchlib_type_make_generic_type(const patch_handle_t generic_type_def, const tefstd_vector_t *type_args) {
     return net_type_make_generic(generic_type_def, type_args->data, type_args->size);
 }
 
@@ -219,7 +219,7 @@ patch_handle_t patchlib_type_find_method(
         return PATCH_NULL;
     }
 
-    tef_vector_t methods = {};
+    tefstd_vector_t methods = {};
     patchlib_type_get_methods(type, false, &methods);
 
     const size_t method_count = tefstd_vector_size(&methods);
@@ -252,7 +252,7 @@ patch_handle_t patchlib_type_find_method(
     return result;
 }
 
-bool patchlib_type_get_inner_types(const patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_inner_types(const patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_inner_types called: type=%d, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -271,7 +271,7 @@ bool patchlib_type_get_inner_types(const patch_handle_t type, const bool includi
     return result;
 }
 
-bool patchlib_type_get_methods(const patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_methods(const patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_methods called: type=%d, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -289,7 +289,7 @@ bool patchlib_type_get_methods(const patch_handle_t type, const bool including_p
     return result;
 }
 
-bool patchlib_type_get_fields(const patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_fields(const patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_fields called: type=%d, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -308,7 +308,7 @@ bool patchlib_type_get_fields(const patch_handle_t type, const bool including_pa
     return result;
 }
 
-bool patchlib_type_get_properties(const patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_properties(const patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_properties called: type=%d, including_parent=%s",
                  type, including_parent ? "true" : "false");
 

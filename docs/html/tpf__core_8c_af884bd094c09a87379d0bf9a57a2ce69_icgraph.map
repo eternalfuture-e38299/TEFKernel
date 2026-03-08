@@ -1,0 +1,5 @@
+<map id="tpf_plugin_exists" name="tpf_plugin_exists">
+<area shape="rect" id="Node000001" title="检查插件是否存在" alt="" coords="192,5,325,31"/>
+<area shape="rect" id="Node000002" href="$modloader__core_8c.html#a4a4fe1372bae61550aa2cd2bfc034d94" title="加载ModLoader" alt="" coords="5,5,144,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="178,21,144,21,144,15,178,15"/>
+</map>

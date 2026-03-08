@@ -1,0 +1,213 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="md_src_2memdl_2README" kind="page">
+    <compoundname>md_src_2memdl_2README</compoundname>
+    <title>memdl 🌍 @ref &quot;/home/eternalfuture/开源项目/TEFKernel/src/memdl/README-en.md&quot; &quot;English&quot; | @ref &quot;/home/eternalfuture/开源项目/TEFKernel/src/memdl/README-ru.md&quot; &quot;Русский&quot; - 内存动态加载库 📚</title>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para><anchor id="md_src_2memdl_2README_1autotoc_md34"/> </para>
+<sect1 id="md_src_2memdl_2README_1autotoc_md35">
+<title>基本介绍 🚀</title>
+<para><itemizedlist>
+<listitem><para>memdl 是一个跨平台 C 库，支持**直接从内存数据加载共享库**（.so/.dll），无需写入物理文件。提供类似 <computeroutput>dlopen</computeroutput> 的 API，但操作的是内存中的库数据而非文件路径。</para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md36">
+<title>核心特性 ✨</title>
+<para><itemizedlist>
+<listitem><para><bold>真正内存加载</bold> 🔄 - 某些平台支持纯内存加载，不产生物理文件</para>
+</listitem><listitem><para><bold>跨平台支持</bold> 🌍 - Windows、Linux、Android、macOS、iOS</para>
+</listitem><listitem><para><bold>自动降级策略</bold> 📉 - 内存加载失败时自动使用临时文件方案</para>
+</listitem><listitem><para><bold>格式验证</bold> 🔒 - 自动验证 ELF/Mach-O/PE 文件格式</para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md37">
+<title>平台支持详情 🏗️</title>
+<sect2 id="md_src_2memdl_2README_1autotoc_md38">
+<title>✅ 纯内存加载（无文件系统操作）</title>
+<para><table rows="3" cols="3"><row>
+<entry thead="yes"><para>平台   </para>
+</entry><entry thead="yes"><para>技术方案   </para>
+</entry><entry thead="yes"><para>条件    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Linux</bold>   </para>
+</entry><entry thead="no"><para><computeroutput>memfd_create</computeroutput> + <computeroutput>/proc/self/fd</computeroutput>   </para>
+</entry><entry thead="no"><para>内核支持 memfd    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Android</bold>   </para>
+</entry><entry thead="no"><para><computeroutput>memfd_create</computeroutput> + <computeroutput>android_dlopen_ext</computeroutput>   </para>
+</entry><entry thead="no"><para>API ≥ 24 (Android 7.0+)   </para>
+</entry></row>
+</table>
+</para>
+</sect2>
+<sect2 id="md_src_2memdl_2README_1autotoc_md39">
+<title>🔄 临时文件降级方案</title>
+<para><table rows="5" cols="3"><row>
+<entry thead="yes"><para>平台   </para>
+</entry><entry thead="yes"><para>降级方案   </para>
+</entry><entry thead="yes"><para>说明    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Android (&lt; 7.0)</bold>   </para>
+</entry><entry thead="no"><para>临时文件 + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>兼容旧版本    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Windows</bold>   </para>
+</entry><entry thead="no"><para>临时文件 + <computeroutput>LoadLibrary</computeroutput>   </para>
+</entry><entry thead="no"><para>Windows 系统限制    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>macOS/iOS</bold>   </para>
+</entry><entry thead="no"><para>临时文件 + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>Apple 平台限制    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Linux (无memfd)</bold>   </para>
+</entry><entry thead="no"><para>临时文件 + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>兼容旧内核   </para>
+</entry></row>
+</table>
+</para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md40">
+<title>无法内存加载时的处理策略 📉</title>
+<sect2 id="md_src_2memdl_2README_1autotoc_md41">
+<title>自动降级流程</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>1.<sp/>尝试内存加载（如果平台支持）</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(platform_supports_memfd)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>handle<sp/>=<sp/>try_memfd_load(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(handle)<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>handle;<sp/><sp/></highlight><highlight class="comment">//<sp/>✅<sp/>成功</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>2.<sp/>降级到临时文件方案</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">handle<sp/>=<sp/>try_tempfile_load(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);<sp/><sp/></highlight><highlight class="comment">//<sp/>🔄<sp/>备用方案</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(handle)<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>handle;</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>3.<sp/>所有方案失败</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>NULL;<sp/><sp/></highlight><highlight class="comment">//<sp/>❌<sp/>完全失败</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README_1autotoc_md42">
+<title>错误处理示例</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle<sp/>=<sp/>memdl_open(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size,<sp/><ref refid="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" kindref="member">MEMDL_NOW</ref>);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!handle)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>error<sp/>=<sp/><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref>();</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(error,<sp/></highlight><highlight class="stringliteral">&quot;temp<sp/>file&quot;</highlight><highlight class="normal">))<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;⚠️<sp/>内存加载失败，已使用临时文件方案\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(error,<sp/></highlight><highlight class="stringliteral">&quot;All<sp/>loading<sp/>methods<sp/>failed&quot;</highlight><highlight class="normal">))<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>所有加载方案均失败:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/>error);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting></para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md43">
+<title>API 使用指南 📖</title>
+<sect2 id="md_src_2memdl_2README_1autotoc_md44">
+<title>基础用法</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>加载验证</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate</ref>(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size)<sp/>!=<sp/>0)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>无效的库格式\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>平台检测</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">printf(</highlight><highlight class="stringliteral">&quot;当前平台:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" kindref="member">memdl_get_platform</ref>()<sp/>==<sp/><ref refid="memdl_8h_1a360ec342a568009e82219466c64a46e7" kindref="member">MEMDL_PLATFORM_ANDROID</ref><sp/>?<sp/></highlight><highlight class="stringliteral">&quot;Android&quot;</highlight><highlight class="normal"><sp/>:<sp/></highlight><highlight class="stringliteral">&quot;Other&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>架构检测</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>arch<sp/>=<sp/><ref refid="memdl_8c_1afa4f3713ba508cd830c5f40c516ade9c" kindref="member">memdl_get_arch</ref>(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);</highlight></codeline>
+<codeline><highlight class="normal">printf(</highlight><highlight class="stringliteral">&quot;库架构:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/>arch<sp/>==<sp/><ref refid="memdl_8h_1a12d9c9ab0cabed5f4cdbbecf28acffa5" kindref="member">MEMDL_ARCH_ARM64</ref><sp/>?<sp/></highlight><highlight class="stringliteral">&quot;ARM64&quot;</highlight><highlight class="normal"><sp/>:<sp/></highlight><highlight class="stringliteral">&quot;Other&quot;</highlight><highlight class="normal">);</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README_1autotoc_md45">
+<title>完整工作流程</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>1.<sp/>准备库数据</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>lib_data<sp/>=<sp/>load_library_to_memory();</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>lib_size<sp/>=<sp/>get_library_size();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>2.<sp/>验证和检测</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate</ref>(lib_data,<sp/>lib_size)<sp/>!=<sp/>0)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>库格式验证失败\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>3.<sp/>内存加载（自动选择最佳方案）</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle<sp/>=<sp/>memdl_open(lib_data,<sp/>lib_size,<sp/><ref refid="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" kindref="member">MEMDL_NOW</ref><sp/>|<sp/><ref refid="memdl_8h_1a74350226c13c47c9af3e6d23b98c321b" kindref="member">MEMDL_LOCAL</ref>);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!handle)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>加载失败:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref>());</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>4.<sp/>使用库函数</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">void<sp/>(*func)()<sp/>=<sp/>memdl_sym(handle,<sp/></highlight><highlight class="stringliteral">&quot;my_function&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(func)<sp/>func();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>5.<sp/>清理</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">memdl_close(handle);</highlight></codeline>
+<codeline><highlight class="normal">free(lib_data);</highlight></codeline>
+</programlisting></para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md46">
+<title>平台特定说明 🔧</title>
+<sect2 id="md_src_2memdl_2README_1autotoc_md47">
+<title>Android 注意事项</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>检查是否使用内存加载</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" kindref="member">memdl_get_platform</ref>()<sp/>==<sp/><ref refid="memdl_8h_1a360ec342a568009e82219466c64a46e7" kindref="member">MEMDL_PLATFORM_ANDROID</ref>)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>sdk_version[32];</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>__system_property_get(</highlight><highlight class="stringliteral">&quot;ro.build.version.sdk&quot;</highlight><highlight class="normal">,<sp/>sdk_version);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(atoi(sdk_version)<sp/>&gt;=<sp/>24)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;✅<sp/>使用<sp/>Android<sp/>7.0+<sp/>内存加载方案\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;⚠️<sp/>使用临时文件降级方案<sp/>(SDK<sp/>&lt;<sp/>24)\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README_1autotoc_md48">
+<title>临时文件安全</title>
+<para><itemizedlist>
+<listitem><para>文件权限严格限制 (600)</para>
+</listitem><listitem><para>加载后立即删除文件内容</para>
+</listitem><listitem><para>使用系统安全临时目录</para>
+</listitem></itemizedlist>
+</para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md49">
+<title>最佳实践 💡</title>
+<para><orderedlist>
+<listitem><para><bold>始终验证数据</bold> ✅ - 调用 <computeroutput><ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate()</ref></computeroutput> 提前检测</para>
+</listitem><listitem><para><bold>处理降级情况</bold> ⚠️ - 检查错误信息判断加载方式</para>
+</listitem><listitem><para><bold>资源及时释放</bold> 🧹 - 使用后立即调用 <computeroutput>memdl_close()</computeroutput></para>
+</listitem><listitem><para><bold>错误信息检查</bold> 🔍 - 通过 <computeroutput><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error()</ref></computeroutput> 获取详细错误</para>
+</listitem></orderedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README_1autotoc_md50">
+<title>总结 🎯</title>
+<para><itemizedlist>
+<listitem><para>memdl 在支持内存加载的平台上提供最佳性能，在不支持的平台上自动降级确保可用性。开发者无需关心底层实现细节，API 保持一致性。 </para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+    </detaileddescription>
+    <location file="src/memdl/README.md"/>
+  </compounddef>
+</doxygen>

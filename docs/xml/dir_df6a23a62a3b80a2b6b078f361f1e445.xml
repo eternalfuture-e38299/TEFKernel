@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="dir_df6a23a62a3b80a2b6b078f361f1e445" kind="dir">
+    <compoundname>src/internal/tefplugin</compoundname>
+    <innerfile refid="tef__core__imp_8h">tef_core_imp.h</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="src/internal/tefplugin/"/>
+  </compounddef>
+</doxygen>

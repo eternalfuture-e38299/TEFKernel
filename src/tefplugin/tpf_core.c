@@ -24,23 +24,145 @@
 #include "internal/log.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <threads.h>
 
+#include "internal/modloader/modloader_core_imp.h"
+#include "internal/module/module_core_imp.h"
 #include "internal/tefplugin/tef_core_imp.h"
 #include "memdl/memdl.h"
 
-
 static struct {
     // 插件句柄，为malloc分配
-    tef_vector_t plugin_handles;  // plugin_handle_t*
+    tefstd_vector_t plugin_handles;  // plugin_handle_t*
     bool initialized;
 } g_tpf_symbols;
 
 static struct {
     // 使用插件的动态库的句柄
-    tef_vector_t handles; // void*
+    tefstd_vector_t handles; // void*
     bool initialized;
 } shared_plugin_libraries;
+
+// 全局插件引用计数表
+tefstd_hashmap_t g_plugin_refs;
+bool g_plugin_refs_initialized = false;
+
+/**
+ * @brief 初始化插件引用计数系统
+ */
+void tpf_init_plugin_refs(void) {
+    if (!g_plugin_refs_initialized) {
+        tefstd_hashmap_init(&g_plugin_refs, sizeof(const char*), sizeof(plugin_ref_entry_t));
+        g_plugin_refs_initialized = true;
+        TEKLOG_DEBUG("Plugin refs system initialized");
+    }
+}
+
+/**
+ * @brief 增加插件引用计数
+ */
+void tpf_add_plugin_ref(const char* pkg_id) {
+    if (!pkg_id) return;
+
+    tpf_init_plugin_refs();
+
+    plugin_ref_entry_t* entry = tefstd_hashmap_get(&g_plugin_refs, &pkg_id);
+    if (entry) {
+        entry->ref_count++;
+        TEKLOG_DEBUG("Plugin %s ref count increased to %d", pkg_id, entry->ref_count);
+    } else {
+        plugin_ref_entry_t new_entry = {
+            .pkg_id = pkg_id,
+            .ref_count = 1
+        };
+        tefstd_hashmap_put(&g_plugin_refs, &pkg_id, &new_entry);
+        TEKLOG_DEBUG("Plugin %s ref count initialized to 1", pkg_id);
+    }
+}
+
+/**
+ * @brief 减少插件引用计数
+ */
+void tpf_remove_plugin_ref(const char* pkg_id) {
+    if (!pkg_id) return;
+
+    if (!g_plugin_refs_initialized) {
+        TEKLOG_DEBUG("Plugin refs not initialized, skipping remove for %s", pkg_id);
+        return;
+    }
+
+    plugin_ref_entry_t* entry = tefstd_hashmap_get(&g_plugin_refs, &pkg_id);
+    if (entry) {
+        entry->ref_count--;
+        TEKLOG_DEBUG("Plugin %s ref count decreased to %d", pkg_id, entry->ref_count);
+
+        if (entry->ref_count <= 0) {
+            tefstd_hashmap_del(&g_plugin_refs, &pkg_id);
+            TEKLOG_DEBUG("Plugin %s removed from ref tracking (no references)", pkg_id);
+        }
+    } else {
+        TEKLOG_WARN("Plugin %s not found in ref tracking", pkg_id);
+    }
+}
+
+/**
+ * @brief 获取插件引用计数
+ */
+int tpf_get_plugin_ref_count(const char* pkg_id) {
+    if (!pkg_id || !g_plugin_refs_initialized) return 0;
+
+    plugin_ref_entry_t* entry = tefstd_hashmap_get(&g_plugin_refs, &pkg_id);
+    return entry ? entry->ref_count : 0;
+}
+
+/**
+ * @brief 检查插件是否还有其他引用
+ */
+bool tpf_check_plugin_references(const char* pkg_id) {
+    int ref_count = tpf_get_plugin_ref_count(pkg_id);
+
+    // 检查其他模块的引用
+    if (g_module_list_initialized) {
+        const size_t module_count = tefstd_vector_size(&g_module_list);
+        for (size_t i = 0; i < module_count; ++i) {
+            module_handle_t** module_ptr = tefstd_vector_at(&g_module_list, i);
+            if (!module_ptr || !*module_ptr || !(*module_ptr)->module_entry || !(*module_ptr)->module_entry->info) continue;
+
+            const module_info_t* info = (*module_ptr)->module_entry->info;
+            if (info->plugin_dependencies && info->plugin_dependencies_sizes > 0) {
+                for (int j = 0; j < info->plugin_dependencies_sizes; ++j) {
+                    if (info->plugin_dependencies[j] && strcmp(info->plugin_dependencies[j], pkg_id) == 0) {
+                        ref_count++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 检查ModLoader的引用
+    if (g_ml_list_initialized) {
+        const size_t ml_count = tefstd_vector_size(&g_ml_list);
+        for (size_t i = 0; i < ml_count; ++i) {
+            ml_handle_t** ml_ptr = tefstd_vector_at(&g_ml_list, i);
+            if (!ml_ptr || !*ml_ptr || !(*ml_ptr)->ml_entry || !(*ml_ptr)->ml_entry->info) continue;
+
+            const ml_info_t* info = (*ml_ptr)->ml_entry->info;
+            if (info->plugin_dependencies && info->plugin_dependencies_sizes > 0) {
+                for (int j = 0; j < info->plugin_dependencies_sizes; ++j) {
+                    if (info->plugin_dependencies[j] && strcmp(info->plugin_dependencies[j], pkg_id) == 0) {
+                        ref_count++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    TEKLOG_DEBUG("Plugin %s has %d total references", pkg_id, ref_count);
+    return ref_count > 0;
+}
 
 static void free_plugin(plugin_handle_t* plugin) {
     if (!plugin) return;
@@ -68,9 +190,61 @@ static void free_plugin(plugin_handle_t* plugin) {
     free(plugin);
 }
 
+bool tpf_plugin_exists(const char* pkg_id) {
+    if (!pkg_id) {
+        TEKLOG_ERROR("NULL pkg_id provided to tpf_plugin_exists");
+        return false;
+    }
+
+    if (!g_tpf_symbols.initialized) {
+        TEKLOG_DEBUG("Plugin system not initialized, no plugins exist");
+        return false;
+    }
+
+    return tpf_get_plugin_by_id(pkg_id) != NULL;
+}
+
+plugin_handle_t* tpf_get_plugin_by_id(const char* pkg_id) {
+    if (!pkg_id) {
+        TEKLOG_ERROR("NULL pkg_id provided to tpf_get_plugin_by_id");
+        return NULL;
+    }
+
+    if (!g_tpf_symbols.initialized) {
+        TEKLOG_DEBUG("Plugin system not initialized");
+        return NULL;
+    }
+
+    const size_t plugin_count = tefstd_vector_size(&g_tpf_symbols.plugin_handles);
+    TEKLOG_DEBUG("Looking for plugin by id: pkg_id=%s, total plugins=%zu",
+                pkg_id, plugin_count);
+
+    for (size_t i = 0; i < plugin_count; ++i) {
+        plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
+        if (!plugin_ptr || !*plugin_ptr) {
+            continue;
+        }
+
+        plugin_handle_t* plugin = *plugin_ptr;
+
+        // 获取插件信息
+        if (plugin->ops && plugin->ops->get_info) {
+            const tpf_plugin_info_t* info = plugin->ops->get_info();
+            if (info && info->pkg_id && strcmp(info->pkg_id, pkg_id) == 0) {
+                TEKLOG_DEBUG("Found plugin: pkg_id=%s, handle=%p, index=%zu",
+                           pkg_id, (void*)plugin, i);
+                return plugin;
+            }
+        }
+    }
+
+    TEKLOG_DEBUG("Plugin not found by id: pkg_id=%s", pkg_id);
+    return NULL;
+}
+
 // 内核功能实现
 bool tpf_load_plugin(void *handle, plugin_handle_t** out_plugin) {
-    if (!handle || !out_plugin) {
+    if (!handle) {
         TEKLOG_ERROR("Invalid handle provided to tpf_load_plugin");
         return false;
     }
@@ -115,21 +289,31 @@ bool tpf_load_plugin(void *handle, plugin_handle_t** out_plugin) {
 
     if (tefstd_vector_push_back(&g_tpf_symbols.plugin_handles, &new_plugin)) {
         TEKLOG_DEBUG("Plugin added to global list, initializing...");
+
+        // 初始化插件
         const bool init_result = new_plugin->ops->initialize(new_plugin);
 
         if (init_result) {
+            // 添加插件引用计数
+            if (new_plugin->ops->get_info) {
+                const tpf_plugin_info_t* info = new_plugin->ops->get_info();
+                if (info && info->pkg_id) {
+                    tpf_add_plugin_ref(info->pkg_id);
+                }
+            }
+
             TEKLOG_INFO("Plugin initialized successfully, handle: %p", (void*)new_plugin);
-            *out_plugin = new_plugin;
+            if (out_plugin) *out_plugin = new_plugin;
             return true;
-        } else {
-            TEKLOG_ERROR("Plugin initialization failed");
-            // 从列表中移除失败的插件
-            tefstd_vector_pop_back(&g_tpf_symbols.plugin_handles, NULL);
         }
+        TEKLOG_ERROR("Plugin initialization failed");
+        // 从列表中移除失败的插件
+        tefstd_vector_pop_back(&g_tpf_symbols.plugin_handles, NULL);
     } else {
         TEKLOG_ERROR("Failed to add plugin to global list");
     }
 
+    // 注册符号
     *(void**)memdl_sym(handle, "tpf_register_symbol") = (void*)tpf_register_symbol;
     *(void**)memdl_sym(handle, "tpf_register_shared_plugin_library") = (void*)tpf_register_shared_plugin_library;
 
@@ -187,6 +371,14 @@ bool tpf_cleanup_plugin(plugin_handle_t *plugin) {
                 tefstd_vector_erase(&g_tpf_symbols.plugin_handles, i, NULL);
                 break;
             }
+        }
+    }
+
+    // 减少插件引用计数
+    if (plugin->ops && plugin->ops->get_info) {
+        const tpf_plugin_info_t* info = plugin->ops->get_info();
+        if (info && info->pkg_id) {
+            tpf_remove_plugin_ref(info->pkg_id);
         }
     }
 
@@ -484,6 +676,7 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "patchlib/struct/dictionary.h"
 #include "patchlib/struct/list.h"
 #include "patchlib/struct/string.h"
+#include "tefpackage/tefpkg.h"
 
 void tpf_init_libtefkernel() {
     TEKLOG_INFO("Initializing libtefkernel - creating TPF instance");
@@ -500,6 +693,9 @@ void tpf_init_libtefkernel() {
         tefstd_vector_init(&shared_plugin_libraries.handles, sizeof(void*));
         shared_plugin_libraries.initialized = true;
     }
+
+    // 初始化插件引用计数系统
+    tpf_init_plugin_refs();
 
     // 创建内核自身的TPF实例
     plugin_handle_t* kernel_plugin = malloc(sizeof(plugin_handle_t));
@@ -569,6 +765,33 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(tefstd_vector_erase);
     TPF_KERNEL_SYMBOL(tefstd_vector_remove_value);
     TPF_KERNEL_SYMBOL(tefstd_vector_init_from_array);
+
+    // ==================== 注册TEFPKG包管理API ====================
+    TEKLOG_DEBUG("Registering TEFPKG package management symbols");
+
+    // 包生命周期管理API
+    TPF_KERNEL_SYMBOL(tefpkg_create_reserved_from_file);
+    TPF_KERNEL_SYMBOL(tefpkg_create_reserved_from_memory);
+    TPF_KERNEL_SYMBOL(tefpkg_open_readonly);
+    TPF_KERNEL_SYMBOL(tefpkg_open_from_memory);
+    TPF_KERNEL_SYMBOL(tefpkg_save_file);
+    TPF_KERNEL_SYMBOL(tefpkg_save_memory_file);
+    TPF_KERNEL_SYMBOL(tefpkg_close);
+
+    // 条目操作API
+    TPF_KERNEL_SYMBOL(tefpkg_add_entry_from_memory);
+    TPF_KERNEL_SYMBOL(tefpkg_add_entry_from_file);
+    TPF_KERNEL_SYMBOL(tefpkg_extract_entry_to_memory);
+    TPF_KERNEL_SYMBOL(tefpkg_extract_entry_to_file);
+    TPF_KERNEL_SYMBOL(tefpkg_get_entry_info);
+    TPF_KERNEL_SYMBOL(tefpkg_get_entries_count);
+    TPF_KERNEL_SYMBOL(tefpkg_get_reserved_entries);
+
+    // 完整性验证API
+    TPF_KERNEL_SYMBOL(tefpkg_verify_entry);
+    TPF_KERNEL_SYMBOL(tefpkg_verify_pkg);
+    TPF_KERNEL_SYMBOL(tefpkg_verify_signature);
+    TPF_KERNEL_SYMBOL(tefpkg_sign_package);
 
     // ==================== 注册所有patchlib核心API ====================
     TEKLOG_DEBUG("Registering patchlib core symbols");

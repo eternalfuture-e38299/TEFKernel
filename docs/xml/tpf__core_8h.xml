@@ -1,0 +1,211 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="tpf__core_8h" kind="file" language="C++">
+    <compoundname>tpf_core.h</compoundname>
+    <includes refid="tef__api_8h" local="yes">../tef_api.h</includes>
+    <includes local="no">stdbool.h</includes>
+    <includedby refid="tef__core__imp_8h" local="yes">src/internal/tefplugin/tef_core_imp.h</includedby>
+    <includedby refid="tpf__core_8c" local="yes">src/tefplugin/tpf_core.c</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="1">
+        <label>include/tefplugin/tpf_core.h</label>
+        <link refid="tpf__core_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>stdbool.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="1">
+        <label>include/tefplugin/tpf_core.h</label>
+        <link refid="tpf__core_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="2">
+        <label>src/internal/tefplugin/tef_core_imp.h</label>
+        <link refid="tef__core__imp_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+      <node id="5">
+        <label>src/tefplugin/tpf_core.c</label>
+        <link refid="tpf__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structtpf__plugin__info__t" prot="public">tpf_plugin_info_t</innerclass>
+    <innerclass refid="structtpf__plugin__ops__t" prot="public">tpf_plugin_ops_t</innerclass>
+    <sectiondef kind="define">
+      <memberdef kind="define" id="tpf__core_8h_1aa659a1ebc5587989fd78a77f010e162a" prot="public" static="no">
+        <name>TPF_SYMBOL</name>
+        <param><defname>func</defname></param>
+        <initializer>    <ref refid="tpf__core_8c_1a61bee02a9255a23d9eb7d31183b43317" kindref="member">tpf_register_symbol</ref>(this_handle, #func, (const void *)(func))</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="131" column="9"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="tpf__core_8h_1a8eb5b457b4713fbfa2c1e45cb61e3f3d" prot="public" static="no">
+        <type>void</type>
+        <definition>typedef void plugin_handle_t</definition>
+        <argsstring></argsstring>
+        <name>plugin_handle_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="58" column="14" bodyfile="include/tefplugin/tpf_core.h" bodystart="58" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="tpf__core_8h_1adaa34548096fa22348de629d180f08e6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref> const <ref refid="structtpf__plugin__ops__t" kindref="compound">tpf_plugin_ops_t</ref> *<ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref></type>
+        <definition>API_EXPORT const tpf_plugin_ops_t *API_CALL tpf_create_plugin</definition>
+        <argsstring>(void)</argsstring>
+        <name>tpf_create_plugin</name>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+<para>创建插件 </para>
+        </briefdescription>
+        <detaileddescription>
+<para>插件必须导出的唯一函数，返回插件的操作函数表。</para>
+<para><simplesect kind="return"><para>插件操作函数表指针</para>
+</simplesect>
+<simplesect kind="note"><para>必须返回静态内存，不要动态分配 </para>
+</simplesect>
+<simplesect kind="note"><para>此函数在插件加载时调用一次 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="include/tefplugin/tpf_core.h" line="93" column="45" declfile="include/tefplugin/tpf_core.h" declline="93" declcolumn="45"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>File:<sp/>tpf_core</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Project:<sp/>tefkernel</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/11/23</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>Github:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>MIT<sp/>License</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>Permission<sp/>is<sp/>hereby<sp/>granted,<sp/>free<sp/>of<sp/>charge,<sp/>to<sp/>any<sp/>person<sp/>obtaining<sp/>a<sp/>copy</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>of<sp/>this<sp/>software<sp/>and<sp/>associated<sp/>documentation<sp/>files<sp/>(the<sp/>&quot;Software&quot;),<sp/>to<sp/>deal</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*<sp/>in<sp/>the<sp/>Software<sp/>without<sp/>restriction,<sp/>including<sp/>without<sp/>limitation<sp/>the<sp/>rights</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>to<sp/>use,<sp/>copy,<sp/>modify,<sp/>merge,<sp/>publish,<sp/>distribute,<sp/>sublicense,<sp/>and/or<sp/>sell</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>copies<sp/>of<sp/>the<sp/>Software,<sp/>and<sp/>to<sp/>permit<sp/>persons<sp/>to<sp/>whom<sp/>the<sp/>Software<sp/>is</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*<sp/>furnished<sp/>to<sp/>do<sp/>so,<sp/>subject<sp/>to<sp/>the<sp/>following<sp/>conditions:</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>The<sp/>above<sp/>copyright<sp/>notice<sp/>and<sp/>this<sp/>permission<sp/>notice<sp/>shall<sp/>be<sp/>included<sp/>in<sp/>all</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>copies<sp/>or<sp/>substantial<sp/>portions<sp/>of<sp/>the<sp/>Software.</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*<sp/></highlight></codeline>
+<codeline lineno="22"><highlight class="comment"><sp/>*<sp/>THE<sp/>SOFTWARE<sp/>IS<sp/>PROVIDED<sp/>&quot;AS<sp/>IS&quot;,<sp/>WITHOUT<sp/>WARRANTY<sp/>OF<sp/>ANY<sp/>KIND,<sp/>EXPRESS<sp/>OR</highlight></codeline>
+<codeline lineno="23"><highlight class="comment"><sp/>*<sp/>IMPLIED,<sp/>INCLUDING<sp/>BUT<sp/>NOT<sp/>LIMITED<sp/>TO<sp/>THE<sp/>WARRANTIES<sp/>OF<sp/>MERCHANTABILITY,</highlight></codeline>
+<codeline lineno="24"><highlight class="comment"><sp/>*<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE<sp/>AND<sp/>NONINFRINGEMENT.<sp/>IN<sp/>NO<sp/>EVENT<sp/>SHALL<sp/>THE</highlight></codeline>
+<codeline lineno="25"><highlight class="comment"><sp/>*<sp/>AUTHORS<sp/>OR<sp/>COPYRIGHT<sp/>HOLDERS<sp/>BE<sp/>LIABLE<sp/>FOR<sp/>ANY<sp/>CLAIM,<sp/>DAMAGES<sp/>OR<sp/>OTHER</highlight></codeline>
+<codeline lineno="26"><highlight class="comment"><sp/>*<sp/>LIABILITY,<sp/>WHETHER<sp/>IN<sp/>AN<sp/>ACTION<sp/>OF<sp/>CONTRACT,<sp/>TORT<sp/>OR<sp/>OTHERWISE,<sp/>ARISING<sp/>FROM,</highlight></codeline>
+<codeline lineno="27"><highlight class="comment"><sp/>*<sp/>OUT<sp/>OF<sp/>OR<sp/>IN<sp/>CONNECTION<sp/>WITH<sp/>THE<sp/>SOFTWARE<sp/>OR<sp/>THE<sp/>USE<sp/>OR<sp/>OTHER<sp/>DEALINGS<sp/>IN<sp/>THE</highlight></codeline>
+<codeline lineno="28"><highlight class="comment"><sp/>*<sp/>SOFTWARE.</highlight></codeline>
+<codeline lineno="29"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_TPF_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_TPF_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;../tef_api.h&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdbool.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>================<sp/>基础结构<sp/>================<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47" refid="structtpf__plugin__info__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="48" refid="structtpf__plugin__info__t_1a222f4215032d2ce68830b4ee1b7880f9" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structtpf__plugin__info__t_1a222f4215032d2ce68830b4ee1b7880f9" kindref="member">pkg_id</ref>;<sp/></highlight></codeline>
+<codeline lineno="49" refid="structtpf__plugin__info__t_1ae781c67b4517a93d4b3afc09f72bcac0" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structtpf__plugin__info__t_1ae781c67b4517a93d4b3afc09f72bcac0" kindref="member">name</ref>;<sp/></highlight></codeline>
+<codeline lineno="50" refid="structtpf__plugin__info__t_1ab00e16fdc09831cb2876e376edb3964a" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structtpf__plugin__info__t_1ab00e16fdc09831cb2876e376edb3964a" kindref="member">author</ref>;<sp/></highlight></codeline>
+<codeline lineno="51" refid="structtpf__plugin__info__t_1aee54160753edaeda3a749d6a2a28e132" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="structtpf__plugin__info__t_1aee54160753edaeda3a749d6a2a28e132" kindref="member">version</ref>;<sp/></highlight></codeline>
+<codeline lineno="52" refid="structtpf__plugin__info__t_1ab72e18001302feb1b606f7fad30d0d1c" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="structtpf__plugin__info__t_1ab72e18001302feb1b606f7fad30d0d1c" kindref="member">version_code</ref>;<sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="53"><highlight class="normal">}<sp/><ref refid="structtpf__plugin__info__t" kindref="compound">tpf_plugin_info_t</ref>;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="preprocessor">#if<sp/>IS_TEFKERNEL_BUILD</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref>;</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="58" refid="tpf__core_8h_1a8eb5b457b4713fbfa2c1e45cb61e3f3d" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="tpf__core_8h_1a8eb5b457b4713fbfa2c1e45cb61e3f3d" kindref="member">plugin_handle_t</ref>;</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight></codeline>
+<codeline lineno="64" refid="structtpf__plugin__ops__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
+<codeline lineno="69" refid="structtpf__plugin__ops__t_1aa3c9c9789a766513c313e9585cb400e3" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>bool<sp/>(*initialize)(<ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>*this_handle);</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight></codeline>
+<codeline lineno="74" refid="structtpf__plugin__ops__t_1ac0ced263a0b72da210afcd67fefaeac9" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>void<sp/>(*cleanup)(<ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref><sp/>*this_handle);</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="80" refid="structtpf__plugin__ops__t_1a8d38147f42d15beb5504f2ac082764a5" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structtpf__plugin__info__t" kindref="compound">tpf_plugin_info_t</ref><sp/>*(*get_info)(void);</highlight></codeline>
+<codeline lineno="81"><highlight class="normal">}<sp/><ref refid="structtpf__plugin__ops__t" kindref="compound">tpf_plugin_ops_t</ref>;</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight></codeline>
+<codeline lineno="93" refid="tpf__core_8h_1adaa34548096fa22348de629d180f08e6" refkind="member"><highlight class="normal"><ref refid="tef__api_8h_1a5e3652cae8b48c1ad174f0b06bbd06d0" kindref="member">API_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structtpf__plugin__ops__t" kindref="compound">tpf_plugin_ops_t</ref><sp/>*<sp/><ref refid="tef__api_8h_1ad4f761b710baa7216c0b72a47b643b08" kindref="member">API_CALL</ref><sp/><ref refid="tpf__core_8h_1adaa34548096fa22348de629d180f08e6" kindref="member">tpf_create_plugin</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"></highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">bool</highlight><highlight class="normal">,<sp/><ref refid="tpf__core_8c_1a61bee02a9255a23d9eb7d31183b43317" kindref="member">tpf_register_symbol</ref>,</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="structplugin__handle__t" kindref="compound">plugin_handle_t</ref>*<sp/>this_handle,</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*name,</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*addr)</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"></highlight></codeline>
+<codeline lineno="116"><highlight class="normal"></highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><ref refid="tef__api_8h_1abb7f5565a98fe36e18cd0e9a12b60e49" kindref="member">DEFINE_FUNCTION</ref>(</highlight><highlight class="keywordtype">bool</highlight><highlight class="normal">,<sp/><ref refid="tpf__core_8c_1a2291e28eb96950c2d52a73b3646c2365" kindref="member">tpf_register_shared_plugin_library</ref>,<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>handle)</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"></highlight></codeline>
+<codeline lineno="124"><highlight class="normal"></highlight></codeline>
+<codeline lineno="131"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TPF_SYMBOL(func)<sp/>\</highlight></codeline>
+<codeline lineno="132"><highlight class="preprocessor"><sp/><sp/><sp/><sp/>tpf_register_symbol(this_handle,<sp/>#func,<sp/>(const<sp/>void<sp/>*)(func))</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal"></highlight></codeline>
+<codeline lineno="134"><highlight class="normal"></highlight></codeline>
+<codeline lineno="135"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>================<sp/>线程安全说明<sp/>================<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="136"><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="151"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="153"><highlight class="normal"></highlight></codeline>
+<codeline lineno="154"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//<sp/>TEFKERNEL_TPF_CORE_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="include/tefplugin/tpf_core.h"/>
+  </compounddef>
+</doxygen>

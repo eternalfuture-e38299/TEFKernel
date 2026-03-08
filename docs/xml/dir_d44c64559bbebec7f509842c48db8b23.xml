@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="dir_d44c64559bbebec7f509842c48db8b23" kind="dir">
+    <compoundname>include</compoundname>
+    <innerdir refid="dir_e27bb74035e6d73ddafd7e9bc9bdc3f3">include/memdl</innerdir>
+    <innerdir refid="dir_f3bbea7f5ab4867b303326bd3ac95f47">include/modloader</innerdir>
+    <innerdir refid="dir_8c74a6f8a77fa1f5a81fbbeae25e7620">include/tefpackage</innerdir>
+    <innerdir refid="dir_a8c68cc253934e7abd3da422e6c0219f">include/tefplugin</innerdir>
+    <innerfile refid="tef__api_8h">tef_api.h</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="include/"/>
+  </compounddef>
+</doxygen>

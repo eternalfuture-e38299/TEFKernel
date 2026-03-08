@@ -1,0 +1,31 @@
+<map id="tefpkg_add_entry_from_file" name="tefpkg_add_entry_from_file">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,80,207,105"/>
+<area shape="rect" id="Node000002" href="$tefpkg_8c.html#a3fef6fd9262996de28b2586962b9e180" title=" " alt="" coords="255,73,429,113"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="207,90,241,90,241,95,207,95"/>
+<area shape="rect" id="Node000003" href="$tefpkg_8c.html#a93cbdab06e654681b82ff694e2d77fce" title=" " alt="" coords="500,5,651,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="392,70,477,39,504,32,505,37,478,45,393,75"/>
+<area shape="rect" id="Node000004" href="$tefpkg_8c.html#a5b0a872105b3a3f9503cc4bfb1bc4c15" title=" " alt="" coords="482,55,669,80"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="430,81,468,76,469,82,430,86"/>
+<area shape="rect" id="Node000005" href="$tefpkg_8c.html#a67abdc8d481218dac105b36c62231448" title=" " alt="" coords="485,104,666,129"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="430,99,471,103,471,109,430,104"/>
+<area shape="rect" id="Node000012" href="$compressor_8c.html#aed44ed7d3852f9a09eac4f9c5e8e2571" title="压缩内存数据（自动分配内存）" alt="" coords="477,177,673,203"/>
+<area shape="poly" id="edge13_Node000002_Node000012" title=" " alt="" coords="392,110,532,169,530,174,390,115"/>
+<area shape="rect" id="Node000006" href="$siphash_8c.html#acf7837dd9ebfc124766cfcae39e5b509" title="完成SipHash计算并返回最终哈希值" alt="" coords="777,29,884,55"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="633,101,672,89,696,76,720,64,763,51,764,56,722,68,699,81,674,94,635,106"/>
+<area shape="rect" id="Node000009" href="$siphash_8c.html#a8a8f0bc9dc6a2f76bd500268551b738b" title="初始化SipHash计算上下文" alt="" coords="781,79,881,104"/>
+<area shape="poly" id="edge8_Node000005_Node000009" title=" " alt="" coords="666,105,767,95,767,100,666,110"/>
+<area shape="rect" id="Node000010" href="$siphash_8c.html#a1e6e0367a691159672d00fa76e94c358" title="更新SipHash计算状态（流式处理）" alt="" coords="769,128,893,153"/>
+<area shape="poly" id="edge9_Node000005_Node000010" title=" " alt="" coords="666,123,755,131,755,136,666,128"/>
+<area shape="rect" id="Node000007" href="$siphash_8c.html#ab11fee5f26800354078211d367b801ad" title=" " alt="" coords="1123,80,1244,105"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="885,43,974,51,1075,65,1121,74,1120,79,1074,70,973,56,884,48"/>
+<area shape="rect" id="Node000008" href="$siphash_8c.html#a8a8b54d69ce501bb17e7d5dcc8fdfb32" title=" " alt="" coords="1001,80,1061,105"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="885,50,941,63,989,77,987,82,939,69,884,55"/>
+<area shape="poly" id="edge12_Node000010_Node000008" title=" " alt="" coords="886,125,939,113,987,101,989,106,941,118,888,131"/>
+<area shape="rect" id="Node000011" href="$siphash_8c.html#affc85a56adbd7108b190a6cee4ad4f72" title=" " alt="" coords="988,129,1075,155"/>
+<area shape="poly" id="edge10_Node000010_Node000011" title=" " alt="" coords="893,138,974,139,974,144,893,144"/>
+<area shape="poly" id="edge11_Node000011_Node000007" title=" " alt="" coords="1070,127,1129,107,1131,112,1072,132"/>
+<area shape="rect" id="Node000013" href="$compressor_8c.html#a3f70800f082bb66f2800122528bd4864" title="压缩数据" alt="" coords="745,177,916,203"/>
+<area shape="poly" id="edge14_Node000012_Node000013" title=" " alt="" coords="674,187,731,187,731,193,674,193"/>
+<area shape="rect" id="Node000014" href="$compressor_8c.html#a26b08faa8263ee01585797ece8e95225" title="计算压缩后数据的最大可能大小" alt="" coords="721,227,940,252"/>
+<area shape="poly" id="edge15_Node000012_Node000014" title=" " alt="" coords="642,200,751,221,750,227,641,205"/>
+</map>

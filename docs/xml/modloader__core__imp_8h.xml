@@ -1,0 +1,395 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="modloader__core__imp_8h" kind="file" language="C++">
+    <compoundname>modloader_core_imp.h</compoundname>
+    <includes refid="modloader__core_8h" local="yes">modloader/modloader_core.h</includes>
+    <includedby refid="desktop__runtime__core_8c" local="yes">src/desktop/desktop_runtime_core.c</includedby>
+    <includedby refid="modloader__core_8c" local="yes">src/modloader/modloader_core.c</includedby>
+    <incdepgraph>
+      <node id="3">
+        <label>../tefstd/vector.h</label>
+      </node>
+      <node id="2">
+        <label>modloader/modloader_core.h</label>
+        <link refid="modloader__core_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>../tef_api.h</label>
+        <link refid="tef__api_8h"/>
+      </node>
+      <node id="4">
+        <label>../tefpackage/tefpkg.h</label>
+        <link refid="tefpkg_8h"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/internal/modloader/modloader_core_imp.h</label>
+        <link refid="modloader__core__imp_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>stdint.h</label>
+      </node>
+      <node id="6">
+        <label>stdio.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/desktop/desktop_runtime_core.c</label>
+        <link refid="desktop__runtime__core_8c"/>
+      </node>
+      <node id="1">
+        <label>src/internal/modloader/modloader_core_imp.h</label>
+        <link refid="modloader__core__imp_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>src/modloader/modloader_core.c</label>
+        <link refid="modloader__core_8c"/>
+      </node>
+    </invincdepgraph>
+    <innerclass refid="structml__handle__t" prot="public">ml_handle_t</innerclass>
+    <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="modloader__core__imp_8h_1ab3834925cc05f16659d44ed5a0af7af9" prot="public" static="no">
+        <type>struct <ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref></type>
+        <definition>typedef struct ml_handle_t ml_handle_t</definition>
+        <argsstring></argsstring>
+        <name>ml_handle_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="37" column="13"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="var">
+      <memberdef kind="variable" id="modloader__core__imp_8h_1a1a3e329ca8d9bf9e7150ef79fe85d709" prot="public" static="no" extern="yes" mutable="no">
+        <type>tef_vector_t</type>
+        <definition>tef_vector_t g_ml_list</definition>
+        <argsstring></argsstring>
+        <name>g_ml_list</name>
+        <briefdescription>
+<para>句柄(ml_handle_t*) </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="39" column="21" bodyfile="src/modloader/modloader_core.c" bodystart="33" bodyend="-1" declfile="src/internal/modloader/modloader_core_imp.h" declline="39" declcolumn="21"/>
+        <referencedby refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" compoundref="modloader__core_8c" startline="41" endline="99">cleanup_unreferenced_plugins</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" compoundref="modloader__core_8c" startline="417" endline="480">tefkernel_cleanup_all_ml</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a63732dbf76d93673faa428801c86fdc0" compoundref="modloader__core_8c" startline="360" endline="412">tefkernel_cleanup_ml</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1afbfa2297208c351c2e14f71d035e4fac" compoundref="modloader__core_8c" startline="485" endline="505">tefkernel_get_ml_by_index</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a0237350d65ef072094fd82eed2de5296" compoundref="modloader__core_8c" startline="510" endline="518">tefkernel_get_ml_count</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+      <memberdef kind="variable" id="modloader__core__imp_8h_1af301f5bd06fac4d19cf5aa9e60a9d88e" prot="public" static="no" extern="yes" mutable="no">
+        <type>bool</type>
+        <definition>bool g_ml_list_initialized</definition>
+        <argsstring></argsstring>
+        <name>g_ml_list_initialized</name>
+        <briefdescription>
+<para>初始化状态 </para>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="40" column="13" bodyfile="src/modloader/modloader_core.c" bodystart="34" bodyend="-1" declfile="src/internal/modloader/modloader_core_imp.h" declline="40" declcolumn="13"/>
+        <referencedby refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" compoundref="modloader__core_8c" startline="417" endline="480">tefkernel_cleanup_all_ml</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a63732dbf76d93673faa428801c86fdc0" compoundref="modloader__core_8c" startline="360" endline="412">tefkernel_cleanup_ml</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1afbfa2297208c351c2e14f71d035e4fac" compoundref="modloader__core_8c" startline="485" endline="505">tefkernel_get_ml_by_index</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a0237350d65ef072094fd82eed2de5296" compoundref="modloader__core_8c" startline="510" endline="518">tefkernel_get_ml_count</referencedby>
+        <referencedby refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" compoundref="modloader__core_8c" startline="192" endline="355">tefkernel_load_ml</referencedby>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool tefkernel_load_ml</definition>
+        <argsstring>(void *handle, tefpkg_t *pkg_handle, ml_handle_t **out_ml)</argsstring>
+        <name>tefkernel_load_ml</name>
+        <param>
+          <type>void *</type>
+          <declname>handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structtefpkg__t" kindref="compound">tefpkg_t</ref> *</type>
+          <declname>pkg_handle</declname>
+        </param>
+        <param>
+          <type><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref> **</type>
+          <declname>out_ml</declname>
+        </param>
+        <briefdescription>
+<para>加载ModLoader </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>动态库句柄 </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>pkg_handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>包句柄(可空) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>out_ml[out]</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>输出的句柄指针 </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>执行结果 </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="49" column="6" bodyfile="src/modloader/modloader_core.c" bodystart="192" bodyend="355" declfile="src/internal/modloader/modloader_core_imp.h" declline="49" declcolumn="6"/>
+        <references refid="structml__info__t_1a7fea95c9e4889fd5a5b6ea05c240a2f8" compoundref="modloader__core_8h" startline="68">ml_info_t::api_version</references>
+        <references refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" compoundref="modloader__core_8c" startline="33">g_ml_list</references>
+        <references refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" compoundref="modloader__core_8c" startline="34">g_ml_list_initialized</references>
+        <references refid="modloader__core_8c_1adac42ca2e6818e6267bfdda1ef70c90b" compoundref="modloader__core_8c" startline="178" endline="187">generate_logs_dir</references>
+        <references refid="modloader__core_8c_1af93411002cab8981ce17da0a6bc514a3" compoundref="modloader__core_8c" startline="167" endline="176">generate_private_dir</references>
+        <references refid="structml__ops__t_1ab1548f894ab4fe5b1f1324e0a10770b8" compoundref="modloader__core_8h" startline="131">ml_ops_t::get_info</references>
+        <references refid="structml__handle__t_1a833927b2c21a4f7027d1e113daf4c9d5" compoundref="modloader__core__imp_8h" startline="34">ml_handle_t::handle</references>
+        <references refid="structml__handle__t_1ae0c1a8a2f37f982c1f003682463c5efd" compoundref="modloader__core__imp_8h" startline="36">ml_handle_t::index</references>
+        <references refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" compoundref="modloader__core_8h" startline="135">ml_entry_t::info</references>
+        <references refid="structml__ops__t_1a7316f2ae6e1c1ad6784e195176aff520" compoundref="modloader__core_8h" startline="118">ml_ops_t::init_ml</references>
+        <references refid="structml__entry__t_1ae5c33ffaabb388f932256b1946bc3393" compoundref="modloader__core_8h" startline="139">ml_entry_t::logs_dir</references>
+        <references refid="modloader__core_8h_1a688c90ff7c48396f9ed02dc0ab05a60d">ml_create</references>
+        <references refid="structml__handle__t_1a86dfe9b6b59dffcad8c7905f57416371" compoundref="modloader__core__imp_8h" startline="35">ml_handle_t::ml_entry</references>
+        <references refid="modloader__core_8h_1ae8b924b8a5e8ac7e400dd6ce2c4d5cfbaef383a56d65f7e67713962af75624589" compoundref="modloader__core_8h" startline="42">ML_SUCCESS</references>
+        <references refid="structml__entry__t_1ae639199e828e4cb4b2c3228c391e4dec" compoundref="modloader__core_8h" startline="136">ml_entry_t::ops</references>
+        <references refid="structml__entry__t_1afcd77cd2f5499ebfb3c306fef16ea1a0" compoundref="modloader__core_8h" startline="137">ml_entry_t::pkg_handle</references>
+        <references refid="structml__info__t_1af47ce231f5858701ad34849b4f652929" compoundref="modloader__core_8h" startline="65">ml_info_t::pkg_id</references>
+        <references refid="structml__info__t_1a5c32abcdac86897282e829d0cf93290d" compoundref="modloader__core_8h" startline="70">ml_info_t::plugin_dependencies</references>
+        <references refid="structml__info__t_1ad2798b62e8f206743a24151f97834093" compoundref="modloader__core_8h" startline="69">ml_info_t::plugin_dependencies_sizes</references>
+        <references refid="structml__entry__t_1ad4ec36e4f3d85549a33f5a8bec6ff91c" compoundref="modloader__core_8h" startline="138">ml_entry_t::private_dir</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="tef__core__imp_8h_1af884bd094c09a87379d0bf9a57a2ce69" compoundref="tpf__core_8c" startline="71" endline="83">tpf_plugin_exists</references>
+        <references refid="tpf__core_8c_1a2291e28eb96950c2d52a73b3646c2365" compoundref="tpf__core_8c" startline="325" endline="338">tpf_register_shared_plugin_library</references>
+        <references refid="structml__info__t_1a1399321834d3c09e3762ed9283b5c821" compoundref="modloader__core_8h" startline="67">ml_info_t::version</references>
+      </memberdef>
+      <memberdef kind="function" id="modloader__core__imp_8h_1a63732dbf76d93673faa428801c86fdc0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void tefkernel_cleanup_ml</definition>
+        <argsstring>(ml_handle_t *ml_handle)</argsstring>
+        <name>tefkernel_cleanup_ml</name>
+        <param>
+          <type><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref> *</type>
+          <declname>ml_handle</declname>
+        </param>
+        <briefdescription>
+<para>卸载Mod加载器 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>ml_handle</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>Mod加载器句柄</para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+卸载Mod加载器 </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="55" column="6" bodyfile="src/modloader/modloader_core.c" bodystart="360" bodyend="412" declfile="src/internal/modloader/modloader_core_imp.h" declline="55" declcolumn="6"/>
+        <references refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</references>
+        <references refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" compoundref="modloader__core_8c" startline="33">g_ml_list</references>
+        <references refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" compoundref="modloader__core_8c" startline="34">g_ml_list_initialized</references>
+        <references refid="structml__handle__t_1ae0c1a8a2f37f982c1f003682463c5efd" compoundref="modloader__core__imp_8h" startline="36">ml_handle_t::index</references>
+        <references refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" compoundref="modloader__core_8h" startline="135">ml_entry_t::info</references>
+        <references refid="structml__handle__t_1a86dfe9b6b59dffcad8c7905f57416371" compoundref="modloader__core__imp_8h" startline="35">ml_handle_t::ml_entry</references>
+        <references refid="structml__info__t_1af47ce231f5858701ad34849b4f652929" compoundref="modloader__core_8h" startline="65">ml_info_t::pkg_id</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+      </memberdef>
+      <memberdef kind="function" id="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void tefkernel_cleanup_all_ml</definition>
+        <argsstring>(void)</argsstring>
+        <name>tefkernel_cleanup_all_ml</name>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+<para>清理所有modloader </para>
+        </briefdescription>
+        <detaileddescription>
+<para>清理所有modloader </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="60" column="6" bodyfile="src/modloader/modloader_core.c" bodystart="417" bodyend="480" declfile="src/internal/modloader/modloader_core_imp.h" declline="60" declcolumn="6"/>
+        <references refid="modloader__core_8c_1af69d679a9527917b17bc01746d8c2753" compoundref="modloader__core_8c" startline="104" endline="162">free_modloader</references>
+        <references refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" compoundref="modloader__core_8c" startline="33">g_ml_list</references>
+        <references refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" compoundref="modloader__core_8c" startline="34">g_ml_list_initialized</references>
+        <references refid="structml__entry__t_1a5ee5c395e133793d5292385e7d9a590d" compoundref="modloader__core_8h" startline="135">ml_entry_t::info</references>
+        <references refid="structml__handle__t_1a86dfe9b6b59dffcad8c7905f57416371" compoundref="modloader__core__imp_8h" startline="35">ml_handle_t::ml_entry</references>
+        <references refid="structml__info__t_1a5c32abcdac86897282e829d0cf93290d" compoundref="modloader__core_8h" startline="70">ml_info_t::plugin_dependencies</references>
+        <references refid="structml__info__t_1ad2798b62e8f206743a24151f97834093" compoundref="modloader__core_8h" startline="69">ml_info_t::plugin_dependencies_sizes</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1a0d169411a6feb16870d7eade6360a613" compoundref="log_8h" startline="102">TEKLOG_INFO</references>
+        <references refid="tef__core__imp_8h_1a84465cf93000fb1e11583d1123e1e149" compoundref="tpf__core_8c" startline="125" endline="180">tpf_cleanup_plugin</references>
+        <references refid="tef__core__imp_8h_1ab60caed61fd1b08b9ea1abcc1f4a2646" compoundref="tpf__core_8c" startline="85" endline="121">tpf_get_plugin_by_id</references>
+      </memberdef>
+      <memberdef kind="function" id="modloader__core__imp_8h_1afbfa2297208c351c2e14f71d035e4fac" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref> *</type>
+        <definition>ml_handle_t * tefkernel_get_ml_by_index</definition>
+        <argsstring>(size_t index)</argsstring>
+        <name>tefkernel_get_ml_by_index</name>
+        <param>
+          <type>size_t</type>
+          <declname>index</declname>
+        </param>
+        <briefdescription>
+<para>通过引索获取modloader句柄 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>index</parametername>
+</parameternamelist>
+<parameterdescription>
+<para></para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>返回结果</para>
+</simplesect>
+通过引索获取modloader句柄 </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="67" column="13" bodyfile="src/modloader/modloader_core.c" bodystart="485" bodyend="505" declfile="src/internal/modloader/modloader_core_imp.h" declline="67" declcolumn="13"/>
+        <references refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" compoundref="modloader__core_8c" startline="33">g_ml_list</references>
+        <references refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" compoundref="modloader__core_8c" startline="34">g_ml_list_initialized</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+        <references refid="log_8h_1a47e8601a3f7a3e0be1687e3c9223bfca" compoundref="log_8h" startline="108">TEKLOG_ERROR</references>
+        <references refid="log_8h_1ae7e53a1803195e9c603864eb3558937b" compoundref="log_8h" startline="105">TEKLOG_WARN</references>
+      </memberdef>
+      <memberdef kind="function" id="modloader__core__imp_8h_1a0237350d65ef072094fd82eed2de5296" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>size_t</type>
+        <definition>size_t tefkernel_get_ml_count</definition>
+        <argsstring>(void)</argsstring>
+        <name>tefkernel_get_ml_count</name>
+        <param>
+          <type>void</type>
+        </param>
+        <briefdescription>
+<para>获取modloader数量 </para>
+        </briefdescription>
+        <detaileddescription>
+<para><simplesect kind="return"><para>modloader数量</para>
+</simplesect>
+获取modloader数量 </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/internal/modloader/modloader_core_imp.h" line="73" column="8" bodyfile="src/modloader/modloader_core.c" bodystart="510" bodyend="518" declfile="src/internal/modloader/modloader_core_imp.h" declline="73" declcolumn="8"/>
+        <references refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" compoundref="modloader__core_8c" startline="33">g_ml_list</references>
+        <references refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" compoundref="modloader__core_8c" startline="34">g_ml_list_initialized</references>
+        <references refid="log_8h_1a60d894e07b6c962ab86fe4c1604e205f" compoundref="log_8h" startline="95">TEKLOG_DEBUG</references>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*******************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>tefkernel<sp/>-<sp/>modloader_core_imp</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(C)<sp/>2025<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>free<sp/>software:<sp/>you<sp/>can<sp/>redistribute<sp/>it<sp/>and/or<sp/>modify</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/>it<sp/>under<sp/>the<sp/>terms<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>as<sp/>published<sp/>by</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/>the<sp/>Free<sp/>Software<sp/>Foundation,<sp/>either<sp/>version<sp/>3<sp/>of<sp/>the<sp/>License,<sp/>or</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/>(at<sp/>your<sp/>option)<sp/>any<sp/>later<sp/>version.</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>This<sp/>program<sp/>is<sp/>distributed<sp/>in<sp/>the<sp/>hope<sp/>that<sp/>it<sp/>will<sp/>be<sp/>useful,</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>but<sp/>WITHOUT<sp/>ANY<sp/>WARRANTY;<sp/>without<sp/>even<sp/>the<sp/>implied<sp/>warranty<sp/>of</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/>MERCHANTABILITY<sp/>or<sp/>FITNESS<sp/>FOR<sp/>A<sp/>PARTICULAR<sp/>PURPOSE.<sp/>See<sp/>the</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>*<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License<sp/>for<sp/>more<sp/>details.</highlight></codeline>
+<codeline lineno="14"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="15"><highlight class="comment"><sp/>*<sp/>You<sp/>should<sp/>have<sp/>received<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>GNU<sp/>Affero<sp/>General<sp/>Public<sp/>License</highlight></codeline>
+<codeline lineno="16"><highlight class="comment"><sp/>*<sp/>along<sp/>with<sp/>this<sp/>program.<sp/>If<sp/>not,<sp/>see<sp/>&lt;https://www.gnu.org/licenses/&gt;.</highlight></codeline>
+<codeline lineno="17"><highlight class="comment"><sp/>*</highlight></codeline>
+<codeline lineno="18"><highlight class="comment"><sp/>*<sp/>Author:<sp/>eternalfuture-e38299</highlight></codeline>
+<codeline lineno="19"><highlight class="comment"><sp/>*<sp/>GitHub:<sp/>https://github.com/eternalfuture-e38299</highlight></codeline>
+<codeline lineno="20"><highlight class="comment"><sp/>*<sp/>Created:<sp/>2025/12/20</highlight></codeline>
+<codeline lineno="21"><highlight class="comment"><sp/>*******************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>TEFKERNEL_MODLOADER_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>TEFKERNEL_MODLOADER_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="modloader__core_8h" kindref="compound">modloader/modloader_core.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight></codeline>
+<codeline lineno="33" refid="structml__handle__t" refkind="compound"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref><sp/>{</highlight></codeline>
+<codeline lineno="34" refid="structml__handle__t_1a833927b2c21a4f7027d1e113daf4c9d5" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*<ref refid="structml__handle__t_1a833927b2c21a4f7027d1e113daf4c9d5" kindref="member">handle</ref>;<sp/></highlight></codeline>
+<codeline lineno="35" refid="structml__handle__t_1a86dfe9b6b59dffcad8c7905f57416371" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="structml__entry__t" kindref="compound">ml_entry_t</ref><sp/>*<ref refid="structml__handle__t_1a86dfe9b6b59dffcad8c7905f57416371" kindref="member">ml_entry</ref>;<sp/></highlight></codeline>
+<codeline lineno="36" refid="structml__handle__t_1ae0c1a8a2f37f982c1f003682463c5efd" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="structml__handle__t_1ae0c1a8a2f37f982c1f003682463c5efd" kindref="member">index</ref>;<sp/></highlight></codeline>
+<codeline lineno="37" refid="modloader__core__imp_8h_1ab3834925cc05f16659d44ed5a0af7af9" refkind="member"><highlight class="normal">}<sp/><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref>;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/>tef_vector_t<sp/><ref refid="modloader__core__imp_8h_1a1a3e329ca8d9bf9e7150ef79fe85d709" kindref="member">g_ml_list</ref>;<sp/></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="modloader__core__imp_8h_1af301f5bd06fac4d19cf5aa9e60a9d88e" kindref="member">g_ml_list_initialized</ref>;<sp/></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="modloader__core__imp_8h_1a4a4fe1372bae61550aa2cd2bfc034d94" kindref="member">tefkernel_load_ml</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*handle,<sp/><ref refid="structtefpkg__t" kindref="compound">tefpkg_t</ref><sp/>*pkg_handle,<sp/><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref><sp/>**out_ml);</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="modloader__core__imp_8h_1a63732dbf76d93673faa428801c86fdc0" kindref="member">tefkernel_cleanup_ml</ref>(<ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref><sp/>*ml_handle);</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="modloader__core__imp_8h_1a90988cbf15046dbfa6c9ae9726e3233e" kindref="member">tefkernel_cleanup_all_ml</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><ref refid="structml__handle__t" kindref="compound">ml_handle_t</ref><sp/>*<ref refid="modloader__core__imp_8h_1afbfa2297208c351c2e14f71d035e4fac" kindref="member">tefkernel_get_ml_by_index</ref>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>index);</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="modloader__core__imp_8h_1a0237350d65ef072094fd82eed2de5296" kindref="member">tefkernel_get_ml_count</ref>(</highlight><highlight class="keywordtype">void</highlight><highlight class="normal">);</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"></highlight><highlight class="preprocessor">#endif<sp/></highlight><highlight class="comment">//TEFKERNEL_MODLOADER_CORE_IMP_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/internal/modloader/modloader_core_imp.h"/>
+  </compounddef>
+</doxygen>

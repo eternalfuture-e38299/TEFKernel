@@ -1,0 +1,26 @@
+<map id="siphash_stream" name="siphash_stream">
+<area shape="rect" id="Node000001" title="单次计算数据的SipHash值（非流式）" alt="" coords="881,104,1007,129"/>
+<area shape="rect" id="Node000002" href="$tefpkg_8c.html#ae8789dfc9490e6347bc83bfac95c0413" title=" " alt="" coords="614,55,821,80"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="875,103,833,94,780,83,781,77,834,89,876,98"/>
+<area shape="rect" id="Node000008" href="$tefpkg_8c.html#a1f5054fbc1f7736d014bfc1f9b89ca2d" title=" " alt="" coords="612,5,823,31"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="916,97,878,70,832,44,799,33,800,28,834,40,881,65,919,93"/>
+<area shape="rect" id="Node000009" href="$siphash_8c.html#a80ce18b48e2b6e22aa32ae9f5de97236" title="根据ID和密钥生成指纹" alt="" coords="612,104,823,129"/>
+<area shape="poly" id="edge11_Node000001_Node000009" title=" " alt="" coords="867,119,823,119,823,114,867,114"/>
+<area shape="rect" id="Node000010" href="$siphash_8c.html#a1766d745c5af52f7c15f3b7f794386e9" title="生成基于时间戳的随机哈希值" alt="" coords="601,153,833,179"/>
+<area shape="poly" id="edge12_Node000001_Node000010" title=" " alt="" coords="872,135,777,156,776,151,871,130"/>
+<area shape="rect" id="Node000011" href="$siphash_8c.html#a4957e920f1e31dde5f11bc5186a2c06c" title="验证数据的SipHash值是否匹配" alt="" coords="633,203,802,228"/>
+<area shape="poly" id="edge13_Node000001_Node000011" title=" " alt="" coords="919,140,881,168,834,194,800,205,799,200,832,189,878,164,916,136"/>
+<area shape="rect" id="Node000003" href="$tefpkg_8c.html#a4d06d2d3b05de6997312d212fc9c066e" title=" " alt="" coords="386,55,545,80"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="600,70,545,70,545,65,600,65"/>
+<area shape="rect" id="Node000004" href="$tefpkg_8c.html#aa2ff43400f2805dff2a3c0923a8058d2" title=" " alt="" coords="396,104,535,129"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="639,85,532,107,531,101,638,80"/>
+<area shape="rect" id="Node000007" href="$tefpkg_8c.html#a4576b2a1dd3d08530b8bc60395588d4c" title=" " alt="" coords="377,5,553,31"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="638,55,531,33,532,28,639,49"/>
+<area shape="rect" id="Node000005" href="$tpf__core_8c.html#a680f5e7e128fbe0515efee07107bce3d" title="初始化内核依赖" alt="" coords="180,55,329,80"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="397,103,309,83,310,77,398,98"/>
+<area shape="rect" id="Node000006" href="$tpf__core_8c.html#aa3e0e858003bfe94ad23eca5d45535a8" title="初始化所有已加载的插件并将其注册到所有共享库" alt="" coords="5,47,132,87"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="166,70,132,70,132,65,166,65"/>
+<area shape="poly" id="edge7_Node000007_Node000005" title=" " alt="" coords="398,36,310,57,309,52,397,31"/>
+<area shape="poly" id="edge9_Node000008_Node000003" title=" " alt="" coords="639,36,532,57,531,52,638,31"/>
+<area shape="poly" id="edge10_Node000008_Node000007" title=" " alt="" coords="598,21,554,21,554,15,598,15"/>
+</map>

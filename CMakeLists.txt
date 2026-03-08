@@ -60,12 +60,23 @@ set(TEFPLUGIN_SRC
 
 set(MODLOADER_SRC src/modloader/modloader_core.c)
 
+set(MODULE_SRC src/module/module_core_imp.c)
+
 set(MEMDL_SRC
         src/memdl/memdl.c
 )
 
 set(INTERNAL_SRC
         src/log.c
+        src/runtime.c
+)
+
+set(TEFPACKAGE_SRC
+        src/tefpackage/compressor.c
+        src/tefpackage/lz4.c
+        src/tefpackage/lz4hc.c
+        src/tefpackage/siphash.c
+        src/tefpackage/tefpkg.c
 )
 
 if (ANDROID)
@@ -87,6 +98,8 @@ add_library(tefkernel SHARED
         ${TEFPLUGIN_SRC}
         ${MEMDL_SRC}
         ${MODLOADER_SRC}
+        ${MODULE_SRC}
+        ${TEFPACKAGE_SRC}
 )
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)

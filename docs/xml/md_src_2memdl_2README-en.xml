@@ -1,0 +1,213 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.8" xml:lang="en-US">
+  <compounddef id="md_src_2memdl_2README-en" kind="page">
+    <compoundname>md_src_2memdl_2README-en</compoundname>
+    <title>memdl - Memory Dynamic Loading Library 📚</title>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para><anchor id="md_src_2memdl_2README-en_1autotoc_md0"/> </para>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md1">
+<title>Introduction 🚀</title>
+<para><itemizedlist>
+<listitem><para>memdl is a cross-platform C library that supports <bold>loading shared libraries (.so/.dll) directly from memory data</bold> without writing to physical files. It provides a <computeroutput>dlopen</computeroutput>-like API but operates on library data in memory rather than file paths.</para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md2">
+<title>Core Features ✨</title>
+<para><itemizedlist>
+<listitem><para><bold>True Memory Loading</bold> 🔄 - Some platforms support pure memory loading without creating physical files</para>
+</listitem><listitem><para><bold>Cross-Platform Support</bold> 🌍 - Windows, Linux, Android, macOS, iOS</para>
+</listitem><listitem><para><bold>Automatic Fallback Strategy</bold> 📉 - Automatically uses temporary file approach when memory loading fails</para>
+</listitem><listitem><para><bold>Format Validation</bold> 🔒 - Automatically validates ELF/Mach-O/PE file formats</para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md3">
+<title>Platform Support Details 🏗️</title>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md4">
+<title>✅ Pure Memory Loading (No Filesystem Operations)</title>
+<para><table rows="3" cols="3"><row>
+<entry thead="yes"><para>Platform   </para>
+</entry><entry thead="yes"><para>Technical Solution   </para>
+</entry><entry thead="yes"><para>Conditions    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Linux</bold>   </para>
+</entry><entry thead="no"><para><computeroutput>memfd_create</computeroutput> + <computeroutput>/proc/self/fd</computeroutput>   </para>
+</entry><entry thead="no"><para>Kernel supports memfd    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Android</bold>   </para>
+</entry><entry thead="no"><para><computeroutput>memfd_create</computeroutput> + <computeroutput>android_dlopen_ext</computeroutput>   </para>
+</entry><entry thead="no"><para>API ≥ 24 (Android 7.0+)   </para>
+</entry></row>
+</table>
+</para>
+</sect2>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md5">
+<title>🔄 Temporary File Fallback Solution</title>
+<para><table rows="5" cols="3"><row>
+<entry thead="yes"><para>Platform   </para>
+</entry><entry thead="yes"><para>Fallback Solution   </para>
+</entry><entry thead="yes"><para>Description    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Android (&lt; 7.0)</bold>   </para>
+</entry><entry thead="no"><para>Temporary file + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>Backward compatibility    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Windows</bold>   </para>
+</entry><entry thead="no"><para>Temporary file + <computeroutput>LoadLibrary</computeroutput>   </para>
+</entry><entry thead="no"><para>Windows system limitations    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>macOS/iOS</bold>   </para>
+</entry><entry thead="no"><para>Temporary file + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>Apple platform restrictions    </para>
+</entry></row>
+<row>
+<entry thead="no"><para><bold>Linux (no memfd)</bold>   </para>
+</entry><entry thead="no"><para>Temporary file + <computeroutput>dlopen</computeroutput>   </para>
+</entry><entry thead="no"><para>Legacy kernel compatibility   </para>
+</entry></row>
+</table>
+</para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md6">
+<title>Handling Strategy When Memory Loading Fails 📉</title>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md7">
+<title>Automatic Fallback Process</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>1.<sp/>Try<sp/>memory<sp/>loading<sp/>(if<sp/>platform<sp/>supports)</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(platform_supports_memfd)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>handle<sp/>=<sp/>try_memfd_load(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(handle)<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>handle;<sp/><sp/></highlight><highlight class="comment">//<sp/>✅<sp/>Success</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>2.<sp/>Fallback<sp/>to<sp/>temporary<sp/>file<sp/>solution</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">handle<sp/>=<sp/>try_tempfile_load(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);<sp/><sp/></highlight><highlight class="comment">//<sp/>🔄<sp/>Backup<sp/>solution</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(handle)<sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>handle;</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>3.<sp/>All<sp/>solutions<sp/>failed</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>NULL;<sp/><sp/></highlight><highlight class="comment">//<sp/>❌<sp/>Complete<sp/>failure</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md8">
+<title>Error Handling Example</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle<sp/>=<sp/>memdl_open(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size,<sp/><ref refid="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" kindref="member">MEMDL_NOW</ref>);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!handle)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*<sp/>error<sp/>=<sp/><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref>();</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(error,<sp/></highlight><highlight class="stringliteral">&quot;temp<sp/>file&quot;</highlight><highlight class="normal">))<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;⚠️<sp/>Memory<sp/>loading<sp/>failed,<sp/>using<sp/>temporary<sp/>file<sp/>solution\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(strstr(error,<sp/></highlight><highlight class="stringliteral">&quot;All<sp/>loading<sp/>methods<sp/>failed&quot;</highlight><highlight class="normal">))<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>All<sp/>loading<sp/>solutions<sp/>failed:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/>error);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting></para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md9">
+<title>API Usage Guide 📖</title>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md10">
+<title>Basic Usage</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Load<sp/>validation</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate</ref>(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size)<sp/>!=<sp/>0)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>Invalid<sp/>library<sp/>format\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Platform<sp/>detection</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">printf(</highlight><highlight class="stringliteral">&quot;Current<sp/>platform:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" kindref="member">memdl_get_platform</ref>()<sp/>==<sp/><ref refid="memdl_8h_1a360ec342a568009e82219466c64a46e7" kindref="member">MEMDL_PLATFORM_ANDROID</ref><sp/>?<sp/></highlight><highlight class="stringliteral">&quot;Android&quot;</highlight><highlight class="normal"><sp/>:<sp/></highlight><highlight class="stringliteral">&quot;Other&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Architecture<sp/>detection</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>arch<sp/>=<sp/><ref refid="memdl_8c_1afa4f3713ba508cd830c5f40c516ade9c" kindref="member">memdl_get_arch</ref>(<ref refid="tefpkg_8h_1a28fecd22bf1ff39f6e9a3bf485dfec28" kindref="member">data</ref>,<sp/>size);</highlight></codeline>
+<codeline><highlight class="normal">printf(</highlight><highlight class="stringliteral">&quot;Library<sp/>architecture:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/>arch<sp/>==<sp/><ref refid="memdl_8h_1a12d9c9ab0cabed5f4cdbbecf28acffa5" kindref="member">MEMDL_ARCH_ARM64</ref><sp/>?<sp/></highlight><highlight class="stringliteral">&quot;ARM64&quot;</highlight><highlight class="normal"><sp/>:<sp/></highlight><highlight class="stringliteral">&quot;Other&quot;</highlight><highlight class="normal">);</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md11">
+<title>Complete Workflow</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>1.<sp/>Prepare<sp/>library<sp/>data</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">void</highlight><highlight class="normal">*<sp/>lib_data<sp/>=<sp/>load_library_to_memory();</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>lib_size<sp/>=<sp/>get_library_size();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>2.<sp/>Validation<sp/>and<sp/>detection</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate</ref>(lib_data,<sp/>lib_size)<sp/>!=<sp/>0)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>Library<sp/>format<sp/>validation<sp/>failed\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>3.<sp/>Memory<sp/>loading<sp/>(automatically<sp/>selects<sp/>best<sp/>solution)</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><ref refid="memdl_8h_1a7a341574c8f1c2ce4d2392d062c357ca" kindref="member">memdl_handle_t</ref><sp/>handle<sp/>=<sp/>memdl_open(lib_data,<sp/>lib_size,<sp/><ref refid="memdl_8h_1a8ebf7b9389d6f7037be30d3777b0cd27" kindref="member">MEMDL_NOW</ref><sp/>|<sp/><ref refid="memdl_8h_1a74350226c13c47c9af3e6d23b98c321b" kindref="member">MEMDL_LOCAL</ref>);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(!handle)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;❌<sp/>Loading<sp/>failed:<sp/>%s\n&quot;</highlight><highlight class="normal">,<sp/><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error</ref>());</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>-1;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>4.<sp/>Use<sp/>library<sp/>functions</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">void<sp/>(*func)()<sp/>=<sp/>memdl_sym(handle,<sp/></highlight><highlight class="stringliteral">&quot;my_function&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(func)<sp/>func();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>5.<sp/>Cleanup</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">memdl_close(handle);</highlight></codeline>
+<codeline><highlight class="normal">free(lib_data);</highlight></codeline>
+</programlisting></para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md12">
+<title>Platform-Specific Notes 🔧</title>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md13">
+<title>Android Considerations</title>
+<para><programlisting filename=".c"><codeline><highlight class="normal"><sp/>++</highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Check<sp/>if<sp/>using<sp/>memory<sp/>loading</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(<ref refid="memdl_8c_1a75991a7ed83fcdf77958a76e57060b3a" kindref="member">memdl_get_platform</ref>()<sp/>==<sp/><ref refid="memdl_8h_1a360ec342a568009e82219466c64a46e7" kindref="member">MEMDL_PLATFORM_ANDROID</ref>)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>sdk_version[32];</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>__system_property_get(</highlight><highlight class="stringliteral">&quot;ro.build.version.sdk&quot;</highlight><highlight class="normal">,<sp/>sdk_version);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal"><sp/>(atoi(sdk_version)<sp/>&gt;=<sp/>24)<sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;✅<sp/>Using<sp/>Android<sp/>7.0+<sp/>memory<sp/>loading<sp/>solution\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}<sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;⚠️<sp/>Using<sp/>temporary<sp/>file<sp/>fallback<sp/>solution<sp/>(SDK<sp/>&lt;<sp/>24)\n&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting></para>
+</sect2>
+<sect2 id="md_src_2memdl_2README-en_1autotoc_md14">
+<title>Temporary File Security</title>
+<para><itemizedlist>
+<listitem><para>Strict file permission restrictions (600)</para>
+</listitem><listitem><para>Immediate file content deletion after loading</para>
+</listitem><listitem><para>Uses system secure temporary directories</para>
+</listitem></itemizedlist>
+</para>
+</sect2>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md15">
+<title>Best Practices 💡</title>
+<para><orderedlist>
+<listitem><para><bold>Always Validate Data</bold> ✅ - Call <computeroutput><ref refid="memdl_8c_1a363786b885e40a7d1423b660ca9adb56" kindref="member">memdl_validate()</ref></computeroutput> for pre-detection</para>
+</listitem><listitem><para><bold>Handle Fallback Scenarios</bold> ⚠️ - Check error messages to determine loading method</para>
+</listitem><listitem><para><bold>Timely Resource Release</bold> 🧹 - Call <computeroutput>memdl_close()</computeroutput> immediately after use</para>
+</listitem><listitem><para><bold>Error Message Checking</bold> 🔍 - Get detailed errors through <computeroutput><ref refid="memdl_8c_1ac95561feb64f830a4b8de9c5f73e0b40" kindref="member">memdl_error()</ref></computeroutput></para>
+</listitem></orderedlist>
+</para>
+</sect1>
+<sect1 id="md_src_2memdl_2README-en_1autotoc_md16">
+<title>Summary 🎯</title>
+<para><itemizedlist>
+<listitem><para>memdl provides optimal performance on platforms that support memory loading, while automatically falling back to ensure availability on unsupported platforms. Developers don&apos;t need to worry about underlying implementation details, as the API remains consistent. </para>
+</listitem></itemizedlist>
+</para>
+</sect1>
+    </detaileddescription>
+    <location file="src/memdl/README-en.md"/>
+  </compounddef>
+</doxygen>

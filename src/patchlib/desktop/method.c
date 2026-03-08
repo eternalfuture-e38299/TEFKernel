@@ -61,7 +61,7 @@ bool patchlib_method_is_instance(patch_handle_t method) {
     return result;
 }
 
-patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tef_vector_t *template_types) {
+patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tefstd_vector_t *template_types) {
     TEKLOG_DEBUG("patchlib_method_make_generic_instance called: method=%d, template_types_count=%zu",
                  method, template_types ? tefstd_vector_size(template_types) : 0);
 
