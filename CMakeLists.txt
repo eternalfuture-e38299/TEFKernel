@@ -69,6 +69,7 @@ set(MEMDL_SRC
 set(INTERNAL_SRC
         src/log.c
         src/runtime.c
+        src/mod_core.c
 )
 
 set(TEFPACKAGE_SRC
@@ -153,28 +154,11 @@ if (${CMAKE_C_FLAGS_RELEASE})
     endif()
 endif ()
 
-set(TEST OFF)
+set(TEST ON)
 if (${TEST})
+    include_directories(include)
 
-
-    add_executable(test
-            test/test.c
-    )
-
-    target_link_libraries(test
-            tefkernel
-            libffi
-    )
-
-    add_library(test_plugin SHARED
-            test/test_plugin.c
-    )
-
-    add_library(test_modloader SHARED
-            test/test_modloader.c
-    )
-
-    add_library(test_mod SHARED
-            test/test_mod.c
+    add_library(test_module SHARED
+            test/module.c
     )
 endif ()

@@ -585,7 +585,7 @@ bool tefkernel_initialize_all_modules(void) {
             continue;
         }
 
-        module_handle_t* module_handle = *module_ptr;
+        const module_handle_t* module_handle = *module_ptr;
         module_entry_t* entry = module_handle->module_entry;
 
         if (entry->ops && entry->ops->init_module) {

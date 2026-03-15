@@ -30,6 +30,7 @@
 
 #include "internal/kernel_state.h"
 #include "internal/log.h"
+#include "internal/mod_core.h"
 #include "tefpackage/tefpkg.h"
 #include "tefstd/vector.h"
 #include "tefstd/hashmap.h"
@@ -64,14 +65,6 @@ static mtx_t g_hotreload_mutex;
 static bool g_hotreload_running = false;
 static bool g_hotreload_enabled = true;
 
-// 重置所有包表
-void runtime_reset_pkg_tables(void) {
-    tefstd_hashmap_clear(&plugin_pkgs);
-    tefstd_hashmap_clear(&modloader_pkgs);
-    tefstd_hashmap_clear(&module_pkgs);
-    TEKLOG_INFO("All package tables cleared");
-}
-
 /**
  * @brief 从enables.txt加载包ID列表
  */
@@ -82,7 +75,7 @@ static int load_enabled_ids(const char* base_dir, tefstd_vector_t* ids) {
 
     FILE* file = fopen(path, "r");
     if (!file) {
-        TEKLOG_ERROR("Cannot open enables.txt: %s", path);
+        // 文件不存在，直接返回-1表示失败
         return -1;
     }
 
@@ -103,7 +96,7 @@ static int load_enabled_ids(const char* base_dir, tefstd_vector_t* ids) {
             continue;
         }
 
-        // 复制字符串（不引用原始行）
+        // 复制字符串
         char* id_copy = strdup(line);
         if (!id_copy) continue;
 
@@ -128,8 +121,8 @@ static void load_single_pkg_type(const char* type_name, tefstd_hashmap_t* target
     const int count = load_enabled_ids(type_name, &ids);
 
     if (count <= 0) {
-        TEKLOG_WARN("No enabled %s packages", type_name);
-        tefstd_vector_destroy(&ids);
+        TEKLOG_DEBUG("No enabled %s packages (or enables.txt not found)", type_name);
+        // if (ids.data) tefstd_vector_destroy(&ids);
         return;
     }
 
@@ -202,7 +195,7 @@ static time_t get_directory_mtime(const char* path) {
  * @brief 检查工作目录是否被修改
  */
 static bool check_working_dir_modified(time_t* last_check_time) {
-    time_t current_mtime = get_directory_mtime(tefkernel_working_dir);
+    const time_t current_mtime = get_directory_mtime(tefkernel_working_dir);
 
     if (*last_check_time == 0) {
         *last_check_time = current_mtime;
@@ -226,9 +219,9 @@ static int hotreload_thread_func(void* arg) {
     TEKLOG_INFO("Hot reload thread started");
 
     time_t last_check_time = 0;
-    const int check_interval_ms = 1000; // 检查间隔1秒
 
     while (g_hotreload_running) {
+        const int check_interval_ms = 1000;
         // 休眠一段时间
         thrd_sleep(&(struct timespec){.tv_sec = 0, .tv_nsec = check_interval_ms * 1000000}, NULL);
 
@@ -246,7 +239,7 @@ static int hotreload_thread_func(void* arg) {
                     ml_handle_t** ml_ptr = tefstd_vector_at(&g_ml_list, i);
                     if (!ml_ptr || !*ml_ptr || !(*ml_ptr)->ml_entry || !(*ml_ptr)->ml_entry->ops) continue;
 
-                    ml_entry_t* entry = (*ml_ptr)->ml_entry;
+                    const ml_entry_t* entry = (*ml_ptr)->ml_entry;
 
                     // 检查是否有reload_mod函数
                     if (entry->ops->reload_mod) {
@@ -367,9 +360,6 @@ void tefkernel_init(void) {
     load_single_pkg_type("modloader", &modloader_pkgs);
     load_single_pkg_type("plugin", &plugin_pkgs);
     load_single_pkg_type("module", &module_pkgs);
-
-    // 第四步：启动热重载线程
-    tefkernel_start_hotreload_thread();
 
     // 统计总数
     const size_t total = tefstd_hashmap_len(&plugin_pkgs) +
@@ -509,6 +499,20 @@ static void load_all_modules(void) {
 }
 
 /**
+ * @brief 加载所有Mod
+ */
+static void load_all_mods(void) {
+    TEKLOG_INFO("Loading all mods");
+
+    const int loaded_count = tefkernel_load_all_mods();
+    if (loaded_count > 0) {
+        TEKLOG_INFO("Loaded %d mods successfully", loaded_count);
+    } else {
+        TEKLOG_DEBUG("No mods loaded");
+    }
+}
+
+/**
  * @brief 加载所有组件
  */
 void tefkernel_load(void) {
@@ -524,7 +528,24 @@ void tefkernel_load(void) {
     load_all_modloaders();
     load_all_modules();
 
+    // 4. 加载所有Mod
+    load_all_mods();
+
     TEKLOG_INFO("All components loaded");
+}
+
+/**
+ * @brief 初始化所有Mod
+ */
+static void init_all_mods(void) {
+    TEKLOG_INFO("Initializing all mods");
+
+    const int init_count = tefkernel_init_all_mods();
+    if (init_count > 0) {
+        TEKLOG_INFO("Initialized %d mods successfully", init_count);
+    } else {
+        TEKLOG_DEBUG("No mods initialized");
+    }
 }
 
 /**
@@ -533,7 +554,11 @@ void tefkernel_load(void) {
 void tefkernel_start(void) {
     TEKLOG_INFO("Starting kernel runtime");
 
-    // 1. 初始化所有ModLoader
+    // 1. 初始化所有模块
+    TEKLOG_DEBUG("Initializing all modules");
+    tefkernel_initialize_all_modules();
+
+    // 2. 初始化所有ModLoader
     if (g_ml_list_initialized) {
         const size_t ml_count = tefstd_vector_size(&g_ml_list);
         TEKLOG_INFO("Ensuring %zu modloaders are initialized", ml_count);
@@ -550,9 +575,8 @@ void tefkernel_start(void) {
         }
     }
 
-    // 2. 初始化所有模块
-    TEKLOG_DEBUG("Initializing all modules");
-    tefkernel_initialize_all_modules();
+    // 3. 初始化所有Mod
+    init_all_mods();
 
     TEKLOG_INFO("Kernel runtime started successfully");
 }
@@ -612,10 +636,16 @@ static void cleanup_table(tefstd_hashmap_t *table, const char* table_name) {
 void tefkernel_cleanup(void) {
     TEKLOG_INFO("Cleaning up package runtime system");
 
+    // 1. 停止热重载线程
     tefkernel_stop_hotreload_thread();
+
+    // 2. 清理所有模块
     tefkernel_cleanup_all_modules();
+
+    // 3. 清理所有ModLoader
     tefkernel_cleanup_all_ml();
 
+    // 4. 清理包哈希表
     cleanup_table(&plugin_pkgs, "plugin");
     cleanup_table(&modloader_pkgs, "modloader");
     cleanup_table(&module_pkgs, "module");

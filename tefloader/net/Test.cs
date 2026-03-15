@@ -45,7 +45,6 @@ public class Test
         NetApi.Initialization.FieldApi.Init();
         NetApi.Initialization.PropertyApi.Init();
         NetApi.Initialization.StructInit.InitAll();
-
         
         var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("init_tefkernel"));
         t();

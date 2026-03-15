@@ -47,8 +47,8 @@ extern "C" {
 typedef void *patch_handle_t;
 #define PATCH_NULL NULL
 #else
-typedef int32_t patch_handle_t;
-#define PATCH_NULL (-1)
+typedef intptr_t patch_handle_t;
+#define PATCH_NULL ((intptr_t)-1)
 #endif
 
 // 基本类型枚举

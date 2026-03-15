@@ -20,39 +20,22 @@
  * Created: 2026/1/3
  *******************************************************************************/
 
-#include <dlfcn.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-#include "internal/tefplugin/tef_core_imp.h"
-
-#ifdef _WIN32
-#include <direct.h>
-#include <windows.h>
-#define mkdir(path, mode) _mkdir(path)
-#define PATH_MAX MAX_PATH
-#define SEPARATOR '\\'
-#define SEPARATOR_STR "\\"
-#else
-#define SEPARATOR '/'
-#define SEPARATOR_STR "/"
-#endif
+#include "internal/runtime.h"
 
 
 #include "tef_api.h"
 #include "internal/log.h"
+#include "internal/kernel_state.h"
 
-#include "internal/modloader/modloader_core_imp.h"
-#include "memdl/memdl.h"
+char* tefkernel_working_dir = "/home/eternalfuture/.local/share/tefmanager";
 
 API_EXPORT int init_tefkernel() {
+
     // Initialize logging system first
     tefkernel_log_init("tefkernel.log");
+    tefkernel_init();
+    tefkernel_load();
+    tefkernel_start();
 
     return 0;
 }
