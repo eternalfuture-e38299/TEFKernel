@@ -109,7 +109,7 @@ patch_handle_t patchlib_type_new_instance(patch_handle_t type) {
     return result;
 }
 
-patch_handle_t patchlib_type_make_generic_type(patch_handle_t generic_type_def, const tef_vector_t *type_args) {
+patch_handle_t patchlib_type_make_generic_type(patch_handle_t generic_type_def, const tefstd_vector_t *type_args) {
     TEKLOG_DEBUG("patchlib_type_make_generic_type called: generic_type_def=%p, type_args_count=%zu",
                  generic_type_def, type_args ? tefstd_vector_size(type_args) : 0);
 
@@ -312,7 +312,7 @@ patch_handle_t patchlib_type_find_method(
         return PATCH_NULL;
     }
 
-    tef_vector_t methods = {};
+    tefstd_vector_t methods = {};
     patchlib_type_get_methods(type, false, &methods);
 
     size_t method_count = tefstd_vector_size(&methods);
@@ -349,7 +349,7 @@ typedef void * (*il2cpp_class_iterator_fn)(void *klass, void **iter);
 static bool patchlib_collect_from_type_hierarchy(
     void *start_type,
     const bool including_parent,
-    tef_vector_t *array,
+    tefstd_vector_t *array,
     const il2cpp_class_iterator_fn iterator_fn) {
     TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy: start_type=%p, including_parent=%s",
                  start_type, including_parent ? "true" : "false");
@@ -399,7 +399,7 @@ static bool patchlib_collect_from_type_hierarchy(
     return collection_success;
 }
 
-bool patchlib_type_get_inner_types(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_inner_types(patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_inner_types called: type=%p, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -413,7 +413,7 @@ bool patchlib_type_get_inner_types(patch_handle_t type, const bool including_par
     return result;
 }
 
-bool patchlib_type_get_methods(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_methods(patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_methods called: type=%p, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -427,7 +427,7 @@ bool patchlib_type_get_methods(patch_handle_t type, const bool including_parent,
     return result;
 }
 
-bool patchlib_type_get_fields(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_fields(patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_fields called: type=%p, including_parent=%s",
                  type, including_parent ? "true" : "false");
 
@@ -441,7 +441,7 @@ bool patchlib_type_get_fields(patch_handle_t type, const bool including_parent, 
     return result;
 }
 
-bool patchlib_type_get_properties(patch_handle_t type, const bool including_parent, tef_vector_t *array) {
+bool patchlib_type_get_properties(patch_handle_t type, const bool including_parent, tefstd_vector_t *array) {
     TEKLOG_DEBUG("patchlib_type_get_properties called: type=%p, including_parent=%s",
                  type, including_parent ? "true" : "false");
 

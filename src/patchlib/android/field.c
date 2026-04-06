@@ -88,6 +88,13 @@ void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, voi
         return;
     }
 
+    if (patchlib_field_is_const(field) || patchlib_field_is_thread_static(field)) {
+        TEKLOG_DEBUG("Getting const or threadStatic field value: field=%p",
+                     field);
+        il2cpp_field_static_get_value(field, value);
+        return;
+    }
+
     const size_t field_size = patchlib_field_get_size(field);
     void* field_pointer = patchlib_field_get_pointer(field, instance);
 
@@ -153,8 +160,8 @@ patch_type_t patchlib_field_get_type(const patch_handle_t field) {
         case IL2CPP_TYPE_R4:      result = PATCH_FLOAT; break;    // float
         case IL2CPP_TYPE_R8:      result = PATCH_DOUBLE; break;   // double
         case IL2CPP_TYPE_STRING:  result = PATCH_OBJECT; break;   // string
-        case IL2CPP_TYPE_PTR:     result = PATCH_POINTER; break;  // pointer
-        case IL2CPP_TYPE_I:       result = PATCH_POINTER; break;  // IntPtr
+        case IL2CPP_TYPE_PTR:       // pointer
+        case IL2CPP_TYPE_I:         // IntPtr
         case IL2CPP_TYPE_U:       result = PATCH_POINTER; break;  // UIntPtr
         default:
             result = PATCH_OBJECT;

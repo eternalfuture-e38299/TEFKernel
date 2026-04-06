@@ -179,8 +179,8 @@
     </sectiondef>
     <sectiondef kind="var">
       <memberdef kind="variable" id="tpf__core_8c_1a038c785482d59424db6593d5e64edce1" prot="public" static="no" mutable="no">
-        <type>tef_vector_t</type>
-        <definition>tef_vector_t plugin_handles</definition>
+        <type>tefstd_vector_t</type>
+        <definition>tefstd_vector_t plugin_handles</definition>
         <argsstring></argsstring>
         <name>plugin_handles</name>
         <briefdescription>
@@ -223,8 +223,8 @@
         <referencedby refid="tef__core__imp_8h_1af884bd094c09a87379d0bf9a57a2ce69" compoundref="tpf__core_8c" startline="71" endline="83">tpf_plugin_exists</referencedby>
       </memberdef>
       <memberdef kind="variable" id="tpf__core_8c_1a20ee342ed66b5b311896e1094347ccbb" prot="public" static="no" mutable="no">
-        <type>tef_vector_t</type>
-        <definition>tef_vector_t handles</definition>
+        <type>tefstd_vector_t</type>
+        <definition>tefstd_vector_t handles</definition>
         <argsstring></argsstring>
         <name>handles</name>
         <briefdescription>
@@ -632,13 +632,13 @@
 <codeline lineno="32"><highlight class="normal"></highlight></codeline>
 <codeline lineno="33"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
 <codeline lineno="34"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>插件句柄，为malloc分配</highlight><highlight class="normal"></highlight></codeline>
-<codeline lineno="35" refid="tpf__core_8c_1a038c785482d59424db6593d5e64edce1" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tef_vector_t<sp/><ref refid="tpf__core_8c_1a038c785482d59424db6593d5e64edce1" kindref="member">plugin_handles</ref>;<sp/><sp/></highlight><highlight class="comment">//<sp/>plugin_handle_t*</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35" refid="tpf__core_8c_1a038c785482d59424db6593d5e64edce1" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tefstd_vector_t<sp/><ref refid="tpf__core_8c_1a038c785482d59424db6593d5e64edce1" kindref="member">plugin_handles</ref>;<sp/><sp/></highlight><highlight class="comment">//<sp/>plugin_handle_t*</highlight><highlight class="normal"></highlight></codeline>
 <codeline lineno="36" refid="tpf__core_8c_1aedeffc7d23da25d52b9a50045189fe2b" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tpf__core_8c_1aedeffc7d23da25d52b9a50045189fe2b" kindref="member">initialized</ref>;</highlight></codeline>
 <codeline lineno="37" refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96" refkind="member"><highlight class="normal">}<sp/><ref refid="tpf__core_8c_1ae5d532b3e9d28ba2a3497d9b6583ce96" kindref="member">g_tpf_symbols</ref>;</highlight></codeline>
 <codeline lineno="38"><highlight class="normal"></highlight></codeline>
 <codeline lineno="39"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal">{</highlight></codeline>
 <codeline lineno="40"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>使用插件的动态库的句柄</highlight><highlight class="normal"></highlight></codeline>
-<codeline lineno="41" refid="tpf__core_8c_1a20ee342ed66b5b311896e1094347ccbb" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tef_vector_t<sp/><ref refid="tpf__core_8c_1a20ee342ed66b5b311896e1094347ccbb" kindref="member">handles</ref>;<sp/></highlight><highlight class="comment">//<sp/>void*</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41" refid="tpf__core_8c_1a20ee342ed66b5b311896e1094347ccbb" refkind="member"><highlight class="normal"><sp/><sp/><sp/><sp/>tefstd_vector_t<sp/><ref refid="tpf__core_8c_1a20ee342ed66b5b311896e1094347ccbb" kindref="member">handles</ref>;<sp/></highlight><highlight class="comment">//<sp/>void*</highlight><highlight class="normal"></highlight></codeline>
 <codeline lineno="42"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="tpf__core_8c_1aedeffc7d23da25d52b9a50045189fe2b" kindref="member">initialized</ref>;</highlight></codeline>
 <codeline lineno="43" refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882" refkind="member"><highlight class="normal">}<sp/><ref refid="tpf__core_8c_1a4047412ea20aee75d45a6e92ba9a3882" kindref="member">shared_plugin_libraries</ref>;</highlight></codeline>
 <codeline lineno="44"><highlight class="normal"></highlight></codeline>

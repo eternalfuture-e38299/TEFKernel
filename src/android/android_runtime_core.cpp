@@ -38,6 +38,9 @@
 #include "patchlib/type.h"
 #include "../patchlib/android/il2cpp_api.h"
 #include "patchlib/android/private.h"
+#include "tefstd/vector.h"
+
+#include "internal/terraria/netmanager.h"
 
 /*
 void Initialize_AlmostEverything_pre(patch_handle_t orig_func, patch_handle_t instance, void** args, const patch_method_signature_t* sig_info) {
@@ -105,7 +108,7 @@ patch_handle_t find_and_initialize_make_generic_method_impl() {
         }
 
         // Get methods for this class
-        tef_vector_t methods;
+        tefstd_vector_t methods;
         if (!tefstd_vector_init(&methods, sizeof(patch_handle_t))) {
             continue;
         }
@@ -172,7 +175,8 @@ int hook_il2cpp_init(const char* domain_name) {
 
     TEKLOG_INFO("TEFKernel core initialization completed");
 
-    start_test();
+    terraria_manager_init();
+    // start_test();
 
     return r;
 }
@@ -238,7 +242,7 @@ void* new_dlsym(void* handle, const char* sym) {
 JavaVM* GetJavaVMViaJNIStandard() {
     TEKLOG_DEBUG("Attempting to get JavaVM via JNI standard");
 
-    void* jniGetCreatedJavaVMs = DobbySymbolResolver(nullptr, "JNI_GetCreatedJavaVMs");
+    void* jniGetCreatedJavaVMs = DobbySymbolResolver("libart.so", "JNI_GetCreatedJavaVMs");
     if (!jniGetCreatedJavaVMs) {
         TEKLOG_ERROR("Could not find JNI_GetCreatedJavaVMs symbol");
         return nullptr;
@@ -310,6 +314,9 @@ void setup_signal_handlers() {
     TEKLOG_INFO("Signal handlers configured successfully");
 }
 
+void init_iohook(JavaVM* vm);
+
+char* tefkernel_working_dir = nullptr;
 __attribute__((constructor))
 int init_ary() {
     // Initialize logging system first
@@ -320,12 +327,9 @@ int init_ary() {
     DobbyHook(reinterpret_cast<void*>(dlsym), reinterpret_cast<void*>(new_dlsym), reinterpret_cast<void **>(&old_dlsym));
 
     TEKLOG_DEBUG("Attempting to get JNI environment");
-    JNIEnv *env;
-    if (JavaVM* vm = GetJavaVMViaJNIStandard(); vm && vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_OK) {
-        TEKLOG_INFO("JNI environment obtained successfully: %p", env);
-    } else {
-        TEKLOG_WARN("Failed to get JNI environment");
-    }
+    JavaVM* vm = GetJavaVMViaJNIStandard();
+
+    init_iohook(vm);
 
     TEKLOG_DEBUG("Setting up crash signal handlers");
     setup_signal_handlers();

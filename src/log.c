@@ -566,7 +566,7 @@ void tefkernel_log_write_net(const tefkernel_log_level_t level, const char *file
     const char *msg) {
 
 #if !defined(NDEBUG)
-    tefkernel_log_write_ex(level, file, line, func, msg);
+    tefkernel_log_write_ex(level, file, line, func, "%s", msg);
 #else
     // 发布版本：过滤掉 TRACE 和 DEBUG 级别的日志
     if (level >= TEFKERNEL_LOG_LEVEL_INFO) {

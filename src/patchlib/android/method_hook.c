@@ -41,8 +41,8 @@ typedef struct patchlib_hook_handle_t {
     ffi_closure* closure;
     void *trampoline_func; ///< 跳板函数
     patch_method_signature_t method_signature; ///< 函数签名
-    tef_vector_t prefixes; ///< 前置补丁函数(void*)
-    tef_vector_t postfixes; ///< 后置补丁函数(void*)
+    tefstd_vector_t prefixes; ///< 前置补丁函数(void*)
+    tefstd_vector_t postfixes; ///< 后置补丁函数(void*)
     bool is_hooked; ///< 是否已挂钩
 } patchlib_hook_handle_t;
 
@@ -55,7 +55,7 @@ typedef struct patchlib_hook_node_t {
 
 static struct {
     bool initialized; ///< 初始化状态
-    tef_vector_t hook_handles;    ///< Hook句柄 <patchlib_hook_handle_t*>
+    tefstd_vector_t hook_handles;    ///< Hook句柄 <patchlib_hook_handle_t*>
     tefstd_hashmap_t hooks; ///< Hook节点 <patch_hook_id_t, patchlib_hook_node_t*>
     tefstd_hashmap_t method_to_handle;  ///< 方法到句柄的映射 <void*, patchlib_hook_handle_t*>
     patch_hook_id_t next_hook_id; ///< 下一个可用的Hook ID

@@ -39,8 +39,8 @@
         <referencedby refid="tef__core__imp_8h_1aa3e0e858003bfe94ad23eca5d45535a8" compoundref="tpf__core_8c" startline="376" endline="456">tpf_initialize_all_plugins</referencedby>
       </memberdef>
       <memberdef kind="variable" id="structplugin__handle__t_1a078d72d46d45f479dc74f4b610e12ed8" prot="public" static="no" mutable="no">
-        <type>tef_vector_t</type>
-        <definition>tef_vector_t plugin_handle_t::sym_names</definition>
+        <type>tefstd_vector_t</type>
+        <definition>tefstd_vector_t plugin_handle_t::sym_names</definition>
         <argsstring></argsstring>
         <name>sym_names</name>
         <qualifiedname>plugin_handle_t::sym_names</qualifiedname>
@@ -59,8 +59,8 @@
         <referencedby refid="tpf__core_8c_1a61bee02a9255a23d9eb7d31183b43317" compoundref="tpf__core_8c" startline="342" endline="374">tpf_register_symbol</referencedby>
       </memberdef>
       <memberdef kind="variable" id="structplugin__handle__t_1a2e1c5dd3f41485323a563913b8db8886" prot="public" static="no" mutable="no">
-        <type>tef_vector_t</type>
-        <definition>tef_vector_t plugin_handle_t::sym_addrs</definition>
+        <type>tefstd_vector_t</type>
+        <definition>tefstd_vector_t plugin_handle_t::sym_addrs</definition>
         <argsstring></argsstring>
         <name>sym_addrs</name>
         <qualifiedname>plugin_handle_t::sym_addrs</qualifiedname>

@@ -257,7 +257,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     return true;
 }
 
-patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tef_vector_t *template_types) {
+patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tefstd_vector_t *template_types) {
     TEKLOG_DEBUG("Manual generic method instantiation without symbols");
 
     if (!patchlib_is_valid(method)) {

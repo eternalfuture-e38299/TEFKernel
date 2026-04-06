@@ -66,6 +66,7 @@ void il2cpp_api_init(void *handle) {
     LOAD_SYMBOL(il2cpp_field_get_parent);
     LOAD_SYMBOL(il2cpp_field_get_offset);
     LOAD_SYMBOL(il2cpp_field_get_type);
+    LOAD_SYMBOL(il2cpp_field_static_get_value);
 
     // 加载属性相关API
     LOAD_SYMBOL(il2cpp_property_get_name);

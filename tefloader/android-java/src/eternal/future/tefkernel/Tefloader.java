@@ -6,12 +6,33 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+
+/*******************************************************************************
+ * TEFKernel - eternal.future.tefkernel.Tefloader
+ * Copyright (C) 2026 eternalfuture-e38299
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Author: eternalfuture-e38299
+ * GitHub: https://github.com/eternalfuture-e38299
+ * Created: 2026/2/28
+ *******************************************************************************/
 
 public class Tefloader {
     private static final String TAG = "Tefloader";
@@ -30,7 +51,7 @@ public class Tefloader {
     private static final String KEY_MODE = "mode";
 
     // Kernel file constants
-    private static final String KERNEL_BASE_NAME = "libtefkernel";
+    private static final String KERNEL_BASE_NAME = "libtefkernel.android";
     private static final String KERNEL_FILE_EXTENSION = ".so";
     private static final String ARM64_V8A = "arm64-v8a";
     private static final String ARMEABI_V7A = "armeabi-v7a";
@@ -229,7 +250,7 @@ public class Tefloader {
 
     private static File copyKernelToCache(Context context, String arch, ParcelFileDescriptor kernelFd) throws IOException {
         File cacheDir = context.getFilesDir();
-        File kernelFile = new File(cacheDir, "libtefkernel." + arch + ".so");
+        File kernelFile = new File(cacheDir, "libtefkernel.android." + arch + ".so");
 
         // Delete old file if exists
         if (kernelFile.exists()) {

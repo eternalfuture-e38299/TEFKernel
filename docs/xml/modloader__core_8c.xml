@@ -122,8 +122,8 @@
     </incdepgraph>
     <sectiondef kind="var">
       <memberdef kind="variable" id="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" prot="public" static="no" mutable="no">
-        <type>tef_vector_t</type>
-        <definition>tef_vector_t g_ml_list</definition>
+        <type>tefstd_vector_t</type>
+        <definition>tefstd_vector_t g_ml_list</definition>
         <argsstring></argsstring>
         <name>g_ml_list</name>
         <briefdescription>
@@ -548,7 +548,7 @@
 <codeline lineno="30"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="memdl_8h" kindref="compound">memdl/memdl.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
 <codeline lineno="31"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="tefpkg_8h" kindref="compound">tefpackage/tefpkg.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
 <codeline lineno="32"><highlight class="normal"></highlight></codeline>
-<codeline lineno="33" refid="modloader__core__imp_8h_1a1a3e329ca8d9bf9e7150ef79fe85d709" refkind="member"><highlight class="normal">tef_vector_t<sp/><ref refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" kindref="member">g_ml_list</ref>;<sp/></highlight></codeline>
+<codeline lineno="33" refid="modloader__core__imp_8h_1a1a3e329ca8d9bf9e7150ef79fe85d709" refkind="member"><highlight class="normal">tefstd_vector_t<sp/><ref refid="modloader__core_8c_1a1a3e329ca8d9bf9e7150ef79fe85d709" kindref="member">g_ml_list</ref>;<sp/></highlight></codeline>
 <codeline lineno="34" refid="modloader__core__imp_8h_1af301f5bd06fac4d19cf5aa9e60a9d88e" refkind="member"><highlight class="normal"></highlight><highlight class="keywordtype">bool</highlight><highlight class="normal"><sp/><ref refid="modloader__core_8c_1af301f5bd06fac4d19cf5aa9e60a9d88e" kindref="member">g_ml_list_initialized</ref><sp/>=<sp/></highlight><highlight class="keyword">false</highlight><highlight class="normal">;<sp/></highlight></codeline>
 <codeline lineno="35"><highlight class="normal"></highlight></codeline>
 <codeline lineno="41" refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="modloader__core_8c_1a7d1ebb55836adbf6edb34b12f68271b3" kindref="member">cleanup_unreferenced_plugins</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="structml__info__t" kindref="compound">ml_info_t</ref>*<sp/>ml_info)<sp/>{</highlight></codeline>
@@ -922,7 +922,7 @@
 <codeline lineno="424"><highlight class="normal"><sp/><sp/><sp/><sp/><ref refid="log_8h_1a0d169411a6feb16870d7eade6360a613" kindref="member">TEKLOG_INFO</ref>(</highlight><highlight class="stringliteral">&quot;Cleaning<sp/>up<sp/>all<sp/>%zu<sp/>modloaders&quot;</highlight><highlight class="normal">,<sp/>ml_count);</highlight></codeline>
 <codeline lineno="425"><highlight class="normal"></highlight></codeline>
 <codeline lineno="426"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>首先收集所有插件依赖</highlight><highlight class="normal"></highlight></codeline>
-<codeline lineno="427"><highlight class="normal"><sp/><sp/><sp/><sp/>tef_vector_t<sp/>all_plugin_deps;</highlight></codeline>
+<codeline lineno="427"><highlight class="normal"><sp/><sp/><sp/><sp/>tefstd_vector_t<sp/>all_plugin_deps;</highlight></codeline>
 <codeline lineno="428"><highlight class="normal"><sp/><sp/><sp/><sp/>tefstd_vector_init(&amp;all_plugin_deps,<sp/></highlight><highlight class="keyword">sizeof</highlight><highlight class="normal">(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal">*));</highlight></codeline>
 <codeline lineno="429"><highlight class="normal"></highlight></codeline>
 <codeline lineno="430"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">for</highlight><highlight class="normal"><sp/>(</highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>0;<sp/>i<sp/>&lt;<sp/>ml_count;<sp/>++i)<sp/>{</highlight></codeline>

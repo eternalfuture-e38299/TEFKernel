@@ -512,6 +512,14 @@ DEFINE_IL2CPP_API(void*, il2cpp_object_unbox, void* obj)
  */
 DEFINE_IL2CPP_API(uint32_t, il2cpp_method_get_token, const void* method)
 
+/**
+ * @brief 获取静态字段值
+ * @param field 字段信息指针(原始类型: FieldInfo*)
+ * @param value [out] 输出值缓冲区
+ */
+DEFINE_IL2CPP_API(void, il2cpp_field_static_get_value,
+                  void* field, void* value)
+
 #ifdef __cplusplus
 }
 #endif

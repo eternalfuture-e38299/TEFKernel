@@ -33,7 +33,7 @@ typedef struct il2cpp_array_t {
     // void *m_values;
 } il2cpp_array_t;
 
-void *create_type_array_from_vector(const tef_vector_t *type_vector, void *elementTypeClass) {
+void *create_type_array_from_vector(const tefstd_vector_t *type_vector, void *elementTypeClass) {
     if (!elementTypeClass) {
         TEKLOG_ERROR("elementTypeClass is NULL");
         return NULL;

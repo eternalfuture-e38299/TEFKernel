@@ -52,7 +52,7 @@ patch_handle_t patchlib_dictionary_create(patch_handle_t key_type, patch_handle_
     init_dictionary_class();
 
     // 创建泛型参数列表
-    tef_vector_t v;
+    tefstd_vector_t v;
     tefstd_vector_init(&v, sizeof(patch_handle_t));
     tefstd_vector_push_back(&v, &key_type);
     tefstd_vector_push_back(&v, &value_type);

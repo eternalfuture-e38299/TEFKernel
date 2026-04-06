@@ -24,14 +24,13 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 
+#include "internal/kernel_state.h"
 #include "internal/log.h"
-#include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/type.h"
 #include "patchlib/android/il2cpp_api.h"
-#include "patchlib/struct/array.h"
-#include "patchlib/struct/string.h"
 
 
 // 辅助函数: 创建并填充纹理
@@ -261,6 +260,7 @@ void start_test() {
         "Initialize_AlmostEverything",
         0
     );
+
 
     patchlib_install_prepost_hook(method, (prefix_callback_t)Initialize_AlmostEverything_pre, (postfix_callback_t)Initialize_AlmostEverything_post);
 }

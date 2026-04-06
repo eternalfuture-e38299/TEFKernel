@@ -55,7 +55,7 @@ patch_handle_t patchlib_list_create(size_t capacity, patch_handle_t type) {
     init_list_class();
 
     // 创建泛型参数列表
-    tef_vector_t v;
+    tefstd_vector_t v;
     tefstd_vector_init(&v, sizeof(patch_handle_t));
     tefstd_vector_push_back(&v, &type);
 

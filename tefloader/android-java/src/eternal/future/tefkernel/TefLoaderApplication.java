@@ -4,7 +4,7 @@ import android.app.Application;
 import android.util.Log;
 
 /*******************************************************************************
- * TEFManager - eternal.future.tefkernel.TefLoaderApplication
+ * TEFKernel - eternal.future.tefkernel.TefLoaderApplication
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify

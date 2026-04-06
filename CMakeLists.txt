@@ -10,7 +10,7 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 endif()
 
-set(ANDROID_MODE OFF)
+set(ANDROID_MODE ON)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
@@ -72,6 +72,8 @@ set(INTERNAL_SRC
         src/mod_core.c
 )
 
+set(TERRARIA_SRC)
+
 set(TEFPACKAGE_SRC
         src/tefpackage/compressor.c
         src/tefpackage/lz4.c
@@ -84,6 +86,12 @@ if (ANDROID)
     list(APPEND INTERNAL_SRC
             src/android/android_runtime_core.cpp
             src/android/android_test.cpp
+            src/android/cpcall.cpp
+            src/android/iohook.cpp
+    )
+
+    list(APPEND TERRARIA_SRC
+            src/terraria/android/netmanager.c
     )
 else ()
     list(APPEND INTERNAL_SRC
@@ -101,6 +109,7 @@ add_library(tefkernel SHARED
         ${MODLOADER_SRC}
         ${MODULE_SRC}
         ${TEFPACKAGE_SRC}
+        ${TERRARIA_SRC}
 )
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
