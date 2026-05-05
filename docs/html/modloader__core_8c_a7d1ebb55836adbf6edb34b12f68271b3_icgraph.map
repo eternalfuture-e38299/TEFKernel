@@ -1,9 +1,0 @@
-<map id="cleanup_unreferenced_plugins" name="cleanup_unreferenced_plugins">
-<area shape="rect" id="Node000001" title="清理无引用的插件" alt="" coords="412,23,579,63"/>
-<area shape="rect" id="Node000002" href="$modloader__core_8c.html#af69d679a9527917b17bc01746d8c2753" title="内部清理函数" alt="" coords="239,31,364,56"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="398,46,364,46,364,41,398,41"/>
-<area shape="rect" id="Node000003" href="$modloader__core_8c.html#a90988cbf15046dbfa6c9ae9726e3233e" title="清理所有modloader" alt="" coords="5,5,191,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="225,36,191,32,191,27,225,31"/>
-<area shape="rect" id="Node000004" href="$modloader__core_8c.html#a63732dbf76d93673faa428801c86fdc0" title="卸载Mod加载器" alt="" coords="17,55,179,80"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="225,55,180,60,179,55,225,50"/>
-</map>

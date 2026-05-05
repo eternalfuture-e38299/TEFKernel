@@ -77,7 +77,7 @@ typedef struct {
      * @param mod_manifest Mod描述信息
      * @return ml_result_t 结果码
      */
-    ml_result_t * (*load_mod)(mod_manifest_t *mod_manifest);
+    ml_result_t (*load_mod)(mod_manifest_t *mod_manifest);
 
     /**
      * @brief 卸载单个Mod
@@ -92,7 +92,7 @@ typedef struct {
      * @param mod_manifest Mod描述信息
      * @return ml_result_t 结果码
      */
-    ml_result_t * (*reload_mod)(mod_manifest_t *mod_manifest);
+    ml_result_t (*reload_mod)(mod_manifest_t *mod_manifest);
 
     /**
      * @brief 初始化单个Mod

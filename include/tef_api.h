@@ -31,14 +31,16 @@
 #ifndef TEFKERNEL_TEF_API_H
 #define TEFKERNEL_TEF_API_H
 
-#if defined(_WIN32) || defined(_WIN64)
-#ifdef BUILDING_DLL
-#define API_EXPORT __declspec(dllexport)
+#if defined(_WIN32) && defined(__MINGW32__)
+    #define API_EXPORT
+#elif defined(_WIN32) || defined(_WIN64)
+    #ifdef BUILDING_DLL
+        #define API_EXPORT __declspec(dllexport)
+    #else
+        #define API_EXPORT
+    #endif
 #else
-#define API_EXPORT __declspec(dllimport)
-#endif
-#else
-#define API_EXPORT __attribute__((visibility("default")))
+    #define API_EXPORT __attribute__((visibility("default")))
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)

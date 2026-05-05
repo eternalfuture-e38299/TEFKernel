@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28.3)
 project(tefkernel C CXX)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(NDEBUG)
@@ -10,7 +10,7 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 endif()
 
-set(ANDROID_MODE ON)
+set(ANDROID_MODE OFF)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
@@ -92,6 +92,7 @@ if (ANDROID)
 
     list(APPEND TERRARIA_SRC
             src/terraria/android/netmanager.c
+            src/terraria/android/texture2d.c
     )
 else ()
     list(APPEND INTERNAL_SRC
@@ -111,6 +112,30 @@ add_library(tefkernel SHARED
         ${TEFPACKAGE_SRC}
         ${TERRARIA_SRC}
 )
+
+# Windows 动态库：强制导出所有符号
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
+    # 启用自动导出所有符号
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set_target_properties(tefkernel PROPERTIES
+            WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+
+    # 方法2：链接器选项强制导出
+    target_link_options(tefkernel PRIVATE
+            -Wl,--export-all-symbols
+            -Wl,--enable-auto-import
+            -Wl,--whole-archive
+            -Wl,--kill-at
+    )
+
+    # 链接 Windows 系统库
+    target_link_libraries(tefkernel PRIVATE
+            ws2_32
+            bcrypt
+            winmm
+    )
+endif()
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
 
@@ -138,12 +163,14 @@ if (${ANDROID})
     set(FullFloatingPointRegisterPack OFF CACHE BOOL "Save and pack all floating-point registers" FORCE)
     set(DOBBY_DEBUG OFF CACHE BOOL "Enable debug logging" FORCE) # 生产环境建议关闭
 
+    add_subdirectory(xdl)
     add_subdirectory(dobby)
     target_link_libraries(tefkernel
             PUBLIC
             android
             log
             dobby_static
+            xdl
     )
 endif ()
 
@@ -152,16 +179,87 @@ target_include_directories(tefkernel
         include
         src
 )
-if (${CMAKE_C_FLAGS_RELEASE})
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         add_custom_command(TARGET tefkernel POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
-                COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:tefkernel>
+                COMMAND ${CMAKE_STRIP} --strip-all $<TARGET_FILE:tefkernel>
                 COMMENT "Stripping symbols from tefkernel library using strip command"
                 VERBATIM
         )
     endif()
 endif ()
+
+# 获取系统名称和架构
+if(ANDROID)
+    set(SYSTEM_NAME "android")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(SYSTEM_NAME "linux")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(SYSTEM_NAME "darwin")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(SYSTEM_NAME "windows")
+else()
+    set(SYSTEM_NAME "unknown")
+endif()
+
+# 获取架构
+
+if(ANDROID)
+    # Android 使用 NDK 的 ABI 名称
+    if(ANDROID_ABI STREQUAL "arm64-v8a")
+        set(ARCH "arm64-v8a")
+    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        set(ARCH "armeabi-v7a")
+    else()
+        set(ARCH "${ANDROID_ABI}")
+    endif()
+elseif(MINGW OR WIN32)
+    # Windows: 通过编译器名称判断架构
+    if(CMAKE_C_COMPILER MATCHES "x86_64-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "x86_64-w64-mingw32")
+        set(ARCH "x64")
+    elseif(CMAKE_C_COMPILER MATCHES "i686-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "i686-w64-mingw32")
+        set(ARCH "x86")
+    else()
+        # 备用方案：通过指针大小判断
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(ARCH "x64")
+        else()
+            set(ARCH "x86")
+        endif()
+    endif()
+else()
+    # 非 Android 平台使用简化的架构名称
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        set(ARCH "arm64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7a|ARMv7|arm")
+        set(ARCH "arm32")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
+        set(ARCH "x64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86")
+        set(ARCH "x86")
+    else()
+        set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+endif()
+
+#[[
+message(STATUS "========== DEBUG ==========")
+message(STATUS "SYSTEM_NAME: ${SYSTEM_NAME}")
+message(STATUS "ARCH: ${ARCH}")
+message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "WIN32: ${WIN32}")
+message(STATUS "MINGW: ${MINGW}")
+message(STATUS "============================")]]
+
+
+# 设置输出文件名
+set_target_properties(tefkernel PROPERTIES
+    OUTPUT_NAME "tefkernel.${SYSTEM_NAME}.${ARCH}"
+)
+#[[
 
 set(TEST ON)
 if (${TEST})
@@ -170,4 +268,4 @@ if (${TEST})
     add_library(test_module SHARED
             test/module.c
     )
-endif ()
+endif ()]]

@@ -1,9 +1,0 @@
-<map id="include/modloader/modloader_core.h" name="include/modloader/modloader_core.h">
-<area shape="rect" id="Node000001" title=" " alt="" coords="71,5,288,45"/>
-<area shape="rect" id="Node000002" href="$modloader__core__imp_8h.html" title=" " alt="" coords="92,93,267,133"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="182,59,182,93,177,93,177,59"/>
-<area shape="rect" id="Node000003" href="$desktop__runtime__core_8c.html" title=" " alt="" coords="5,181,159,221"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="149,144,105,183,102,179,146,140"/>
-<area shape="rect" id="Node000004" href="$modloader__core_8c.html" title=" " alt="" coords="183,181,373,221"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="213,140,258,179,254,183,210,144"/>
-</map>

@@ -25,8 +25,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <threads.h>
 
+#include "internal/platform_threads.h"
 #include "internal/modloader/modloader_core_imp.h"
 #include "internal/module/module_core_imp.h"
 #include "internal/tefplugin/tef_core_imp.h"
@@ -532,17 +532,52 @@ bool tpf_register_plugin_symbols(plugin_handle_t* plugin) {
 
 bool tpf_register_shared_plugin_library(void *handle) {
     if (!handle) {
+        TEKLOG_ERROR("Invalid handle provided to tpf_register_shared_plugin_library");
         return false;
     }
 
+    TEKLOG_INFO("Registering shared plugin library with handle %p", handle);
+
+    // 初始化共享库列表（如果未初始化）
     if (!shared_plugin_libraries.initialized) {
+        TEKLOG_DEBUG("Initializing shared plugin libraries vector");
         if (!tefstd_vector_init(&shared_plugin_libraries.handles, sizeof(void*))) {
+            TEKLOG_ERROR("Failed to initialize shared plugin libraries vector");
             return false;
         }
         shared_plugin_libraries.initialized = true;
     }
 
-    return tefstd_vector_push_back(&shared_plugin_libraries.handles, &handle);
+    // 检查是否已经注册过
+    const size_t current_count = tefstd_vector_size(&shared_plugin_libraries.handles);
+    for (size_t i = 0; i < current_count; ++i) {
+        void** existing_ptr = tefstd_vector_at(&shared_plugin_libraries.handles, i);
+        if (existing_ptr && *existing_ptr == handle) {
+            TEKLOG_DEBUG("Library %p already registered, skipping", handle);
+            return true;
+        }
+    }
+
+    // 添加到列表
+    if (!tefstd_vector_push_back(&shared_plugin_libraries.handles, &handle)) {
+        TEKLOG_ERROR("Failed to add library %p to shared libraries list", handle);
+        return false;
+    }
+
+    TEKLOG_DEBUG("Library %p added to shared libraries list (total: %zu)",
+                handle, tefstd_vector_size(&shared_plugin_libraries.handles));
+
+    // 立即将所有已加载插件的符号注册到这个新库
+    TEKLOG_DEBUG("Registering all existing plugin symbols to new library %p", handle);
+    const bool registration_result = tpf_register_all_plugin_symbols_to_library(handle);
+
+    if (registration_result) {
+        TEKLOG_INFO("Successfully registered existing plugin symbols to library %p", handle);
+    } else {
+        TEKLOG_WARN("No plugin symbols were registered to library %p (no plugins loaded yet)", handle);
+    }
+
+    return true;
 }
 
 // API函数
@@ -552,8 +587,6 @@ bool tpf_register_symbol(plugin_handle_t* this_handle, const char *name, const v
         TEKLOG_ERROR("Invalid parameters for symbol registration");
         return false;
     }
-
-    TEKLOG_DEBUG("Registering symbol '%s' at %p for plugin %p", name, addr, (void*)this_handle);
 
     const bool name_result = tefstd_vector_push_back(&this_handle->sym_names, &name);
     const bool addr_result = tefstd_vector_push_back(&this_handle->sym_addrs, &addr);
@@ -568,12 +601,10 @@ bool tpf_register_symbol(plugin_handle_t* this_handle, const char *name, const v
                     void** sym_ptr = memdl_sym(*lib_ptr, name);
                     if (sym_ptr) {
                         *sym_ptr = (void*)addr;
-                        TEKLOG_TRACE("Immediately registered '%s' to library %p", name, *lib_ptr);
                     }
                 }
             }
         }
-        TEKLOG_TRACE("Symbol '%s' registered successfully", name);
         return true;
     }
 
@@ -600,6 +631,7 @@ bool tpf_initialize_all_plugins() {
 
     bool all_success = true;
 
+    // 第一步：初始化所有插件
     for (size_t i = 0; i < plugin_count; ++i) {
         plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
         if (!plugin_ptr || !*plugin_ptr) {
@@ -611,7 +643,9 @@ bool tpf_initialize_all_plugins() {
 
         // 尝试初始化插件（如果有初始化函数）
         if (plugin->ops && plugin->ops->initialize) {
-            TEKLOG_DEBUG("Initializing plugin %zu (handle: %p)", i, (void*)plugin);
+            TEKLOG_DEBUG("Initializing plugin %zu (handle: %p, pkg_id: %s)",
+                        i, (void*)plugin,
+                        plugin->ops->get_info ? plugin->ops->get_info()->pkg_id : "unknown");
 
             if (!plugin->ops->initialize(plugin)) {
                 TEKLOG_ERROR("Plugin %zu initialization failed", i);
@@ -625,42 +659,135 @@ bool tpf_initialize_all_plugins() {
         }
     }
 
-    // 第三步：将所有插件的符号注册到所有共享库
-    if (shared_plugin_libraries.initialized) {
-        const size_t lib_count = tefstd_vector_size(&shared_plugin_libraries.handles);
-        TEKLOG_DEBUG("Registering all plugin symbols to %zu shared libraries", lib_count);
-
-        for (size_t i = 0; i < plugin_count; ++i) {
-            plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
-            if (!plugin_ptr || !*plugin_ptr) continue;
-
-            plugin_handle_t* plugin = *plugin_ptr;
-
-            // 检查插件是否有符号
-            const size_t sym_count = tefstd_vector_size(&plugin->sym_names);
-            if (sym_count == 0) {
-                TEKLOG_DEBUG("Plugin %zu has no symbols to register (handle: %p)",
-                            i, (void*)plugin);
-                continue;
-            }
-
-            TEKLOG_DEBUG("Registering %zu symbols for plugin %zu (handle: %p)",
-                       sym_count, i, (void*)plugin);
-
-            if (!tpf_register_plugin_symbols(plugin)) {
-                TEKLOG_ERROR("Failed to register symbols for plugin %zu", i);
-                all_success = false;
-            } else {
-                TEKLOG_DEBUG("Plugin %zu symbols registered successfully", i);
-            }
-        }
-    } else {
+    // 第二步：将所有插件的符号注册到所有共享库
+    if (!shared_plugin_libraries.initialized) {
         TEKLOG_WARN("Shared libraries not initialized, cannot register symbols");
+        TEKLOG_INFO("All plugins initialization completed: %s",
+                    all_success ? "success" : "with errors");
+        return all_success;
     }
 
+    const size_t lib_count = tefstd_vector_size(&shared_plugin_libraries.handles);
+    if (lib_count == 0) {
+        TEKLOG_DEBUG("No shared libraries to register symbols to");
+        TEKLOG_INFO("All plugins initialization completed: %s",
+                    all_success ? "success" : "with errors");
+        return all_success;
+    }
+
+    TEKLOG_INFO("Registering all plugin symbols to %zu shared libraries", lib_count);
+
+    // 为每个共享库注册所有插件的符号
+    size_t total_symbols_registered = 0;
+    size_t successful_libraries = 0;
+
+    for (size_t i = 0; i < lib_count; ++i) {
+        void** lib_ptr = tefstd_vector_at(&shared_plugin_libraries.handles, i);
+        if (!lib_ptr || !*lib_ptr) {
+            TEKLOG_WARN("Invalid library handle at index %zu", i);
+            continue;
+        }
+
+        void* lib_handle = *lib_ptr;
+        TEKLOG_DEBUG("Registering symbols to library %zu: %p", i, lib_handle);
+
+        // 使用统一的函数注册所有插件符号到这个库
+        if (tpf_register_all_plugin_symbols_to_library(lib_handle)) {
+            successful_libraries++;
+            // 获取注册的符号数量（可以通过修改 tpf_register_all_plugin_symbols_to_library 返回注册数量）
+            TEKLOG_DEBUG("Successfully registered symbols to library %zu", i);
+        } else {
+            TEKLOG_WARN("Failed to register some symbols to library %zu", i);
+            all_success = false;
+        }
+    }
+
+    // 统计总符号数（可选：修改 tpf_register_all_plugin_symbols_to_library 返回注册数量）
+    for (size_t i = 0; i < plugin_count; ++i) {
+        plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
+        if (!plugin_ptr || !*plugin_ptr) continue;
+
+        const plugin_handle_t* plugin = *plugin_ptr;
+        total_symbols_registered += tefstd_vector_size(&plugin->sym_names);
+    }
+
+    TEKLOG_INFO("Symbol registration completed: %zu symbols from %zu plugins registered to %zu/%zu libraries",
+               total_symbols_registered, plugin_count, successful_libraries, lib_count);
     TEKLOG_INFO("All plugins initialization completed: %s",
                 all_success ? "success" : "with errors");
+
     return all_success;
+}
+
+bool tpf_register_all_plugin_symbols_to_library(void *handle) {
+    if (!handle) {
+        TEKLOG_ERROR("Invalid handle provided");
+        return false;
+    }
+
+    if (!g_tpf_symbols.initialized) {
+        TEKLOG_DEBUG("Plugin system not initialized, no symbols to register");
+        return true;  // 没有插件，返回成功
+    }
+
+    const size_t plugin_count = tefstd_vector_size(&g_tpf_symbols.plugin_handles);
+    if (plugin_count == 0) {
+        TEKLOG_DEBUG("No plugins loaded to register symbols");
+        return true;
+    }
+
+    TEKLOG_INFO("Registering all %zu plugins' symbols to new library %p", plugin_count, handle);
+
+    size_t total_symbols_registered = 0;
+    bool any_success = false;
+
+    for (size_t i = 0; i < plugin_count; ++i) {
+        plugin_handle_t** plugin_ptr = tefstd_vector_at(&g_tpf_symbols.plugin_handles, i);
+        if (!plugin_ptr || !*plugin_ptr) {
+            continue;
+        }
+
+        const plugin_handle_t* plugin = *plugin_ptr;
+        const size_t sym_count = tefstd_vector_size(&plugin->sym_names);
+
+        if (sym_count == 0) {
+            continue;
+        }
+
+        size_t plugin_success_count = 0;
+
+        for (size_t j = 0; j < sym_count; ++j) {
+            const char** name_ptr = tefstd_vector_at(&plugin->sym_names, j);
+            const void** addr_ptr = tefstd_vector_at(&plugin->sym_addrs, j);
+
+            if (name_ptr && addr_ptr && *name_ptr && *addr_ptr) {
+                const char* sym_name = *name_ptr;
+                const void* sym_addr = *addr_ptr;
+
+                // 在新库中查找符号指针并设置值
+                void** sym_ptr = memdl_sym(handle, sym_name);
+                if (sym_ptr) {
+                    *sym_ptr = (void*)sym_addr;
+                    plugin_success_count++;
+                    total_symbols_registered++;
+                }
+            }
+        }
+
+        if (plugin_success_count > 0) {
+            any_success = true;
+            TEKLOG_DEBUG("Plugin %zu: %zu/%zu symbols registered successfully",
+                        i, plugin_success_count, sym_count);
+        } else {
+            TEKLOG_WARN("Plugin %zu: 0/%zu symbols registered to library %p",
+                       i, sym_count, handle);
+        }
+    }
+
+    TEKLOG_INFO("Symbol registration completed: %zu symbols registered to library %p, success=%s",
+               total_symbols_registered, handle, any_success ? "true" : "false");
+
+    return any_success;
 }
 
 #define TPF_KERNEL_SYMBOL(func) \
@@ -917,6 +1044,8 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_object_free);
     TPF_KERNEL_SYMBOL(patchlib_object_persist);
 #endif
+
+    TPF_KERNEL_SYMBOL(tpf_register_shared_plugin_library);
 
     // 将内核插件添加到全局列表
     if (tefstd_vector_push_back(&g_tpf_symbols.plugin_handles, &kernel_plugin)) {

@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-void terraria_manager_init();
+void terraria_netmanager_init();
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,307 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base-linux",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "ANDROID_MODE": "OFF",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "base-linux-cross",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "ANDROID_MODE": "OFF"
+      }
+    },
+    {
+      "name": "base-windows",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "Windows",
+        "ANDROID_MODE": "OFF"
+      }
+    },
+    {
+      "name": "base-macos",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "Darwin",
+        "ANDROID_MODE": "OFF"
+      }
+    },
+    {
+      "name": "base-android",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "ANDROID_MODE": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "/home/eternalfuture/Android/Sdk/ndk/28.0.13004108/build/cmake/android.toolchain.cmake"
+      }
+    },
+    {
+      "name": "linux-x86_64-debug",
+      "inherits": "base-linux",
+      "displayName": "Linux x86_64 Debug",
+      "description": "Build for Linux x86_64 (native) - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-x86_64-release",
+      "inherits": "base-linux",
+      "displayName": "Linux x86_64 Release",
+      "description": "Build for Linux x86_64 (native) - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-x86-debug",
+      "inherits": "base-linux-cross",
+      "displayName": "Linux x86 Debug",
+      "description": "Build for Linux x86 (cross compile) - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/linux-x86.cmake"
+      }
+    },
+    {
+      "name": "linux-x86-release",
+      "inherits": "base-linux-cross",
+      "displayName": "Linux x86 Release",
+      "description": "Build for Linux x86 (cross compile) - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/linux-x86.cmake"
+      }
+    },
+    {
+      "name": "windows-x86_64-debug",
+      "inherits": "base-windows",
+      "displayName": "Windows x86_64 Debug",
+      "description": "Build for Windows x86_64 using MinGW-GCC - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc",
+        "CMAKE_CXX_COMPILER": "x86_64-w64-mingw32-g++",
+        "TARGET": "X86_WIN64"
+      }
+    },
+    {
+      "name": "windows-x86_64-release",
+      "inherits": "base-windows",
+      "displayName": "Windows x86_64 Release",
+      "description": "Build for Windows x86_64 using MinGW-GCC - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc",
+        "CMAKE_CXX_COMPILER": "x86_64-w64-mingw32-g++",
+        "TARGET": "X86_WIN64"
+      }
+    },
+    {
+      "name": "windows-x86-debug",
+      "inherits": "base-windows",
+      "displayName": "Windows x86 Debug",
+      "description": "Build for Windows x86 using MinGW-GCC - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "i686-w64-mingw32-gcc",
+        "CMAKE_CXX_COMPILER": "i686-w64-mingw32-g++",
+        "TARGET": "X86_WIN32"
+      }
+    },
+    {
+      "name": "windows-x86-release",
+      "inherits": "base-windows",
+      "displayName": "Windows x86 Release",
+      "description": "Build for Windows x86 using MinGW-GCC - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "i686-w64-mingw32-gcc",
+        "CMAKE_CXX_COMPILER": "i686-w64-mingw32-g++",
+        "TARGET": "X86_WIN32"
+      }
+    },
+    {
+      "name": "macos-x86_64-debug",
+      "inherits": "base-macos",
+      "displayName": "macOS x86_64 Debug",
+      "description": "Build for macOS x86_64 using Clang - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang -target x86_64-apple-darwin",
+        "CMAKE_CXX_COMPILER": "clang++ -target x86_64-apple-darwin",
+        "CMAKE_OSX_SYSROOT": "/usr/local/osxcross/SDK/MacOSX.sdk",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "10.15"
+      }
+    },
+    {
+      "name": "macos-x86_64-release",
+      "inherits": "base-macos",
+      "displayName": "macOS x86_64 Release",
+      "description": "Build for macOS x86_64 using Clang - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang -target x86_64-apple-darwin",
+        "CMAKE_CXX_COMPILER": "clang++ -target x86_64-apple-darwin",
+        "CMAKE_OSX_SYSROOT": "/usr/local/osxcross/SDK/MacOSX.sdk",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "10.15"
+      }
+    },
+    {
+      "name": "macos-arm64-debug",
+      "inherits": "base-macos",
+      "displayName": "macOS ARM64 Debug",
+      "description": "Build for macOS ARM64 using Clang - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang -target arm64-apple-darwin",
+        "CMAKE_CXX_COMPILER": "clang++ -target arm64-apple-darwin",
+        "CMAKE_OSX_SYSROOT": "/usr/local/osxcross/SDK/MacOSX.sdk",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
+      }
+    },
+    {
+      "name": "macos-arm64-release",
+      "inherits": "base-macos",
+      "displayName": "macOS ARM64 Release",
+      "description": "Build for macOS ARM64 using Clang - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang -target arm64-apple-darwin",
+        "CMAKE_CXX_COMPILER": "clang++ -target arm64-apple-darwin",
+        "CMAKE_OSX_SYSROOT": "/usr/local/osxcross/SDK/MacOSX.sdk",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
+      }
+    },
+    {
+      "name": "android-arm64-debug",
+      "inherits": "base-android",
+      "displayName": "Android ARM64 Debug",
+      "description": "Build for Android ARM64 using NDK Clang - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDROID_ABI": "arm64-v8a"
+      }
+    },
+    {
+      "name": "android-arm64-release",
+      "inherits": "base-android",
+      "displayName": "Android ARM64 Release",
+      "description": "Build for Android ARM64 using NDK Clang - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ANDROID_ABI": "arm64-v8a"
+      }
+    },
+    {
+      "name": "android-arm32-debug",
+      "inherits": "base-android",
+      "displayName": "Android ARM32 Debug",
+      "description": "Build for Android ARM32 using NDK Clang - Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDROID_ABI": "armeabi-v7a"
+      }
+    },
+    {
+      "name": "android-arm32-release",
+      "inherits": "base-android",
+      "displayName": "Android ARM32 Release",
+      "description": "Build for Android ARM32 using NDK Clang - Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ANDROID_ABI": "armeabi-v7a"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x86_64-debug",
+      "configurePreset": "linux-x86_64-debug"
+    },
+    {
+      "name": "linux-x86_64-release",
+      "configurePreset": "linux-x86_64-release"
+    },
+    {
+      "name": "linux-x86-debug",
+      "configurePreset": "linux-x86-debug"
+    },
+    {
+      "name": "linux-x86-release",
+      "configurePreset": "linux-x86-release"
+    },
+    {
+      "name": "windows-x86_64-debug",
+      "configurePreset": "windows-x86_64-debug"
+    },
+    {
+      "name": "windows-x86_64-release",
+      "configurePreset": "windows-x86_64-release"
+    },
+    {
+      "name": "windows-x86-debug",
+      "configurePreset": "windows-x86-debug"
+    },
+    {
+      "name": "windows-x86-release",
+      "configurePreset": "windows-x86-release"
+    },
+    {
+      "name": "macos-x86_64-debug",
+      "configurePreset": "macos-x86_64-debug"
+    },
+    {
+      "name": "macos-x86_64-release",
+      "configurePreset": "macos-x86_64-release"
+    },
+    {
+      "name": "macos-arm64-debug",
+      "configurePreset": "macos-arm64-debug"
+    },
+    {
+      "name": "macos-arm64-release",
+      "configurePreset": "macos-arm64-release"
+    },
+    {
+      "name": "android-arm64-debug",
+      "configurePreset": "android-arm64-debug"
+    },
+    {
+      "name": "android-arm64-release",
+      "configurePreset": "android-arm64-release"
+    },
+    {
+      "name": "android-arm32-debug",
+      "configurePreset": "android-arm32-debug"
+    },
+    {
+      "name": "android-arm32-release",
+      "configurePreset": "android-arm32-release"
+    }
+  ]
+}

@@ -1,9 +1,0 @@
-<map id="log_queue_init" name="log_queue_init">
-<area shape="rect" id="Node000001" title=" " alt="" coords="344,31,461,56"/>
-<area shape="rect" id="Node000002" href="$log_8c.html#a4b4c5cb4a19bc4c73b0640ca73f115e4" title="初始化日志系统" alt="" coords="161,31,296,56"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="330,46,297,46,297,41,330,41"/>
-<area shape="rect" id="Node000003" href="$android__runtime__core_8cpp.html#a6042abb8a7e0011e5c5f9dd7efcf46bf" title=" " alt="" coords="6,5,113,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="147,34,113,29,113,23,148,29"/>
-<area shape="rect" id="Node000004" href="$desktop__runtime__core_8c.html#a7d0bcf8cb6683acce102c37b06a0f18b" title=" " alt="" coords="5,55,113,80"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="148,57,114,62,113,57,147,52"/>
-</map>

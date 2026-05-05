@@ -25,9 +25,6 @@
 #include "tef_api.h"
 #ifdef __cplusplus
 extern "C" {
-
-
-
 #endif
 
 typedef enum tefkernel_log_level_t {
@@ -79,8 +76,8 @@ void tefkernel_log_cleanup(void);
 
 // 宏
 
-#if !defined(NDEBUG)
 #define TEKLOG(level, ...) tefkernel_log_write_ex((level), __FILE__, __LINE__, __func__, __VA_ARGS__);
+#if !defined(NDEBUG)
 #else
 #define TEKLOG(level, ...) tefkernel_log_write((level), __VA_ARGS__);
 #endif

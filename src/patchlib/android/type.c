@@ -382,10 +382,6 @@ static bool patchlib_collect_from_type_hierarchy(
             }
         }
 
-        if (level_item_count > 0) {
-            TEKLOG_TRACE("Level %d: collected %d items", hierarchy_level, level_item_count);
-        }
-
         if (!including_parent)
             break;
 

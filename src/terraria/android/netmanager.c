@@ -34,9 +34,13 @@
 #include "patchlib/struct/string.h"
 
 typedef struct il2cpp_array_t {
+    // ReSharper disable once CppDeclaratorNeverUsed
     void *m_class;
+    // ReSharper disable once CppDeclaratorNeverUsed
     void *m_monitor;
+    // ReSharper disable once CppDeclaratorNeverUsed
     void *m_bounds;
+    // ReSharper disable once CppDeclaratorNeverUsed
     uint32_t m_length;
     // T *m_values;
 } il2cpp_array_t;
@@ -86,13 +90,14 @@ static patch_handle_t network_text_from_literal; // void* (string text)
 #define PLUGINS_HASH 0x7B6A5F4E3D2C1B0AULL
 
 // 解析TEFKernel连接包
-static connection_type_t parse_tefconnection_packet(const uint8_t* data, int offset, int data_len) {
+static connection_type_t parse_tefconnection_packet(const uint8_t* data, const int data_len) {
+    int offset = 1;
     if (offset + 1 >= data_len) {
         return CONNECTION_TYPE_NONE;
     }
 
     // 读取字符串长度
-    uint8_t str_len = data[offset++];
+    const uint8_t str_len = data[offset++];
     if (offset + str_len + 4 + (5 * 8) > data_len) {
         return CONNECTION_TYPE_NONE;
     }
@@ -143,17 +148,18 @@ static connection_type_t parse_tefconnection_packet(const uint8_t* data, int off
 }
 
 // 检查是否是原版连接包
-static bool is_vanilla_connection_packet(const uint8_t* data, int offset, int data_len) {
+static bool is_vanilla_connection_packet(const uint8_t* data, const int data_len) {
+    int offset = 1;
     if (offset + 1 >= data_len) {
         return false;
     }
 
-    uint8_t str_len = data[offset++];
+    const uint8_t str_len = data[offset++];
     if (offset + str_len > data_len) {
         return false;
     }
 
-    char* str = (char*)&data[offset];
+    const char* str = (char*)&data[offset];
     const char* terraria_prefix = "Terraria";
 
     if (str_len < strlen(terraria_prefix)) {
@@ -163,7 +169,7 @@ static bool is_vanilla_connection_packet(const uint8_t* data, int offset, int da
     return strncmp(str, terraria_prefix, strlen(terraria_prefix)) == 0;
 }
 
-void terraria_manager_init() {
+void terraria_netmanager_init() {
     // Hook ProcessData 方法
     patch_handle_t message_buffer_class = patchlib_type_get_type("Terraria", "MessageBuffer");
     if (message_buffer_class == PATCH_NULL) {
@@ -184,7 +190,7 @@ void terraria_manager_init() {
         return;
     }
 
-    int ret = DobbyHook(process_data_target, (void*)process_data_hook, (void**)&orig_process_data);
+    const int ret = DobbyHook(process_data_target, (void*)process_data_hook, (void**)&orig_process_data);
     if (ret != 0) {
         TEKLOG_ERROR("Failed to hook ProcessData: %d", ret);
         return;
@@ -214,7 +220,7 @@ void terraria_manager_init() {
         return;
     }
 
-    int ret2 = DobbyHook(send_target, (void*)client_send_hook, (void**)&orig_client_send);
+    const int ret2 = DobbyHook(send_target, (void*)client_send_hook, (void**)&orig_client_send);
     if (ret2 != 0) {
         TEKLOG_ERROR("Failed to hook Client.Send: %d", ret2);
         return;
@@ -235,13 +241,11 @@ void process_data_hook(patch_handle_t instance, il2cpp_array_t* messageData, int
     }
 
     // 获取数据指针
-    uint8_t* data = (uint8_t*)((uintptr_t)messageData + sizeof(il2cpp_array_t));
+    const uint8_t* data = (uint8_t*)((uintptr_t)messageData + sizeof(il2cpp_array_t));
 
     // 获取消息类型
-    uint8_t msg_type = data[0];
+    const uint8_t msg_type = data[0];
     *messageType = msg_type;
-
-    TEKLOG_DEBUG("ProcessData: msg_type=%d, length=%d", msg_type, length);
 
     // 只处理连接包 (类型1)
     if (msg_type == 1) {
@@ -249,11 +253,8 @@ void process_data_hook(patch_handle_t instance, il2cpp_array_t* messageData, int
         g_connection_type = CONNECTION_TYPE_NONE;
         g_error_message_id = ERROR_NONE;
 
-        // 解析包类型
-        int offset = 1;  // 跳过消息类型
-
         // 检查是否是TEFKernel包
-        const connection_type_t conn_type = parse_tefconnection_packet(data, offset, length);
+        const connection_type_t conn_type = parse_tefconnection_packet(data, length);
 
         if (conn_type != CONNECTION_TYPE_NONE) {
             g_connection_type = conn_type;
@@ -271,7 +272,7 @@ void process_data_hook(patch_handle_t instance, il2cpp_array_t* messageData, int
                 const int vanilla_str_len = snprintf(vanilla_string, sizeof(vanilla_string), "Terraria%d", game_release);
 
                 // 原版包大小：2(总长度) + 1(类型) + 1(字符串长度) + 字符串
-                const int vanilla_length = 2 + 1 + 1 + vanilla_str_len;
+                const int vanilla_length = 1 + 1 + vanilla_str_len;
 
                 // 创建原版格式数组
                 il2cpp_array_t* vanilla_array = patchlib_array_create(vanilla_length,
@@ -284,10 +285,6 @@ void process_data_hook(patch_handle_t instance, il2cpp_array_t* messageData, int
 
                 uint8_t* vanilla_data = (uint8_t*)((uintptr_t)vanilla_array + sizeof(il2cpp_array_t));
                 int vanilla_offset = 0;
-
-                // 写入总长度
-                vanilla_data[vanilla_offset++] = (uint8_t)(vanilla_length & 0xFF);
-                vanilla_data[vanilla_offset++] = (uint8_t)((vanilla_length >> 8) & 0xFF);
 
                 // 写入消息类型
                 vanilla_data[vanilla_offset++] = 1;
@@ -311,7 +308,7 @@ void process_data_hook(patch_handle_t instance, il2cpp_array_t* messageData, int
         }
 
         // 检查是否是原版包
-        if (is_vanilla_connection_packet(data, offset, length)) {
+        if (is_vanilla_connection_packet(data, length)) {
             g_connection_type = CONNECTION_TYPE_VANILLA;
             TEKLOG_INFO("Received vanilla connection packet");
 
@@ -451,20 +448,20 @@ bool client_send_hook(patch_handle_t* this, void* data, int length) {
 
         // 写入gameRelease (uint32, 小端序)
         for (int i = 0; i < 4; i++) {
-            new_array_data[offset++] = (game_release >> (i * 8)) & 0xFF;
+            new_array_data[offset++] = game_release >> (i * 8) & 0xFF;
         }
 
         // 写入所有uint64值 (小端序)
-        uint64_t values[] = {
-            TEFKERNEL_VERSION_CODE,
-            MODS_HASH,
-            MODLOADERS_HASH,
-            MODULES_HASH,
-            PLUGINS_HASH
-        };
 
         for (int v = 0; v < 5; v++) {
             for (int i = 0; i < 8; i++) {
+                const uint64_t values[] = {
+                    TEFKERNEL_VERSION_CODE,
+                    MODS_HASH,
+                    MODLOADERS_HASH,
+                    MODULES_HASH,
+                    PLUGINS_HASH
+                };
                 new_array_data[offset++] = (values[v] >> (i * 8)) & 0xFF;
             }
         }

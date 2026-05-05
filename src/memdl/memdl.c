@@ -52,7 +52,6 @@
 #include <android/dlext.h>
 #include <dlfcn.h>
 #include <sys/system_properties.h>
-#include <asm-generic/unistd.h>
 #include <sys/syscall.h>
 #elif defined(__linux__)
 #define MEMDL_LINUX

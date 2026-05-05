@@ -136,14 +136,14 @@ void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, voi
     TEKLOG_DEBUG("Field value set successfully");
 }
 
-patch_type_t patchlib_field_get_type(const patch_handle_t field) {
+patch_type_t patchlib_field_get_type(patch_handle_t field) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_WARN("Invalid field handle");
         return PATCH_VOID;
     }
 
     patch_type_t result;
-    const int field_type = il2cpp_type_get_type(il2cpp_field_get_parent(field));
+    const int field_type = il2cpp_type_get_type(il2cpp_field_get_type(field));
 
     switch (field_type) {
         case IL2CPP_TYPE_VOID:    result = PATCH_VOID; break;
@@ -177,7 +177,7 @@ size_t patchlib_field_get_size(patch_handle_t field) {
         return 0;
     }
 
-    const int field_type = il2cpp_type_get_type(il2cpp_field_get_parent(field));
+    const int field_type = il2cpp_type_get_type(il2cpp_field_get_type(field));
     size_t result = 0;
 
     switch (field_type) {

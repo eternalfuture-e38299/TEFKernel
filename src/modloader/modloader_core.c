@@ -291,9 +291,9 @@ bool tefkernel_load_ml(void* handle, tefpkg_t* pkg_handle,
     }
 
     // 初始化ModLoader句柄
+    new_ml->ml_entry = new_ml_entry;
     new_ml->handle = handle;
     new_ml->ml_entry->pkg_handle = pkg_handle;
-    new_ml->ml_entry = new_ml_entry;
     new_ml->index = tefstd_vector_size(&g_ml_list);
 
     // 设置操作函数表
@@ -514,21 +514,21 @@ const ml_info_t* tefkernel_get_ml_info(ml_handle_t* ml_handle) {
 /**
  * @brief 执行Mod加载操作
  */
-ml_result_t* tefkernel_ml_load_mod(ml_handle_t* ml_handle, mod_manifest_t* manifest) {
+ml_result_t tefkernel_ml_load_mod(ml_handle_t* ml_handle, mod_manifest_t* manifest) {
     if (!ml_handle || !ml_handle->ml_entry || !ml_handle->ml_entry->ops) {
         TEKLOG_ERROR("Invalid modloader handle or entry");
-        return NULL;
+        return ML_ERROR;
     }
 
     if (!manifest) {
         TEKLOG_ERROR("Invalid mod manifest provided");
-        return NULL;
+        return ML_ERROR;
     }
 
     const ml_ops_t* ops = ml_handle->ml_entry->ops;
     if (!ops->load_mod) {
         TEKLOG_ERROR("ModLoader does not support load_mod operation");
-        return NULL;
+        return ML_ERROR;
     }
 
     TEKLOG_INFO("Loading mod: %s (path: %s)",

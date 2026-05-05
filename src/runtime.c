@@ -25,8 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <threads.h>
 #include <sys/stat.h>
+#include "internal/platform_threads.h"
 
 #include "internal/kernel_state.h"
 #include "internal/log.h"

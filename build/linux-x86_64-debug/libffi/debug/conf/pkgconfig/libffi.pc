@@ -1,0 +1,11 @@
+prefix=/debug
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+toolexeclibdir=${libdir}
+includedir=${prefix}/../include
+
+Name: 
+Description: Library supporting Foreign Function Interfaces
+Version: 
+Libs: -L${toolexeclibdir} -lffi
+Cflags: -I${includedir}

@@ -22,7 +22,18 @@
 
 #include "module/module_core.h"
 
-#include <stdio.h>
+#include <android/log.h>  // Android 日志头文件
+
+/* 定义日志标签 */
+#define LOG_TAG "TestModule"
+
+/* Android 日志宏定义 */
+#define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGF(...) __android_log_print(ANDROID_LOG_FATAL, LOG_TAG, __VA_ARGS__)
 
 /* 模块信息 - 存储在静态内存中 */
 static const module_info_t g_module_info = {
@@ -44,18 +55,21 @@ static module_entry_t *g_module_entry = NULL;
 /* 初始化模块 */
 static bool test_module_init(module_entry_t *entry)
 {
-    printf("[TestModule] Initializing module: %s\n", entry->info->name);
-    printf("[TestModule] Version: %s (code: %d)\n",
-           entry->info->version, entry->info->version_code);
+    LOGI("Initializing module: %s", entry->info->name);
+    LOGI("Version: %s (code: %d)",
+         entry->info->version, entry->info->version_code);
 
     g_module_entry = entry;
 
     /* 这里可以进行模块初始化操作 */
-    printf("[TestModule] Module initialized successfully\n");
-    printf("[TestModule] Private directory: %s\n", entry->private_dir);
-    printf("[TestModule] Logs directory: %s\n", entry->logs_dir);
+    LOGI("Module initialized successfully");
+    LOGI("Private directory: %s", entry->private_dir);
+    LOGI("Logs directory: %s", entry->logs_dir);
 
-    fflush(stdout);
+    /* 添加一些调试信息 */
+    LOGD("Module pointer: %p", (void*)entry);
+    LOGD("Module info pointer: %p", (void*)entry->info);
+    LOGD("API version: %d", entry->info->api_version);
 
     return true;  /* 返回true表示初始化成功 */
 }
@@ -63,27 +77,28 @@ static bool test_module_init(module_entry_t *entry)
 /* 清理模块 */
 static bool test_module_cleanup(module_entry_t *entry)
 {
-    printf("[TestModule] Cleaning up module: %s\n", entry->info->name);
+    LOGI("Cleaning up module: %s", entry->info->name);
 
     /* 这里进行资源释放等清理操作 */
     g_module_entry = NULL;
 
-    printf("[TestModule] Module cleanup completed\n");
+    LOGI("Module cleanup completed");
     return true;  /* 返回true表示清理成功 */
 }
 
 /* 热重载 */
 static void test_module_hot_reload(module_entry_t *entry)
 {
-    printf("[TestModule] Hot reload triggered for module: %s\n", entry->info->name);
+    LOGI("Hot reload triggered for module: %s", entry->info->name);
 
     /* 这里可以实现热重载逻辑，比如重新加载配置等 */
-    printf("[TestModule] Hot reload completed\n");
+    LOGI("Hot reload completed");
 }
 
 /* 获取模块信息 */
 static const module_info_t *test_module_get_info(void)
 {
+    LOGD("Getting module info");
     /* 直接返回静态模块信息 */
     return &g_module_info;
 }
@@ -99,7 +114,9 @@ static const module_ops_t g_module_ops = {
 /* 模块必须导出的入口函数 */
 API_EXPORT const module_ops_t * API_CALL module_create(void)
 {
-    printf("[TestModule] module_create() called\n");
+    LOGI("module_create() called");
+    LOGD("Module info: name=%s, version=%s, author=%s",
+         g_module_info.name, g_module_info.version, g_module_info.author);
 
     /* 必须返回静态内存中的操作函数表 */
     return &g_module_ops;

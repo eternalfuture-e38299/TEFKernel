@@ -1,7 +1,0 @@
-<map id="hook_il2cpp_init" name="hook_il2cpp_init">
-<area shape="rect" id="Node000001" title=" " alt="" coords="308,5,436,31"/>
-<area shape="rect" id="Node000002" href="$android__runtime__core_8cpp.html#a5c8a7b7217fe8f666a39e510436760b7" title=" " alt="" coords="160,5,260,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="294,21,260,21,260,15,294,15"/>
-<area shape="rect" id="Node000003" href="$android__runtime__core_8cpp.html#a6042abb8a7e0011e5c5f9dd7efcf46bf" title=" " alt="" coords="5,5,112,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="146,21,112,21,112,15,146,15"/>
-</map>

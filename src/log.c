@@ -40,13 +40,13 @@
 // 通用POSIX线程支持
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <pthread.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #define POSIX_THREADS 1
 #else
 #define POSIX_THREADS 0
 #include <windows.h>
 #include <process.h>
+#include <io.h>
 #endif
 
 // 日志队列节点

@@ -140,6 +140,13 @@ bool tpf_register_plugin_symbols(plugin_handle_t *plugin);
 bool tpf_initialize_all_plugins();
 
 /**
+ * @brief 向一个动态库中注册插件符号
+ * @param handle 动态库句柄
+ * @return 执行结果
+ */
+bool tpf_register_all_plugin_symbols_to_library(void *handle);
+
+/**
  * @brief 初始化内核依赖
  */
 void tpf_init_libtefkernel();

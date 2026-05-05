@@ -1,9 +1,0 @@
-<map id="cleanup_unreferenced_plugins" name="cleanup_unreferenced_plugins">
-<area shape="rect" id="Node000001" title="清理无引用的插件" alt="" coords="5,23,172,63"/>
-<area shape="rect" id="Node000002" href="$tpf__core_8c.html#a84465cf93000fb1e11583d1123e1e149" title="卸载插件" alt="" coords="226,5,371,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,31,212,26,213,31,173,36"/>
-<area shape="rect" id="Node000004" href="$tpf__core_8c.html#ab60caed61fd1b08b9ea1abcc1f4a2646" title="通过pkg_id获取插件句柄" alt="" coords="220,55,377,80"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="173,50,207,54,206,59,172,56"/>
-<area shape="rect" id="Node000003" href="$tpf__core_8c.html#a6604f72633130190f987e542378281e2" title=" " alt="" coords="425,5,520,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="372,15,411,15,411,21,372,21"/>
-</map>

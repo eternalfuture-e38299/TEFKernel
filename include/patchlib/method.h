@@ -149,8 +149,8 @@ DEFINE_FUNCTION(bool, patchlib_method_get_signature, patch_handle_t method, patc
  */
 DEFINE_FUNCTION(bool, patchlib_method_signature_free, patch_method_signature_t* signature);
 
-typedef void (*prefix_callback_t)(patch_handle_t instance, void **args,
-                                  const patch_method_signature_t *sig_info);
+typedef bool (*prefix_callback_t)(patch_handle_t instance, void **args,
+                                  const patch_method_signature_t *sig_info, void *result);
 
 typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *result,
                                    const patch_method_signature_t *sig_info);
@@ -159,27 +159,28 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  * @brief 安装前缀和后缀 Hook (Prefix/Postfix Hook)
  *
  * 此函数允许你在目标函数 `method` 执行前后插入自定义逻辑。
- * - Prefix Hook (前缀 Hook) 在目标函数执行*之前*运行。
+ * - Prefix Hook (前缀 Hook) 在目标函数执行*之前*运行。可以通过返回 `true` 跳过原始函数的执行。
  * - Postfix Hook (后缀 Hook) 在目标函数执行*之后*运行，并可以访问函数的返回值。
  * 可以为同一个 `method` 多次调用此函数来安装多组不同的 Pre/Post Hook。
  *
  * @param method        目标函数的句柄 (patch_handle_t)，用于标识要被 Hook 的函数。不可为空。
  * @param prefix        指向 Prefix Hook 函数的指针。该函数将在目标函数执行前被调用。
- *                      函数签名应为: void prefix(patch_handle_t instance, void** args, const patch_method_signature_t* sig_info)
- *                      - orig_func: 被 Hook 的原始函数句柄。
+ *                      函数签名应为: bool prefix(patch_handle_t instance, void** args, const patch_method_signature_t* sig_info, void *result)
  *                      - instance: 对象实例指针（如果是成员函数），可能为空。
  *                      - args: 指向函数参数数组的指针（可能为空）。
  *                      - sig_info: 指向描述被 Hook 函数签名的 `patch_method_signature_t` 结构的指针。
- *                                  Hook 函数可以据此了解参数和返回值的类型信息。
+ *                      - result: 函数返回值，仅在跳过原始函数时生效
+ *                      - 返回值:
+ *                          - false: 跳过原始函数的执行，直接进入 Postfix Hook
+ *                          - true: 正常执行原始函数
  *                      如果不需要 Prefix Hook，可以传入 NULL。
  * @param postfix       指向 Postfix Hook 函数的指针。该函数将在目标函数执行后被调用。
  *                      函数签名应为: void postfix(patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info)
- *                      - orig_func: 被 Hook 的原始函数句柄。
  *                      - instance: 对象实例指针（如果是成员函数），可能为空。
  *                      - args: 指向函数参数数组的指针（可能为空）。
  *                      - result: 目标函数的返回值指针。如果目标函数返回 void 或 Hook 不关心返回值，则可能为空。
+ *                              注意：当 Prefix Hook 返回 true 时，result 可能为空或包含未定义的值。
  *                      - sig_info: 指向描述被 Hook 函数签名的 `patch_method_signature_t` 结构的指针。
- *                                  Hook 函数可以据此了解参数和返回值的类型信息。
  *                      如果不需要 Postfix Hook，可以传入 NULL。
  * @return              如果 Hook 安装成功，则返回一个唯一的 `patch_hook_id_t` 用于后续卸载。
  *                      如果安装失败（例如 method 无效，或 prefix/postfix 都为 NULL），则返回 `PATCH_HOOK_INVALID_ID`。
@@ -187,13 +188,15 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  * @note                同一个 `method` 可以被多次 Hook。每次调用都会返回不同的 ID。
  *                      至少 `prefix` 或 `postfix` 其中一个必须非空。
  *                      `sig_info` 指针指向的数据由 Hook 库管理，Hook 函数只需读取，不应尝试修改或释放它。
- * @warning             Prefix 和 Postfix Hook 函数的实现必须非常小心，避免引入不稳定性或死循环。
- *                      它们的执行环境与被 Hook 的函数紧密相关。
- *                      多个 Hook 的执行顺序（特别是同一类型的多个 Hook）需要明确定义（例如，按安装顺序）。
+ *                      当 Prefix Hook 返回 true 时，原始函数将被完全跳过，Postfix Hook 仍会执行，但 result 参数可能无效。
+ * @warning             Hook 函数的实现必须非常小心，避免引入不稳定性或死循环。
+ *                      多个 Hook 的执行顺序需要明确定义（例如，按安装顺序）。
  *                      Hook 函数必须能正确处理 `sig_info` 中描述的各种类型。
  *                      没有线程安全，请不要并行调用。
+ *                      当跳过原始函数时，Hook 函数有责任正确处理原本应由原始函数完成的工作。
  */
-DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook, patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix)
+DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook,
+                patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix)
 
 /**
  * @brief 卸载指定的 Hook

@@ -1,5 +1,0 @@
-<map id="tpf_register_plugin_symbols" name="tpf_register_plugin_symbols">
-<area shape="rect" id="Node000001" title="多线程注册插件符号到所有共享库（阻塞版本）" alt="" coords="180,5,324,45"/>
-<area shape="rect" id="Node000002" href="$tpf__core_8c.html#aa3e0e858003bfe94ad23eca5d45535a8" title="初始化所有已加载的插件并将其注册到所有共享库" alt="" coords="5,5,132,45"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="166,28,132,28,132,23,166,23"/>
-</map>

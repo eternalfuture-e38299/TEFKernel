@@ -1,5 +1,0 @@
-<map id="siphash_make_key128" name="siphash_make_key128">
-<area shape="rect" id="Node000001" title="根据配置生成128位SipHash密钥" alt="" coords="245,5,415,31"/>
-<area shape="rect" id="Node000002" href="$siphash_8c.html#a326caf9ea5925693036063b1ffb71e18" title="生成SipHash密钥并保存到文件" alt="" coords="5,5,197,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="232,21,198,21,198,15,232,15"/>
-</map>

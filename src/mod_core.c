@@ -44,23 +44,28 @@ int tefkernel_get_enabled_mods_for_ml(const char* ml_pkg_id, tefstd_vector_t* en
         return -1;
     }
 
+    // 先初始化向量
+    if (!tefstd_vector_init(enabled_mods, sizeof(char*))) {
+        TEKLOG_ERROR("Failed to initialize vector for enabled mods");
+        return -1;
+    }
+
     // 构建enables.txt文件路径
     char enable_path[1024];
     snprintf(enable_path, sizeof(enable_path), "%s/mods/%s/enables.txt",
              tefkernel_working_dir, ml_pkg_id);
 
+    TEKLOG_DEBUG("Checking enabled mods file: %s", enable_path);
+
     FILE* file = fopen(enable_path, "r");
     if (!file) {
-        // 文件不存在，直接返回0（没有启用的Mod），不记录错误
+        // 文件不存在，返回空向量
+        TEKLOG_INFO("Enabled mods file not found: %s", enable_path);
+        TEKLOG_DEBUG("No enabled mods for modloader: %s (file not found)", ml_pkg_id);
         return 0;
     }
 
-    // 初始化输出向量
-    if (!tefstd_vector_init(enabled_mods, sizeof(char*))) {
-        fclose(file);
-        TEKLOG_ERROR("Failed to initialize vector for enabled mods");
-        return -1;
-    }
+    TEKLOG_INFO("Reading enabled mods from: %s", enable_path);
 
     int count = 0;
     char line[256];
@@ -71,6 +76,7 @@ int tefkernel_get_enabled_mods_for_ml(const char* ml_pkg_id, tefstd_vector_t* en
 
         // 跳过空行和注释
         if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            TEKLOG_DEBUG("Skipping line: '%s' (empty or comment)", line);
             continue;
         }
 
@@ -81,15 +87,20 @@ int tefkernel_get_enabled_mods_for_ml(const char* ml_pkg_id, tefstd_vector_t* en
             continue;
         }
 
-        if (tefstd_vector_push_back(enabled_mods, &mod_id_copy)) {
+        if (tefstd_vector_push_back(enabled_mods, &mod_id_copy))
             count++;
-        } else {
+        else
             free(mod_id_copy);
-            TEKLOG_WARN("Failed to add mod id to vector: %s", line);
-        }
     }
 
     fclose(file);
+
+    if (count > 0) {
+        TEKLOG_INFO("Found %d enabled mod(s) for modloader: %s", count, ml_pkg_id);
+    } else {
+        TEKLOG_INFO("No enabled mods found for modloader: %s (empty file)", ml_pkg_id);
+    }
+
     return count;
 }
 
@@ -228,9 +239,12 @@ static int load_mods_for_ml(ml_handle_t* ml_handle) {
 
     // 获取这个ModLoader启用的Mod列表
     tefstd_vector_t enabled_mods;
-    int enabled_count = tefkernel_get_enabled_mods_for_ml(ml_pkg_id, &enabled_mods);
+    const int enabled_count = tefkernel_get_enabled_mods_for_ml(ml_pkg_id, &enabled_mods);
     if (enabled_count <= 0) {
-        tefstd_vector_destroy(&enabled_mods);
+        // 只有向量被初始化时才销毁
+        if (enabled_mods.data) {
+            tefstd_vector_destroy(&enabled_mods);
+        }
         return 0;
     }
 
@@ -268,9 +282,9 @@ static int load_mods_for_ml(ml_handle_t* ml_handle) {
         }
 
         // 调用ModLoader的load_mod函数
-        ml_result_t* load_result = ml_handle->ml_entry->ops->load_mod(manifest);
+        const ml_result_t load_result = ml_handle->ml_entry->ops->load_mod(manifest);
 
-        if (load_result && *load_result == ML_SUCCESS) {
+        if (load_result == ML_SUCCESS) {
             // 创建Mod句柄
             mod_handle_t* new_mod = malloc(sizeof(mod_handle_t));
             if (!new_mod) {

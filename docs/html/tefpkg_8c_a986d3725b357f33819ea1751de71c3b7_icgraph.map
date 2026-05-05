@@ -1,9 +1,0 @@
-<map id="tefpkg_save_file" name="tefpkg_save_file">
-<area shape="rect" id="Node000001" title=" " alt="" coords="419,31,548,56"/>
-<area shape="rect" id="Node000002" href="$tefpkg_8c.html#a3369237e56a93ffbff11855fe7d3c7a5" title=" " alt="" coords="180,5,371,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="405,36,371,32,371,27,405,31"/>
-<area shape="rect" id="Node000003" href="$tpf__core_8c.html#a680f5e7e128fbe0515efee07107bce3d" title="初始化内核依赖" alt="" coords="201,55,350,80"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="405,55,350,61,350,56,404,50"/>
-<area shape="rect" id="Node000004" href="$tpf__core_8c.html#aa3e0e858003bfe94ad23eca5d45535a8" title="初始化所有已加载的插件并将其注册到所有共享库" alt="" coords="5,47,132,87"/>
-<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="187,70,132,70,132,65,187,65"/>
-</map>

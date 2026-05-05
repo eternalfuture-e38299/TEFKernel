@@ -24,10 +24,10 @@
 
 #include "il2cpp_api.h"
 
-#include <dlfcn.h>
+#include "xdl.h"
 
 #define LOAD_SYMBOL(name) \
-name = dlsym(handle, #name)
+name = xdl_sym(handle, #name, NULL)
 
 void il2cpp_api_init(void *handle) {
     // 加载基础API

@@ -1,9 +1,0 @@
-<map id="siphash_update" name="siphash_update">
-<area shape="rect" id="Node000001" title="更新SipHash计算状态（流式处理）" alt="" coords="5,31,129,56"/>
-<area shape="rect" id="Node000002" href="$siphash_8c.html#affc85a56adbd7108b190a6cee4ad4f72" title=" " alt="" coords="177,5,264,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="129,30,163,25,164,30,130,36"/>
-<area shape="rect" id="Node000004" href="$siphash_8c.html#a8a8b54d69ce501bb17e7d5dcc8fdfb32" title=" " alt="" coords="191,55,251,80"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="130,50,178,58,177,63,129,56"/>
-<area shape="rect" id="Node000003" href="$siphash_8c.html#ab11fee5f26800354078211d367b801ad" title=" " alt="" coords="312,5,433,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="264,15,298,15,298,21,264,21"/>
-</map>
