@@ -22,7 +22,7 @@
 
 #define IL2CPP_API_IMPL 1
 
-#include "il2cpp_api.h"
+#include "../il2cpp_api.h"
 
 #include "xdl.h"
 
@@ -95,6 +95,7 @@ void il2cpp_api_init(void *handle) {
     // 加载数组相关API
     LOAD_SYMBOL(il2cpp_array_new);
     LOAD_SYMBOL(il2cpp_array_element_size);
+    LOAD_SYMBOL(il2cpp_array_length);
 
     // 加载字符串相关API
     LOAD_SYMBOL(il2cpp_string_length);
@@ -103,7 +104,6 @@ void il2cpp_api_init(void *handle) {
 
     //加载runtime相关API
     LOAD_SYMBOL(il2cpp_runtime_invoke);
-
     LOAD_SYMBOL(il2cpp_object_unbox);
 }
 

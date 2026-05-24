@@ -31,8 +31,6 @@
 #ifndef TEFKERNEL_TYPE_H
 #define TEFKERNEL_TYPE_H
 
-#include <stdint.h>
-
 #include "../tef_api.h"
 #include "../tefstd/vector.h"
 
@@ -43,13 +41,8 @@ extern "C" {
 #endif
 
 /* 平台相关类型定义 */
-#if defined(__ANDROID__)
 typedef void *patch_handle_t;
 #define PATCH_NULL NULL
-#else
-typedef intptr_t patch_handle_t;
-#define PATCH_NULL ((intptr_t)-1)
-#endif
 
 // 基本类型枚举
 typedef enum {
@@ -87,11 +80,7 @@ PATCH_BOOL:    bool, \
 PATCH_POINTER: void*, \
 PATCH_OBJECT:  void*)
 
-#if defined(__ANDROID__) || defined(ANDROID)
 #define PATCH_HANDLE_FMT "%p"
-#else
-#define PATCH_HANDLE_FMT "%d"
-#endif
 
 DEFINE_FUNCTION(size_t, get_size_from_patch_type, patch_type_t type);
 
@@ -102,6 +91,14 @@ DEFINE_FUNCTION(size_t, get_size_from_patch_type, patch_type_t type);
  * @return 有效返回true，无效返回false
  */
 DEFINE_FUNCTION(bool, patchlib_is_valid, patch_handle_t h)
+
+/**
+ * @brief 判断两个类型句柄是否相同
+ * @param t1 第一个句柄
+ * @param t2 第二个句柄
+ * @return 相同返回true，不同返回false
+ */
+DEFINE_FUNCTION(bool, patchlib_type_is_same, patch_handle_t t1, patch_handle_t t2)
 
 // ==================== 类型获取和创建 ====================
 /**
@@ -136,13 +133,18 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_type_new_instance, patch_handle_t type)
 DEFINE_FUNCTION(patch_handle_t, patchlib_type_make_generic_type, patch_handle_t generic_type_def,
                 const tefstd_vector_t* type_args)
 
+
 /**
  * @brief 获取类型的MonoType
  * @param type 类型句柄
  * @return MonoType句柄
  * @note 该函数用于移动端，桌面端返回原句柄
  */
+#if defined(__ANDROID__)
 DEFINE_FUNCTION(patch_handle_t, patchlib_type_get_mono_type, patch_handle_t type)
+#else
+#define patchlib_type_get_mono_type(type) type
+#endif
 
 // ==================== 类型信息查询 ====================
 /**
@@ -292,36 +294,26 @@ DEFINE_FUNCTION(bool, patchlib_type_get_fields, patch_handle_t type, bool includ
  */
 DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
-// ==================== 资源释放 ====================
-/**
- * @brief 释放类型相关资源
- * @param type 要释放的类型句柄(可以为无效句柄)
- * @return 执行结果
- */
-DEFINE_FUNCTION(bool, patchlib_type_free, patch_handle_t type)
+#if !defined(__ANDROID__)
+DEFINE_FUNCTION(void, patchlib_free, patch_handle_t h)
+#endif
 
+#if !defined(__ANDROID__)
 /**
- * @brief 释放对象
- * @param object 对象句柄
- * @return 执行结果
+ * @brief 复制对象（浅拷贝）
+ * @param handle 源句柄
+ * @return 复制后的新句柄
+ * @note 用于将hook等场景中的临时对象进行浅拷贝保存，
+ *       避免函数结束后原句柄被自动卸载或修改
+ * @warning 返回的新对象需要调用 patchlib_free 释放
  */
-DEFINE_FUNCTION(bool, patchlib_object_free, patch_handle_t object)
-
-/**
- * @brief 持久化保存对象
- * @param object 临时对象句柄
- * @return 持久化后的对象句柄
- * @note 用于将hook等场景中的临时对象持久化保存，
- *       避免函数结束后对象被自动卸载
- */
-DEFINE_FUNCTION(patch_handle_t, patchlib_object_persist, patch_handle_t object);
+DEFINE_FUNCTION(patch_handle_t, patchlib_handle_copy, patch_handle_t handle);
+#endif
 
 #if __ANDROID__
-
-#    define patchlib_type_free(handle) ((void)0)
-#    define patchlib_object_free(handle) ((void)0)
+#    define patchlib_free(handle) ((void)0)
 #    define patchlib_object_persist(handle) handle
-
+#else
 #endif
 
 #ifdef __cplusplus

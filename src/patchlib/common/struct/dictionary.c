@@ -24,7 +24,7 @@
 #include "internal/log.h"
 
 #include "patchlib/method.h"
-#include "../il2cpp_api.h"
+#include "../../il2cpp_api.h"
 
 static patch_handle_t dictionary_class = NULL;
 
@@ -85,14 +85,10 @@ patch_handle_t patchlib_dictionary_create(patch_handle_t key_type, patch_handle_
     TEKLOG_DEBUG("Dictionary instance created: %p", instance);
 
     // 调用构造函数
-    void* ctor_ptr = patchlib_method_get_pointer(ctor);
-    if (ctor_ptr) {
-        TEKLOG_DEBUG("Calling dictionary constructor with capacity: %d", (int)capacity);
-        ((void(*)(void*, int))ctor_ptr)(instance, (int)capacity);
-        TEKLOG_INFO("Dictionary created successfully: %p (capacity: %zu)", instance, capacity);
-    } else {
-        TEKLOG_ERROR("Failed to get constructor pointer");
-    }
+    void* args[] = { &capacity };
+    TEKLOG_DEBUG("Calling dictionary constructor with capacity: %d", (int)capacity);
+    patchlib_method_invoke_args(ctor, instance, NULL, args);
+    TEKLOG_INFO("Dictionary created successfully: %p (capacity: %zu)", instance, capacity);
 
     tefstd_vector_destroy(&v);
     return instance;
@@ -165,7 +161,7 @@ bool patchlib_dictionary_set_value(patch_handle_t dictionary, void* key, void* v
     TEKLOG_DEBUG("set_Item method found: %p", method_set_item);
 
     void* args[2] = {key, value};
-    bool result = patchlib_method_invoke_args(method_set_item, dictionary, NULL, args);
+    const bool result = patchlib_method_invoke_args(method_set_item, dictionary, NULL, args);
     TEKLOG_DEBUG("Dictionary set_value operation %s", result ? "succeeded" : "failed");
     return result;
 }
@@ -187,16 +183,15 @@ bool patchlib_dictionary_clear(patch_handle_t dictionary) {
     }
     TEKLOG_DEBUG("Clear method found: %p", method_clear);
 
-    void* clear_ptr = patchlib_method_get_pointer(method_clear);
-    if (clear_ptr) {
-        TEKLOG_DEBUG("Calling Clear method");
-        ((void(*)(void*))clear_ptr)(dictionary);
-        TEKLOG_DEBUG("Dictionary cleared successfully");
-        return true;
-    } else {
-        TEKLOG_ERROR("Failed to get Clear method pointer");
-        return false;
-    }
+
+    TEKLOG_DEBUG("Calling Clear method");
+
+    patchlib_method_invoke_args(method_clear, dictionary, NULL, NULL);
+
+    TEKLOG_DEBUG("Dictionary cleared successfully");
+
+    return true;
+
 }
 
 size_t patchlib_dictionary_length(patch_handle_t dictionary) {
@@ -217,14 +212,14 @@ size_t patchlib_dictionary_length(patch_handle_t dictionary) {
     TEKLOG_DEBUG("get_Count method found: %p", method_get_count);
 
     int count = 0;
-    bool result = patchlib_method_invoke_args(method_get_count, dictionary, &count, NULL);
+    const bool result = patchlib_method_invoke_args(method_get_count, dictionary, &count, NULL);
     if (result) {
         TEKLOG_DEBUG("Dictionary length: %d", count);
         return (size_t)count;
-    } else {
-        TEKLOG_ERROR("Failed to get dictionary length");
-        return 0;
     }
+
+    TEKLOG_ERROR("Failed to get dictionary length");
+    return 0;
 }
 
 bool patchlib_dictionary_remove(patch_handle_t dictionary, void* key) {
@@ -245,7 +240,7 @@ bool patchlib_dictionary_remove(patch_handle_t dictionary, void* key) {
     TEKLOG_DEBUG("Remove method found: %p", method_remove);
 
     void* args[1] = {key};
-    bool result = patchlib_method_invoke_args(method_remove, dictionary, NULL, args);
+    const bool result = patchlib_method_invoke_args(method_remove, dictionary, NULL, args);
     TEKLOG_DEBUG("Dictionary remove operation %s", result ? "succeeded" : "failed");
     return result;
 }

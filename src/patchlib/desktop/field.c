@@ -22,60 +22,43 @@
 
 #include "patchlib/field.h"
 
-#include "net_api.h"
 #include "internal/log.h"
+#include "../il2cpp_api.h"
 
-const char* patchlib_field_get_name(const patch_handle_t field) {
-    if (!patchlib_is_valid(field)) {
-        TEKLOG_WARN("Invalid field handle");
-        return NULL;
-    }
-
-    const char* result = net_field_get_name(field);
-    TEKLOG_DEBUG("Field name: %s", result ? result : "NULL");
-    return result;
-}
-
-bool patchlib_field_is_static(const patch_handle_t field) {
+bool patchlib_field_is_thread_static(patch_handle_t field) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_WARN("Invalid field handle");
         return false;
     }
 
-    const bool result = net_field_is_static(field);
-    TEKLOG_DEBUG("Field is static: %s", result ? "true" : "false");
-    return result;
-}
-
-bool patchlib_field_is_instance(const patch_handle_t field) {
-    const bool result = !patchlib_field_is_static(field);
-    TEKLOG_DEBUG("Field is instance: %s", result ? "true" : "false");
-    return result;
-}
-
-bool patchlib_field_is_const(const patch_handle_t field) {
-    if (!patchlib_is_valid(field)) {
-        TEKLOG_WARN("Invalid field handle");
-        return false;
-    }
-
-    const bool result = net_field_is_const(field);
-    TEKLOG_DEBUG("Field is const: %s", result ? "true" : "false");
-    return result;
-}
-
-bool patchlib_field_is_thread_static(const patch_handle_t field) {
-    if (!patchlib_is_valid(field)) {
-        TEKLOG_WARN("Invalid field handle");
-        return false;
-    }
-
-    const bool result = net_field_is_thread_static(field);
+    const bool result = il2cpp_field_is_thread_static(field);
     TEKLOG_DEBUG("Field is thread static: %s", result ? "true" : "false");
     return result;
 }
 
-void patchlib_field_get_value(const patch_handle_t field, const patch_handle_t instance, void *value) {
+bool patchlib_field_is_static(patch_handle_t field) {
+    if (!patchlib_is_valid(field)) {
+        TEKLOG_WARN("Invalid field handle");
+        return false;
+    }
+
+    const bool result = il2cpp_field_is_static(field);
+    TEKLOG_DEBUG("Field is static: %s", result ? "true" : "false");
+    return result;
+}
+
+bool patchlib_field_is_const(patch_handle_t field) {
+    if (!patchlib_is_valid(field)) {
+        TEKLOG_WARN("Invalid field handle");
+        return false;
+    }
+
+    const bool result = il2cpp_field_is_literal(field);
+    TEKLOG_DEBUG("Field is const: %s", result ? "true" : "false");
+    return result;
+}
+
+void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, void *value) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_ERROR("Invalid field handle");
         return;
@@ -86,12 +69,14 @@ void patchlib_field_get_value(const patch_handle_t field, const patch_handle_t i
         return;
     }
 
-    if (net_field_get_value(field, instance, value)) {
-        TEKLOG_DEBUG("Field value retrieved successfully");
-    }
+    TEKLOG_DEBUG("Getting field value: field=%p, instance=%p", field, instance);
+
+    il2cpp_field_get_value(field, instance, value);
+
+    TEKLOG_DEBUG("Field value retrieved successfully");
 }
 
-void patchlib_field_set_value(const patch_handle_t field, const patch_handle_t instance, void *value) {
+void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, void *value) {
     if (!patchlib_is_valid(field)) {
         TEKLOG_ERROR("Invalid field handle");
         return;
@@ -102,21 +87,9 @@ void patchlib_field_set_value(const patch_handle_t field, const patch_handle_t i
         return;
     }
 
-    TEKLOG_DEBUG("Setting field value: field=%d, instance=%d",
-                 field, instance);
+    TEKLOG_DEBUG("Setting field value: field=%p, instance=%p", field, instance);
 
-    if (net_field_set_value(field, instance, value)) TEKLOG_DEBUG("Field value set successfully");
-}
+    il2cpp_field_set_value(field, instance, value);
 
-patch_type_t patchlib_field_get_type(const patch_handle_t field) {
-    if (!patchlib_is_valid(field))
-        return PATCH_VOID;
-
-    return net_field_get_type(field);
-}
-
-bool patchlib_field_free(const patch_handle_t field) {
-    TEKLOG_DEBUG("Field freed: %d", field);
-    net_field_free(field);
-    return true;
+    TEKLOG_DEBUG("Field value set successfully");
 }

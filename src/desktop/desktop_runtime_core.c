@@ -29,13 +29,16 @@
 
 char* tefkernel_working_dir = "/home/eternalfuture/.local/share/tefmanager";
 
+void Test();
+
 API_EXPORT int init_tefkernel() {
 
     // Initialize logging system first
     tefkernel_log_init("tefkernel.log");
-    tefkernel_init();
-    tefkernel_load();
-    tefkernel_start();
+    Test();
+    // tefkernel_init();
+    // tefkernel_load();
+    // tefkernel_start();
 
     return 0;
 }

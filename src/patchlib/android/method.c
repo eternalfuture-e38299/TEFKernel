@@ -26,131 +26,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "il2cpp_api.h"
+#include "../il2cpp_api.h"
 #include "private.h"
 #include "internal/log.h"
-#include "patchlib/property.h"
-#include "patchlib/struct/string.h"
 
-const char *patchlib_method_get_name(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_WARN("Invalid method handle");
+void* patchlib_method_get_pointer(patch_handle_t method) {
+    if (!patchlib_is_valid(method))
         return NULL;
-    }
-
-    const char* result = il2cpp_method_get_name(method);
-    TEKLOG_DEBUG("Method name: %s", result ? result : "NULL");
-    return result;
-}
-
-int patchlib_method_get_param_count(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_WARN("Invalid method handle");
-        return -1;
-    }
-
-    const int result = (int) il2cpp_method_get_param_count(method);
-    TEKLOG_DEBUG("Method parameter count: %d", result);
-    return result;
-}
-
-bool patchlib_method_is_instance(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_WARN("Invalid method handle");
-        return false;
-    }
-
-    bool result = il2cpp_method_is_instance(method);
-    TEKLOG_DEBUG("Method is instance: %s", result ? "true" : "false");
-    return result;
-}
-
-void *patchlib_method_get_pointer(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_ERROR("Invalid method handle");
-        return NULL;
-    }
-
-    void* result = *(void **) method;
-    TEKLOG_DEBUG("Method pointer: %p", result);
-    return result;
-}
-
-static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
-    if (!type) {
-        TEKLOG_DEBUG("NULL type provided, returning PATCH_VOID");
-        return PATCH_VOID;
-    }
-
-    const int il2cpp_type = il2cpp_type_get_type(type);
-
-    patch_type_t result;
-    switch (il2cpp_type) {
-        case IL2CPP_TYPE_VOID:     result = PATCH_VOID; break;
-        case IL2CPP_TYPE_BOOLEAN:  result = PATCH_BOOL; break;
-        case IL2CPP_TYPE_I1:       result = PATCH_INT8; break;
-        case IL2CPP_TYPE_U1:       result = PATCH_UINT8; break;
-        case IL2CPP_TYPE_I2:       result = PATCH_INT16; break;
-        case IL2CPP_TYPE_U2:       result = PATCH_UINT16; break;
-        case IL2CPP_TYPE_I4:       result = PATCH_INT32; break;
-        case IL2CPP_TYPE_R4:       result = PATCH_FLOAT; break;
-        case IL2CPP_TYPE_U4:       result = PATCH_UINT32; break;
-        case IL2CPP_TYPE_I8:       result = PATCH_INT64; break;
-        case IL2CPP_TYPE_U8:       result = PATCH_UINT64; break;
-        case IL2CPP_TYPE_R8:       result = PATCH_DOUBLE; break;
-        case IL2CPP_TYPE_CHAR:     result = PATCH_CHAR; break;
-        default:                   result = PATCH_POINTER; break;
-    }
-
-    TEKLOG_TRACE("Converted IL2CPP type %d to patch type: %d", il2cpp_type, result);
-    return result;
-}
-
-int patchlib_method_get_token(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) return 0;
-    return (int)il2cpp_method_get_token(method);
-}
-
-bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature_t* signature) {
-    TEKLOG_DEBUG("patchlib_method_get_signature called: method=%p", method);
-
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_ERROR("Invalid method handle");
-        return false;
-    }
-
-    signature->method = method;
-    signature->token = patchlib_method_get_token(signature->method);
-    signature->return_type = il2cpp_type_to_patch_type(il2cpp_method_get_return_type(method));
-    signature->is_instance = patchlib_method_is_instance(method);
-    tefstd_vector_init(&signature->arg_types, sizeof(patch_type_t));
-    tefstd_vector_init(&signature->arg_names, sizeof(const char*));
-
-    const int param_count = patchlib_method_get_param_count(method);
-    TEKLOG_DEBUG("Method signature: return_type=%d, is_instance=%s, param_count=%d",
-                 signature->return_type, signature->is_instance ? "true" : "false", param_count);
-
-    for (int i = 0; i < param_count; ++i) {
-        patch_type_t t = il2cpp_type_to_patch_type(il2cpp_method_get_param(method, i));
-        const char* n = il2cpp_method_get_param_name(method, i);
-        tefstd_vector_push_back(&signature->arg_types, &t);
-        tefstd_vector_push_back(&signature->arg_names, &n);
-        TEKLOG_DEBUG("Parameter %d type: %d", i, t);
-    }
-
-    TEKLOG_DEBUG("Signature extraction completed: total_params=%zu",
-                 tefstd_vector_size(&signature->arg_types));
-    return true;
-}
-
-bool patchlib_method_signature_free(patch_method_signature_t* signature) {
-    tefstd_vector_destroy(&signature->arg_types);
-    tefstd_vector_destroy(&signature->arg_names);
-    signature->method = PATCH_NULL;
-    signature->is_instance = 0;
-    signature->return_type = PATCH_VOID;
-
-    return true;
+    return *(void**)method;
 }
 
 bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
@@ -183,10 +66,8 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     // 计算总参数个数
-    int total_arg_count = (int)tefstd_vector_size(&signature.arg_types);
-    if (signature.is_instance) {
-        total_arg_count++; // 加上this指针
-    }
+    const int total_arg_count = (int)tefstd_vector_size(&signature.arg_types)
+                        + (signature.is_instance ? 1 : 0);
 
     TEKLOG_DEBUG("Method invocation: ptr=%p, total_args=%d, is_instance=%s",
                  method_ptr, total_arg_count, signature.is_instance ? "true" : "false");
@@ -252,6 +133,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
 
     TEKLOG_DEBUG("Method invocation completed successfully");
 
+    patchlib_method_signature_free(&signature);
     free(arg_values);
     free(arg_types);
     return true;
@@ -275,7 +157,7 @@ patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, cons
 
     void* type_array = create_type_array_from_vector(template_types, il2cpp_class_from_name(il2cpp_get_corlib(), "System", "Type"));
 
-    void* result_obj = ((void*(*)(void*, void*))patchlib_method_get_pointer(patchlib_MakeGenericMethod_impl))(reflection_method, type_array);
+    const void* result_obj = ((void*(*)(void*, void*))patchlib_method_get_pointer(patchlib_MakeGenericMethod_impl))(reflection_method, type_array);
 
     void* result_method = il2cpp_method_get_from_reflection(result_obj);
     if (!result_method) {

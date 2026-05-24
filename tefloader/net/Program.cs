@@ -22,9 +22,9 @@
 
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
+using tefloader.Il2CppApi;
 using static System.Reflection.Assembly;
 
 namespace tefloader;
@@ -36,82 +36,79 @@ public abstract class Program
     private static string _workDirs = string.Empty;
 
     public static readonly LibLoader TefKernelLib = new();
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int InitAryDelegate([MarshalAs(UnmanagedType.LPStr)]string workDirs);
     private static InitAryDelegate? _initAry;
-    
-public static void Main(string[] args)
-{
-    Console.OutputEncoding = Encoding.UTF8;
 
-    if (!File.Exists(LaunchConfig))
+    public static void Main(string[] args)
     {
-        const string defaultJson = """
+        Console.OutputEncoding = Encoding.UTF8;
 
-                                   {
-                                     "kernelLibPath": "libtefkernel.so",
-                                     "loadersPath": ".",
-                                     "modsPath": "."
-                                   }
+        if (!File.Exists(LaunchConfig))
+        {
+            const string defaultJson = """
 
-                                   """;
-        File.WriteAllText(LaunchConfig, defaultJson);
+                                       {
+                                         "kernelLibPath": "libtefkernel.so",
+                                         "loadersPath": ".",
+                                         "modsPath": "."
+                                       }
+
+                                       """;
+            File.WriteAllText(LaunchConfig, defaultJson);
+        }
+
+        var jsonContent = File.ReadAllText(LaunchConfig);
+        var config = JObject.Parse(jsonContent);
+
+        var kernelLibPath = (string)config["kernelLibPath"]!;
+
+        // Check if kernel library file exists
+        if (!File.Exists(kernelLibPath))
+        {
+            Console.WriteLine($"ERROR: TefKernel library not found at '{kernelLibPath}'");
+            Console.WriteLine("Please check the configuration file and ensure the library exists.");
+            Environment.Exit(1);
+        }
+
+        try
+        {
+            TefKernelLib.LoadLib(kernelLibPath);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException || ex is FileNotFoundException)
+        {
+            Console.WriteLine($"ERROR: Failed to load TefKernel library from '{kernelLibPath}'");
+            Console.WriteLine($"Error details: {ex.Message}");
+            Console.WriteLine("Please ensure the library file is not corrupted and is compatible with your system.");
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR: Unexpected error while loading TefKernel library: {ex.Message}");
+            Console.WriteLine("Please check system dependencies and permissions.");
+            Environment.Exit(1);
+        }
+
+        _workDirs = (string)config["work_directory"]!;
+        var exePath = config["exe_path"]?.Value<string>();
+        if (exePath != null)
+            _exePath = exePath;
+
+        // Logger.Initialize(TefKernelLib);
+        // NetApi.Initialization.InitializeAllApis();
+
+        try
+        {
+            // _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_tefkernel"));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("ERROR: Failed to get symbol 'init_tefkernel' from TefKernel library");
+            Console.WriteLine($"Error details: {ex.Message}");
+            Console.WriteLine("The kernel library may be incompatible or corrupted.");
+            Environment.Exit(1);
+        }
+
+        Launch(args);
     }
-
-    var jsonContent = File.ReadAllText(LaunchConfig);
-    var config = JObject.Parse(jsonContent);
-
-    string kernelLibPath = (string)config["kernelLibPath"]!;
-
-    // Check if kernel library file exists
-    if (!File.Exists(kernelLibPath))
-    {
-        Console.WriteLine($"ERROR: TefKernel library not found at '{kernelLibPath}'");
-        Console.WriteLine("Please check the configuration file and ensure the library exists.");
-        Environment.Exit(1);
-    }
-
-    try
-    {
-        TefKernelLib.LoadLib(kernelLibPath);
-    }
-    catch (Exception ex) when (ex is DllNotFoundException || ex is FileNotFoundException)
-    {
-        Console.WriteLine($"ERROR: Failed to load TefKernel library from '{kernelLibPath}'");
-        Console.WriteLine($"Error details: {ex.Message}");
-        Console.WriteLine("Please ensure the library file is not corrupted and is compatible with your system.");
-        Environment.Exit(1);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"ERROR: Unexpected error while loading TefKernel library: {ex.Message}");
-        Console.WriteLine("Please check system dependencies and permissions.");
-        Environment.Exit(1);
-    }
-
-    _workDirs = (string)config["work_directory"]!;
-    var exePath = config["exe_path"]?.Value<string>();
-    if (exePath != null)
-        _exePath = exePath;
-
-    Logger.Initialize(TefKernelLib);
-    NetApi.Initialization.InitializeAllApis();
-
-    try
-    {
-        _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_tefkernel"));
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"ERROR: Failed to get symbol 'init_tefkernel' from TefKernel library");
-        Console.WriteLine($"Error details: {ex.Message}");
-        Console.WriteLine("The kernel library may be incompatible or corrupted.");
-        Environment.Exit(1);
-    }
-
-    Launch(args);
-}
 
     private static void LoadEmbeddedDependencies()
     {
@@ -360,12 +357,13 @@ public static void Main(string[] args)
         Logger.Debug($"Parameter count: {entryPoint.GetParameters().Length}");
         try
         {
-                HookManager.Harmony.Patch(targetAssembly.GetType("Terraria.Program").GetMethod("SetupLogging",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance),
-                    postfix: new HarmonyMethod(typeof(Program), nameof(SetupLoggingPrefix)));
-
-                entryPoint.Invoke(null, parameters);
+            HookManager.Harmony.Patch(targetAssembly.GetType("Terraria.Program").GetMethod("SetupLogging",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance),
+                postfix: new HarmonyMethod(typeof(Program), nameof(SetupLoggingPrefix)));
                 
+
+            entryPoint.Invoke(null, parameters);
+
 
             Logger.Info("Terraria main program has exited");
         }
@@ -392,13 +390,18 @@ public static void Main(string[] args)
         }
     }
 
-    
+
     [HarmonyPrefix]
     public static void SetupLoggingPrefix()
     {
         try
         {
-            Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
+            Initialization.BasicApi.Init();
+            Initialization.ClassApi.Init();
+            var t = Marshal.GetDelegateForFunctionPointer<TestD>(TefKernelLib.GetSym("test"));
+            t();
+            
+            // Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
         }
         catch (Exception ex)
         {
@@ -407,4 +410,9 @@ public static void Main(string[] args)
             Logger.Debug($"Stack trace:\n{ex.StackTrace}");
         }
     }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int InitAryDelegate([MarshalAs(UnmanagedType.LPStr)] string workDirs);
+
+    private delegate void TestD();
 }

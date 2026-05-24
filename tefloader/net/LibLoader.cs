@@ -56,13 +56,72 @@ public class LibLoader
         SearchDefault = 0x1000
     }
 
-    // 平台检测
-    private static bool IsWin => Environment.OSVersion.Platform == PlatformID.Win32NT;
+    // 检测是否在 Wine 环境下运行
+    private static bool IsRunningInWine
+    {
+        get
+        {
+            try
+            {
+                [DllImport("ntdll")]
+                static extern IntPtr wine_get_version();
+                
+                var version = wine_get_version();
+                if (version != IntPtr.Zero)
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            try
+            {
+                // 方法2：检查环境变量
+                var wineEnv = Environment.GetEnvironmentVariable("WINEPREFIX");
+                if (!string.IsNullOrEmpty(wineEnv))
+                    return true;
+                    
+                // 方法3：检查特定注册表项
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"Software\Wine");
+                if (key != null)
+                    return true;
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return false;
+        }
+    }
+    
+    // 检测是否为真实的 Windows（不是 Wine）
+    private static bool IsRealWindows
+    {
+        get
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                return false;
+            
+            // 如果在 Wine 中，返回 false
+            if (IsRunningInWine)
+                return false;
+            
+            return true;
+        }
+    }
 
     private static bool IsLinux
     {
         get
         {
+            // 如果在 Wine 中，不使用 Linux API
+            if (IsRunningInWine)
+                return false;
+                
             if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                 return false;
         
@@ -83,6 +142,9 @@ public class LibLoader
     {
         get
         {
+            if (IsRunningInWine)
+                return false;
+                
             if (Environment.OSVersion.Platform == PlatformID.MacOSX)
                 return true;
         
@@ -91,13 +153,19 @@ public class LibLoader
         
             return Directory.Exists("/Applications") && 
                    Directory.Exists("/System/Library") &&
-                   !File.Exists("/etc/os-release"); // 确保不是Linux
+                   !File.Exists("/etc/os-release");
         }
     }
     
+    // 判断应该使用哪种 API
+    private static bool ShouldUseWindowsApi => IsRealWindows || IsRunningInWine;
+    
     private static string GetExt()
     {
-        return IsWin ? ".dll" : IsLinux ? ".so" : IsMac ? ".dylib" : "";
+        if (ShouldUseWindowsApi) return ".dll";
+        if (IsLinux) return ".so";
+        if (IsMac) return ".dylib";
+        return "";
     }
 
     public LibLoader() { }
@@ -109,48 +177,74 @@ public class LibLoader
 
     public void LoadLib(string path, bool addExt = false)
     {
-        if (IsWin)
-            LoadLib(path, WinFlags.AlterSearch, addExt);
+        if (ShouldUseWindowsApi)
+            LoadLib(path, WinFlags.LoadAsData | WinFlags.SearchDllDir, addExt);
         else
             LoadLib(path, UnixFlags.Now, addExt);
     }
 
     public void LoadLib(string path, UnixFlags mode, bool addExt = false)
     {
-        if (IsWin) throw new PlatformNotSupportedException("The Unix mode cannot be used on Windows.");
+        if (ShouldUseWindowsApi) throw new PlatformNotSupportedException("The Unix mode cannot be used on Windows/Wine.");
         LoadInternal(path, (int)mode, addExt);
     }
 
     public void LoadLib(string path, WinFlags mode, bool addExt = false)
     {
-        if (!IsWin) throw new PlatformNotSupportedException("Windows mode cannot be used on Unix");
+        if (!ShouldUseWindowsApi) throw new PlatformNotSupportedException("Windows mode cannot be used on Unix");
         LoadInternal(path, (int)mode, addExt);
     }
 
     public IntPtr GetSym(string sym)
     {
-        return IsWin ? GetProcAddress(_handle, sym) :
-            IsLinux ? linux_dlsym(_handle, sym) :
-            mac_dlsym(_handle, sym);
+        // 在 Wine 或真实 Windows 上，只使用 Windows API
+        if (!ShouldUseWindowsApi) return IsLinux ? linux_dlsym(_handle, sym) : mac_dlsym(_handle, sym);
+        var result = GetProcAddress(_handle, sym);
+
+        if (result != IntPtr.Zero || !IsRunningInWine) return result;
+        var error = Marshal.GetLastWin32Error();
+        Console.Error.WriteLine($"GetProcAddress failed for '{sym}', error: {error}");
+
+        return result;
+
+    }
+    
+    // 通过序号获取符号（备用方案）
+    public IntPtr GetSymByOrdinal(int ordinal)
+    {
+        if (ShouldUseWindowsApi)
+        {
+            return GetProcAddressByOrdinal(_handle, ordinal);
+        }
+        return IntPtr.Zero;
     }
 
-    public T GetVariable<T>(string variableName)
+    public T? GetVariable<T>(string variableName)
     {
         var address = GetSym(variableName);
-        return Marshal.PtrToStructure<T>(address);
+        return address == IntPtr.Zero ? default : Marshal.PtrToStructure<T>(address);
     }
 
     public void SetVariable<T>(string variableName, T value)
     {
         var address = GetSym(variableName);
+        if (address == IntPtr.Zero)
+            return;
         Marshal.StructureToPtr(value, address, false);
     }
 
     public bool UnLoad()
     {
-        return IsWin ? FreeLibrary(_handle) :
-        IsLinux ? linux_dlclose(_handle) == 1 :
-        mac_dlclose(_handle) == 1;
+        if (ShouldUseWindowsApi)
+            return FreeLibrary(_handle);
+        if (IsLinux)
+            return linux_dlclose(_handle) == 1;
+        return mac_dlclose(_handle) == 1;
+    }
+    
+    public IntPtr GetHandle()
+    {
+        return _handle;
     }
 
     private void LoadInternal(string path, int mode, bool addExt)
@@ -160,22 +254,62 @@ public class LibLoader
             if (addExt) path += GetExt();
             path = Path.GetFullPath(path);
 
-            _handle = IsWin ? LoadLibraryExW(path, IntPtr.Zero, (uint)mode) :
-                IsLinux ? linux_dlopen(path, mode) :
-                mac_dlopen(path, mode);
+            if (ShouldUseWindowsApi)
+            {
+                // 在 Wine 下，使用 LoadLibrary 而不是 LoadLibraryExW
+                if (IsRunningInWine)
+                {
+                    _handle = LoadLibraryW(path);
+                    if (_handle == IntPtr.Zero)
+                    {
+                        int error = Marshal.GetLastWin32Error();
+                        throw new Exception($"LoadLibraryW failed with error: {error}");
+                    }
+                }
+                else
+                {
+                    _handle = LoadLibraryExW(path, IntPtr.Zero, (uint)mode);
+                    if (_handle != IntPtr.Zero) return;
+                    Marshal.GetLastWin32Error();
+                    _handle = LoadLibraryW(path);
+
+                    if (_handle != IntPtr.Zero) return;
+                    var error = Marshal.GetLastWin32Error();
+                    throw new Exception($"Failed to load library with both methods. Last error: {error}");
+                }
+            }
+            else if (IsLinux)
+            {
+                _handle = linux_dlopen(path, mode);
+                if (_handle != IntPtr.Zero) return;
+                var errorPtr = linux_dlerror();
+                var error = Marshal.PtrToStringAnsi(errorPtr);
+                throw new Exception($"dlopen failed: {error}");
+            }
+            else
+            {
+                _handle = mac_dlopen(path, mode);
+                if (_handle != IntPtr.Zero) return;
+                var errorPtr = mac_dlerror();
+                var error = Marshal.PtrToStringAnsi(errorPtr);
+                throw new Exception($"dlopen failed: {error}");
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Load error: {ex}");
+            Console.Error.WriteLine($"Load error: {ex}");
             throw;
         }
     }
     
     private IntPtr _handle = IntPtr.Zero;
     
-    // Windows
+    // Windows APIs
     [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true)]
     private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+    
+    [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true)]
+    private static extern IntPtr GetProcAddressByOrdinal(IntPtr hModule, int ordinal);
 
     [DllImport("kernel32")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -184,7 +318,10 @@ public class LibLoader
     [DllImport("kernel32", CharSet = CharSet.Unicode)]
     private static extern IntPtr LoadLibraryExW(string lpFileName, IntPtr hFile, uint dwFlags);
     
-    // Linux
+    [DllImport("kernel32", CharSet = CharSet.Unicode)]
+    private static extern IntPtr LoadLibraryW(string lpFileName);
+    
+    // Linux/POSIX APIs - 只在非 Wine 环境下使用
     [DllImport("libc", EntryPoint = "dlopen")]
     private static extern IntPtr linux_dlopen(string filename, int flags);
 
@@ -193,8 +330,11 @@ public class LibLoader
 
     [DllImport("libc", EntryPoint = "dlclose")]
     private static extern int linux_dlclose(IntPtr handle);
-
-    // MacOs
+    
+    [DllImport("libc", EntryPoint = "dlerror")]
+    private static extern IntPtr linux_dlerror();
+    
+    // macOS APIs
     [DllImport("libdl.dylib", EntryPoint = "dlopen")]
     private static extern IntPtr mac_dlopen(string filename, int flags);
 
@@ -203,4 +343,7 @@ public class LibLoader
 
     [DllImport("libdl.dylib", EntryPoint = "dlclose")]
     private static extern int mac_dlclose(IntPtr handle);
+    
+    [DllImport("libdl.dylib", EntryPoint = "dlerror")]
+    private static extern IntPtr mac_dlerror();
 }

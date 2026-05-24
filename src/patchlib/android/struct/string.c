@@ -25,62 +25,14 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "../il2cpp_api.h"
-
-/*
-typedef struct il2cpp_string_t {
-    void *m_class;
-    void *m_monitor;
-    uint32_t length;
-    wchar_t chars[0];
-} il2cpp_string_t;
-*/
-
-patch_handle_t patchlib_string_create(const char* str) {
-    TEKLOG_DEBUG("patchlib_string_create called: str=%s", str ? str : "NULL");
-
-    if (!str) {
-        TEKLOG_WARN("NULL string provided");
-        return PATCH_NULL;
-    }
-
-    const size_t len = strlen(str);
-    TEKLOG_DEBUG("Creating string from C string, length: %zu", len);
-
-    patch_handle_t result = il2cpp_string_new(str);
-    if (result) {
-        TEKLOG_DEBUG("String created successfully: %p (length: %zu)", result, len);
-    } else {
-        TEKLOG_ERROR("Failed to create string");
-    }
-
-    return result;
-}
-
-const wchar_t* patchlib_string_cstr16(patch_handle_t str) {
-    TEKLOG_DEBUG("patchlib_string_cstr16 called: str=%p", str);
-
-    if (!patchlib_is_valid(str)) {
-        TEKLOG_WARN("Invalid string handle");
-        return NULL;
-    }
-
-    const wchar_t* result = il2cpp_string_chars(str);
-    if (result) {
-        const size_t len = patchlib_string_length(str);
-        TEKLOG_DEBUG("Wide string pointer: %p, length: %zu", result, len);
-    } else {
-        TEKLOG_ERROR("Failed to get wide string pointer");
-    }
-
-    return result;
-}
+#include "../../il2cpp_api.h"
 
 // 手动UTF-16到UTF-8转换
 static char* convert_utf16_to_utf8_manual(const uint16_t* utf16_str, const size_t len) {
     if (!utf16_str || len == 0) return NULL;
 
     // 估算最大大小（UTF-8最多是UTF-16的3倍）
+    // ReSharper disable once CppDFAMemoryLeak
     char* utf8_str = malloc(len * 3 + 1);
     if (!utf8_str) return NULL;
 
@@ -145,6 +97,7 @@ char* patchlib_string_cstr(patch_handle_t str) {
     TEKLOG_DEBUG("String length: %zu", len);
 
     // 直接使用转换函数
+    // ReSharper disable once CppDFAMemoryLeak
     char* utf8_str = convert_utf16_to_utf8_manual((const uint16_t*)wstr, len);
     if (!utf8_str) {
         TEKLOG_ERROR("UTF-16 to UTF-8 conversion failed");
@@ -153,32 +106,4 @@ char* patchlib_string_cstr(patch_handle_t str) {
 
     TEKLOG_DEBUG("String conversion successful: %s", utf8_str);
     return utf8_str;
-}
-
-bool patchlib_string_empty(patch_handle_t str) {
-    TEKLOG_DEBUG("patchlib_string_empty called: str=%p", str);
-
-    if (!patchlib_is_valid(str)) {
-        TEKLOG_WARN("Invalid string handle, considering as empty");
-        return true;
-    }
-
-    const size_t len = il2cpp_string_length(str);
-    const bool result = (len == 0);
-    TEKLOG_DEBUG("String empty check: length=%zu, empty=%s", len, result ? "true" : "false");
-
-    return result;
-}
-
-size_t patchlib_string_length(patch_handle_t str) {
-    TEKLOG_DEBUG("patchlib_string_length called: str=%p", str);
-
-    if (!patchlib_is_valid(str)) {
-        TEKLOG_WARN("Invalid string handle");
-        return 0;
-    }
-
-    const size_t result = il2cpp_string_length(str);
-    TEKLOG_DEBUG("String length: %zu", result);
-    return result;
 }

@@ -19,32 +19,32 @@ endif ()
 
 set(PATCHLIB_SRC src/patchlib/common/type.c
         src/patchlib/common/method.c
+        src/patchlib/common/property.c
+        src/patchlib/common/field.c
+        src/patchlib/common/struct/dictionary.c
+        src/patchlib/common/struct/list.c
+        src/patchlib/common/struct/string.c
+        src/patchlib/common/struct/array.c
 )
 if (ANDROID)
     list(APPEND PATCHLIB_SRC
             src/patchlib/android/type.c
             src/patchlib/android/field.c
-            src/patchlib/android/property.c
             src/patchlib/android/method.c
             src/patchlib/android/il2cpp_api.c
             src/patchlib/android/private.c
             src/patchlib/android/method_hook.c
             src/patchlib/android/struct/array.c
             src/patchlib/android/struct/string.c
-            src/patchlib/android/struct/list.c
-            src/patchlib/android/struct/dictionary.c
     )
 else ()
     list(APPEND PATCHLIB_SRC
             src/patchlib/desktop/type.c
             src/patchlib/desktop/field.c
-            src/patchlib/desktop/property.c
             src/patchlib/desktop/method.c
-            src/patchlib/desktop/net_api.c
+            src/patchlib/desktop/il2cpp_api.c
             src/patchlib/desktop/struct/array.c
             src/patchlib/desktop/struct/string.c
-            src/patchlib/desktop/struct/list.c
-            src/patchlib/desktop/struct/dictionary.c
     )
 endif ()
 

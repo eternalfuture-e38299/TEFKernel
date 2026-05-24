@@ -144,6 +144,8 @@ int hook_il2cpp_init(const char* domain_name) {
     tefkernel_load();
     tefkernel_start();
 
+    start_test();
+
     TEKLOG_INFO("TEFKernel core initialization completed");
 
     return r;

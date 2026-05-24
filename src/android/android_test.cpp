@@ -25,6 +25,7 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <sstream>
 
 #include "internal/kernel_state.h"
 #include "internal/log.h"
@@ -254,13 +255,54 @@ void Initialize_AlmostEverything_post(patch_handle_t instance, void **args, void
 
 }
 
+void SetDefaults_post(patch_handle_t instance, void **args, void *result, const patch_method_signature_t *sig_info) {
+    TEKLOG_DEBUG("SetDefaults_post entered: instance=%p, args=%p, result=%p", instance, args, result);
+
+    // 获取 buyPrice 方法
+    patch_handle_t buyPrice_method = patchlib_type_get_method_by_param_count(
+        patchlib_type_get_type("Terraria", "Item"),
+        "buyPrice",
+        4  // 4个参数：platinum, gold, silver, copper
+    );
+
+    if (!patchlib_is_valid(buyPrice_method)) {
+        TEKLOG_ERROR("Failed to get buyPrice method");
+        return;
+    }
+
+    TEKLOG_DEBUG("Found buyPrice method: %p", buyPrice_method);
+
+    // 调用方法（修正：使用 buyPrice_args，不是外部函数的 args）
+    int buyPrice_result = 0;
+    bool success = patchlib_method_invoke(
+        buyPrice_method,
+        instance,           // 实例对象
+        &buyPrice_result,   // 返回值指针
+        1, 1, 1, 1
+    );
+
+    if (success) {
+        TEKLOG_DEBUG("buyPrice called successfully, result=%d", buyPrice_result);
+    } else {
+        TEKLOG_ERROR("buyPrice method invocation failed");
+    }
+
+    TEKLOG_DEBUG("SetDefaults_post completed");
+}
+
 void start_test() {
-    patch_handle_t method = patchlib_type_get_method_by_param_count(
+    /*patch_handle_t method = patchlib_type_get_method_by_param_count(
         patchlib_type_get_type("Terraria", "Main"),
         "Initialize_AlmostEverything",
         0
     );
+    */
+    // patchlib_install_prepost_hook(method, (prefix_callback_t)Initialize_AlmostEverything_pre, (postfix_callback_t)Initialize_AlmostEverything_post);
 
-
-    patchlib_install_prepost_hook(method, (prefix_callback_t)Initialize_AlmostEverything_pre, (postfix_callback_t)Initialize_AlmostEverything_post);
+    patch_handle_t method = patchlib_type_get_method_by_param_count(
+            patchlib_type_get_type("Terraria", "Item"),
+            "SetDefaults",
+            2
+        );
+    patchlib_install_prepost_hook(method, NULL, SetDefaults_post);
 }

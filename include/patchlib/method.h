@@ -102,17 +102,6 @@ DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
 DEFINE_FUNCTION(bool, patchlib_method_invoke_args, patch_handle_t method, patch_handle_t instance,
                                  void *return_value, void **args)
 
-/**
- * @brief 调用函数
- * @param method 函数句柄(可为无效)
- * @param instance 实例对象(静态函数为PATCH_NULL)
- * @param return_value[out] 输出值缓冲区
- * @param ... 实际参数
- * @return 执行结果
- */
-DEFINE_FUNCTION(bool, patchlib_method_invoke, patch_handle_t method, patch_handle_t instance,
-                void *return_value, ...)
-
 // ==================== 高级 ====================
 
 typedef short patch_hook_id_t;
@@ -217,21 +206,6 @@ DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook,
  *                      没有线程安全，请不要并行调用。
  */
 DEFINE_FUNCTION(bool, patchlib_uninstall_hook, patch_hook_id_t hook_id)
-
-
-// ==================== 资源管理 ====================
-/**
- * @brief 释放方法相关资源
- * @param method 要释放的方法句柄(可以为无效句柄)
- * @return 执行结果
- */
-DEFINE_FUNCTION(bool, patchlib_method_free, patch_handle_t method)
-
-#if __ANDROID__
-
-#    define patchlib_method_free(handle) ((void)0)
-
-#endif
 
 #ifdef __cplusplus
 }

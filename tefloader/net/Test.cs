@@ -22,6 +22,7 @@
 
 using System.Data;
 using System.Runtime.InteropServices;
+using tefloader.Il2CppApi;
 
 namespace tefloader;
 
@@ -38,13 +39,10 @@ public class Test
     private delegate void TestD();
     public static void Main()
     {
-        Program.TefKernelLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-debug/libtefkernel.so");
+        Program.TefKernelLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-release/libtefkernel.linux.x64.so");
         Logger.Initialize(Program.TefKernelLib);
-        NetApi.Initialization.MethodInit.Init();
-        NetApi.Initialization.TypeApi.Init();
-        NetApi.Initialization.FieldApi.Init();
-        NetApi.Initialization.PropertyApi.Init();
-        NetApi.Initialization.StructInit.InitAll();
+        
+        Initialization.RegisterAllApis();
         
         var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("init_tefkernel"));
         t();

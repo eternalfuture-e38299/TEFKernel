@@ -932,7 +932,9 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_get_basic_type);
     TPF_KERNEL_SYMBOL(patchlib_type_new_instance);
     TPF_KERNEL_SYMBOL(patchlib_type_make_generic_type);
+#if defined(__ANDROID__)
     TPF_KERNEL_SYMBOL(patchlib_type_get_mono_type);
+#endif
     TPF_KERNEL_SYMBOL(patchlib_type_get_name);
     TPF_KERNEL_SYMBOL(patchlib_type_get_namespace);
     TPF_KERNEL_SYMBOL(patchlib_type_get_full_name);
@@ -971,7 +973,6 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_method_is_static);
     TPF_KERNEL_SYMBOL(patchlib_method_make_generic_instance);
     TPF_KERNEL_SYMBOL(patchlib_method_invoke_args);
-    TPF_KERNEL_SYMBOL(patchlib_method_invoke);
     TPF_KERNEL_SYMBOL(patchlib_method_get_token);
     TPF_KERNEL_SYMBOL(patchlib_method_get_signature);
     TPF_KERNEL_SYMBOL(patchlib_method_signature_free);
@@ -990,7 +991,6 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_array_fill);
     TPF_KERNEL_SYMBOL(patchlib_array_empty);
     TPF_KERNEL_SYMBOL(patchlib_array_length);
-    TPF_KERNEL_SYMBOL(patchlib_array_clear);
 
     // 集合操作API - List
     TPF_KERNEL_SYMBOL(patchlib_list_create);
@@ -1012,7 +1012,6 @@ void tpf_init_libtefkernel() {
 
     // 字符串操作API
     TPF_KERNEL_SYMBOL(patchlib_string_create);
-    TPF_KERNEL_SYMBOL(patchlib_string_cstr16);
     TPF_KERNEL_SYMBOL(patchlib_string_cstr);
     TPF_KERNEL_SYMBOL(patchlib_string_empty);
     TPF_KERNEL_SYMBOL(patchlib_string_length);
@@ -1030,19 +1029,8 @@ void tpf_init_libtefkernel() {
     // 非Android平台需要注册这些资源管理符号
     TEKLOG_DEBUG("Registering resource management symbols for non-Android platform");
 
-    // 字段资源管理
-    TPF_KERNEL_SYMBOL(patchlib_field_free);
-
-    // 方法资源管理
-    TPF_KERNEL_SYMBOL(patchlib_method_free);
-
-    // 属性资源管理
-    TPF_KERNEL_SYMBOL(patchlib_property_free);
-
-    // 类型和对象资源管理
-    TPF_KERNEL_SYMBOL(patchlib_type_free);
-    TPF_KERNEL_SYMBOL(patchlib_object_free);
-    TPF_KERNEL_SYMBOL(patchlib_object_persist);
+    TPF_KERNEL_SYMBOL(patchlib_free);
+    TPF_KERNEL_SYMBOL(patchlib_handle_copy);
 #endif
 
     TPF_KERNEL_SYMBOL(tpf_register_shared_plugin_library);

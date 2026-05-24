@@ -22,13 +22,10 @@
 
 #include "patchlib/method.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-
 #include "patchlib/type.h"
 
 #include "internal/log.h"
+#include "patchlib/il2cpp_api.h"
 
 bool patchlib_method_is_static(patch_handle_t method) {
     const bool result = !patchlib_method_is_instance(method);
@@ -36,124 +33,123 @@ bool patchlib_method_is_static(patch_handle_t method) {
     return result;
 }
 
-bool patchlib_method_invoke(patch_handle_t method, patch_handle_t instance,
-                           void *return_value, ...) {
-    TEKLOG_DEBUG("patchlib_method_invoke called: method="PATCH_HANDLE_FMT", instance="PATCH_HANDLE_FMT, method, instance);
+const char *patchlib_method_get_name(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_WARN("Invalid method handle");
+        return NULL;
+    }
+
+    const char* result = il2cpp_method_get_name(method);
+    TEKLOG_DEBUG("Method name: %s", result ? result : "NULL");
+    return result;
+}
+
+int patchlib_method_get_param_count(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_WARN("Invalid method handle");
+        return -1;
+    }
+
+    const int result = (int) il2cpp_method_get_param_count(method);
+    TEKLOG_DEBUG("Method parameter count: %d", result);
+    return result;
+}
+
+bool patchlib_method_is_instance(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_WARN("Invalid method handle");
+        return false;
+    }
+
+    const bool result = il2cpp_method_is_instance(method);
+    TEKLOG_DEBUG("Method is instance: %s", result ? "true" : "false");
+    return result;
+}
+
+void *patchlib_method_get_pointer(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("Invalid method handle");
+        return NULL;
+    }
+
+    void* result = *(void **) method;
+    TEKLOG_DEBUG("Method pointer: %p", result);
+    return result;
+}
+
+static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
+    if (!type) {
+        TEKLOG_DEBUG("NULL type provided, returning PATCH_VOID");
+        return PATCH_VOID;
+    }
+
+    const int il2cpp_type = il2cpp_type_get_type(type);
+
+    patch_type_t result;
+    switch (il2cpp_type) {
+        case IL2CPP_TYPE_VOID:     result = PATCH_VOID; break;
+        case IL2CPP_TYPE_BOOLEAN:  result = PATCH_BOOL; break;
+        case IL2CPP_TYPE_I1:       result = PATCH_INT8; break;
+        case IL2CPP_TYPE_U1:       result = PATCH_UINT8; break;
+        case IL2CPP_TYPE_I2:       result = PATCH_INT16; break;
+        case IL2CPP_TYPE_U2:       result = PATCH_UINT16; break;
+        case IL2CPP_TYPE_I4:       result = PATCH_INT32; break;
+        case IL2CPP_TYPE_R4:       result = PATCH_FLOAT; break;
+        case IL2CPP_TYPE_U4:       result = PATCH_UINT32; break;
+        case IL2CPP_TYPE_I8:       result = PATCH_INT64; break;
+        case IL2CPP_TYPE_U8:       result = PATCH_UINT64; break;
+        case IL2CPP_TYPE_R8:       result = PATCH_DOUBLE; break;
+        case IL2CPP_TYPE_CHAR:     result = PATCH_CHAR; break;
+        default:                   result = PATCH_POINTER; break;
+    }
+
+    TEKLOG_TRACE("Converted IL2CPP type %d to patch type: %d", il2cpp_type, result);
+    return result;
+}
+
+int patchlib_method_get_token(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) return 0;
+    return (int)il2cpp_method_get_token(method);
+}
+
+bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature_t* signature) {
+    TEKLOG_DEBUG("patchlib_method_get_signature called: method=%p", method);
 
     if (!patchlib_is_valid(method)) {
         TEKLOG_ERROR("Invalid method handle");
         return false;
     }
 
-    // 获取方法签名
-    patch_method_signature_t signature;
-    if (!patchlib_method_get_signature(method, &signature)) {
-        TEKLOG_ERROR("Failed to get method signature");
-        return false;
+    signature->method = method;
+    signature->token = patchlib_method_get_token(signature->method);
+    signature->return_type = il2cpp_type_to_patch_type(il2cpp_method_get_return_type(method));
+    signature->is_instance = patchlib_method_is_instance(method);
+    tefstd_vector_init(&signature->arg_types, sizeof(patch_type_t));
+    tefstd_vector_init(&signature->arg_names, sizeof(const char*));
+
+    const int param_count = patchlib_method_get_param_count(method);
+    TEKLOG_DEBUG("Method signature: return_type=%d, is_instance=%s, param_count=%d",
+                 signature->return_type, signature->is_instance ? "true" : "false", param_count);
+
+    for (int i = 0; i < param_count; ++i) {
+        patch_type_t t = il2cpp_type_to_patch_type(il2cpp_method_get_param(method, i));
+        const char* n = il2cpp_method_get_param_name(method, i);
+        tefstd_vector_push_back(&signature->arg_types, &t);
+        tefstd_vector_push_back(&signature->arg_names, &n);
+        TEKLOG_DEBUG("Parameter %d type: %d", i, t);
     }
 
-    size_t arg_count = tefstd_vector_size(&signature.arg_types);
-    TEKLOG_DEBUG("Varargs invocation: arg_count=%zu", arg_count);
-
-    // 如果没有参数，直接调用基础版本
-    if (arg_count == 0) {
-        TEKLOG_DEBUG("No arguments, calling simple version");
-        return patchlib_method_invoke_args(method, instance, return_value, NULL);
-    }
-
-    // 准备参数数组
-    void** args = malloc(sizeof(void*) * arg_count);
-    if (!args) {
-        TEKLOG_ERROR("Memory allocation failed for arguments");
-        return false;
-    }
-
-    va_list ap;
-    va_start(ap, return_value);
-
-    TEKLOG_DEBUG("Extracting %zu arguments from va_list", arg_count);
-
-    // 从可变参数中提取参数值
-    for (size_t i = 0; i < arg_count; i++) {
-        const patch_type_t* arg_type = tefstd_vector_at(&signature.arg_types, i);
-
-        // 根据类型提取参数
-        switch (*arg_type) {
-            case PATCH_BOOL:
-                args[i] = malloc(sizeof(bool));
-                *(bool*)args[i] = va_arg(ap, int);
-                TEKLOG_DEBUG("Argument %zu: bool=%s", i, *(bool*)args[i] ? "true" : "false");
-                break;
-            case PATCH_INT8:
-                args[i] = malloc(sizeof(int8_t));
-                *(int8_t*)args[i] = va_arg(ap, int);
-                TEKLOG_DEBUG("Argument %zu: int8=%d", i, *(int8_t*)args[i]);
-                break;
-            case PATCH_UINT8:
-                args[i] = malloc(sizeof(uint8_t));
-                *(uint8_t*)args[i] = va_arg(ap, unsigned int);
-                TEKLOG_DEBUG("Argument %zu: uint8=%u", i, *(uint8_t*)args[i]);
-                break;
-            case PATCH_INT16:
-                args[i] = malloc(sizeof(int16_t));
-                *(int16_t*)args[i] = va_arg(ap, int);
-                TEKLOG_DEBUG("Argument %zu: int16=%d", i, *(int16_t*)args[i]);
-                break;
-            case PATCH_UINT16:
-                args[i] = malloc(sizeof(uint16_t));
-                *(uint16_t*)args[i] = va_arg(ap, unsigned int);
-                TEKLOG_DEBUG("Argument %zu: uint16=%u", i, *(uint16_t*)args[i]);
-                break;
-            case PATCH_INT32:
-                args[i] = malloc(sizeof(int32_t));
-                *(int32_t*)args[i] = va_arg(ap, int32_t);
-                TEKLOG_DEBUG("Argument %zu: int32=%d", i, *(int32_t*)args[i]);
-                break;
-            case PATCH_UINT32:
-                args[i] = malloc(sizeof(uint32_t));
-                *(uint32_t*)args[i] = va_arg(ap, uint32_t);
-                TEKLOG_DEBUG("Argument %zu: uint32=%u", i, *(uint32_t*)args[i]);
-                break;
-            case PATCH_INT64:
-                args[i] = malloc(sizeof(int64_t));
-                *(int64_t*)args[i] = va_arg(ap, int64_t);
-                TEKLOG_DEBUG("Argument %zu: int64=%ld", i, *(int64_t*)args[i]);
-                break;
-            case PATCH_UINT64:
-                args[i] = malloc(sizeof(uint64_t));
-                *(uint64_t*)args[i] = va_arg(ap, uint64_t);
-                TEKLOG_DEBUG("Argument %zu: uint64=%lu", i, *(uint64_t*)args[i]);
-                break;
-            case PATCH_FLOAT:
-                args[i] = malloc(sizeof(float));
-                *(float*)args[i] = (float)va_arg(ap, double);
-                TEKLOG_DEBUG("Argument %zu: float=%f", i, *(float*)args[i]);
-                break;
-            case PATCH_DOUBLE:
-                args[i] = malloc(sizeof(double));
-                *(double*)args[i] = va_arg(ap, double);
-                TEKLOG_DEBUG("Argument %zu: double=%f", i, *(double*)args[i]);
-                break;
-            default:
-                args[i] = malloc(sizeof(void*));
-                *(void**)args[i] = va_arg(ap, void*);
-                TEKLOG_DEBUG("Argument %zu: pointer=%p", i, *(void**)args[i]);
-                break;
-        }
-    }
-    va_end(ap);
-
-    // 调用基础版本
-    TEKLOG_DEBUG("Calling method_invoke_args with extracted arguments");
-    const bool result = patchlib_method_invoke_args(method, instance, return_value, args);
-
-    // 清理参数内存
-    for (size_t i = 0; i < arg_count; i++) {
-        free(args[i]);
-    }
-    free(args);
-
-    TEKLOG_DEBUG("Method invocation %s", result ? "succeeded" : "failed");
-    return result;
+    TEKLOG_DEBUG("Signature extraction completed: total_params=%zu",
+                 tefstd_vector_size(&signature->arg_types));
+    return true;
 }
 
+bool patchlib_method_signature_free(patch_method_signature_t* signature) {
+    tefstd_vector_destroy(&signature->arg_types);
+    tefstd_vector_destroy(&signature->arg_names);
+    signature->method = PATCH_NULL;
+    signature->is_instance = 0;
+    signature->return_type = PATCH_VOID;
+
+    return true;
+}

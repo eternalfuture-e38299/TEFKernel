@@ -12,6 +12,7 @@ _deps
 CMakeUserPresets.json
 cmake-build-*
 cmake-build
+build
 tefloader/net/bin
 tefloader/net/obj
 tefloader/android-java/build

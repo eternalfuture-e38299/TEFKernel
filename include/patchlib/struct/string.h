@@ -37,22 +37,12 @@
 extern "C" {
 #endif
 
-
 /**
  * @brief 创建一个字符串实例
  * @param str 字符串
  * @return 返回实例
  */
 DEFINE_FUNCTION(patch_handle_t, patchlib_string_create, const char* str);
-
-/**
- * @brief 获取UTF16字符串
- * @param str 字符串实例
- * @return UTF16字符串
- * @warning 实际返回的是一个数组，且结尾没有\0
- * @warning 桌面端需要free
- */
-DEFINE_FUNCTION(const wchar_t*, patchlib_string_cstr16, patch_handle_t str);
 
 /**
  * @brief 转换为字符串

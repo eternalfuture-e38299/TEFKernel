@@ -21,40 +21,19 @@
  *******************************************************************************/
 
 #include "patchlib/struct/string.h"
-#include "../net_api.h"
+#include "../../il2cpp_api.h"
 
 #include <string.h>
 
+#include "internal/log.h"
 
-patch_handle_t patchlib_string_create(const char* str) {
-    if (!str) {
-        return net_string_create(NULL, 0);
-    }
-    return net_string_create(str, (int)strlen(str));
-}
-
-const wchar_t* patchlib_string_cstr16(const patch_handle_t str) {
+char* patchlib_string_cstr(patch_handle_t str) {
+    TEKLOG_DEBUG("patchlib_string_cstr called: str=%p", str);
+    
     if (!patchlib_is_valid(str)) {
+        TEKLOG_ERROR("Invalid string handle");
         return NULL;
     }
-    return net_string_cstr16(str);
-}
-
-char* patchlib_string_cstr(const patch_handle_t str) {
-    if (!patchlib_is_valid(str)) {
-        return NULL;
-    }
-    return net_string_cstr(str);
-}
-
-bool patchlib_string_empty(const patch_handle_t str) {
-    if (!patchlib_is_valid(str))
-        return true;
-    return net_string_empty(str);
-}
-
-size_t patchlib_string_length(const patch_handle_t str) {
-    if (!patchlib_is_valid(str))
-        return 0;
-    return (size_t)net_string_length(str);
+    
+    return il2cpp_string_cstr(str);
 }

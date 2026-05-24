@@ -63,14 +63,6 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_property_get_get_method, patch_handle_t
  */
 DEFINE_FUNCTION(patch_handle_t, patchlib_property_get_set_method, patch_handle_t property)
 
-// ==================== 资源管理 ====================
-/**
- * @brief 释放属性相关资源
- * @param property 要释放的属性句柄(可以为无效句柄)
- * @return 执行结果
- */
-DEFINE_FUNCTION(bool, patchlib_property_free, patch_handle_t property)
-
 #if __ANDROID__
 
 #    define patchlib_property_free(handle) ((void)0)

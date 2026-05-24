@@ -100,6 +100,7 @@ DEFINE_FUNCTION(void, patchlib_field_set_value, patch_handle_t field, patch_hand
  * @return 成功则返回指针，错误返回NULL
  */
 DEFINE_FUNCTION(void *, patchlib_field_get_pointer, patch_handle_t field, void *instance)
+#endif
 
 /**
  * @brief 获取字段数据大小
@@ -107,7 +108,6 @@ DEFINE_FUNCTION(void *, patchlib_field_get_pointer, patch_handle_t field, void *
  * @return 成功返回1~8，否则返回0
  */
 DEFINE_FUNCTION(size_t, patchlib_field_get_size, patch_handle_t field)
-#endif
 
 /**
  * @brief 获取字段类型
@@ -115,15 +115,6 @@ DEFINE_FUNCTION(size_t, patchlib_field_get_size, patch_handle_t field)
  * @return 类型
  */
 DEFINE_FUNCTION(patch_type_t, patchlib_field_get_type, patch_handle_t field)
-
-// ==================== 资源管理 ====================
-/**
- * @brief 释放字段相关资源
- * @param field 要释放的字段句柄(可以为无效句柄)
- * @return 执行结果
- */
-DEFINE_FUNCTION(bool, patchlib_field_free, patch_handle_t field)
-
 
 #if __ANDROID__
 

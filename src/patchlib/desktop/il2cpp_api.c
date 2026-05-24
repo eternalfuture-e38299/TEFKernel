@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - net_api
+ * tefkernel - il2cpp_api
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,8 +17,9 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/1/3
+ * Created: 2026/5/24
  *******************************************************************************/
 
-#define DEFINE_NETAPI_FUNCTIONS
-#include "net_api.h"
+#define IL2CPP_API_IMPL 1
+
+#include "../il2cpp_api.h"

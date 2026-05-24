@@ -22,13 +22,9 @@
 
 #include "patchlib/struct/list.h"
 #include "internal/log.h"
-
-#include <ffi.h>
-
 #include "patchlib/field.h"
 #include "patchlib/method.h"
-#include "patchlib/android/il2cpp_api.h"
-#include "../private.h"
+#include "../../il2cpp_api.h"
 
 static patch_handle_t list_class = NULL;
 
@@ -86,14 +82,17 @@ patch_handle_t patchlib_list_create(size_t capacity, patch_handle_t type) {
     }
     TEKLOG_DEBUG("List instance created: %p", instance);
 
-    // 调用构造函数
-    void* ctor_ptr = patchlib_method_get_pointer(ctor);
-    if (ctor_ptr) {
-        TEKLOG_DEBUG("Calling list constructor with capacity: %d", (int)capacity);
-        ((void(*)(void*, int))ctor_ptr)(instance, (int)capacity);
+    // 使用 patchlib_method_invoke_args 调用构造函数
+    int capacity_arg = (int)capacity;
+    void* args[1] = { &capacity_arg };
+
+    bool result = patchlib_method_invoke_args(ctor, instance, NULL, args);
+    if (result) {
         TEKLOG_INFO("List created successfully: %p (capacity: %zu)", instance, capacity);
     } else {
-        TEKLOG_ERROR("Failed to get constructor pointer");
+        TEKLOG_ERROR("Failed to call list constructor");
+        il2cpp_free(instance);
+        instance = PATCH_NULL;
     }
 
     tefstd_vector_destroy(&v);
@@ -138,7 +137,7 @@ bool patchlib_list_add(patch_handle_t list, void* value) {
     }
     TEKLOG_DEBUG("Add method found: %p", method_add);
 
-    void* args[1] = {value};
+    void* args[1] = { value };
     bool result = patchlib_method_invoke_args(method_add, list, NULL, args);
     TEKLOG_DEBUG("List add operation %s", result ? "succeeded" : "failed");
     return result;
@@ -161,7 +160,7 @@ bool patchlib_list_remove(patch_handle_t list, void* value) {
     }
     TEKLOG_DEBUG("Remove method found: %p", method_remove);
 
-    void* args[1] = {value};
+    void* args[1] = { value };
     bool result = patchlib_method_invoke_args(method_remove, list, NULL, args);
     TEKLOG_DEBUG("List remove operation %s", result ? "succeeded" : "failed");
     return result;
@@ -184,15 +183,12 @@ bool patchlib_list_remove_at(patch_handle_t list, const size_t index) {
     }
     TEKLOG_DEBUG("RemoveAt method found: %p", method_remove_at);
 
-    void* remove_ptr = patchlib_method_get_pointer(method_remove_at);
-    if (remove_ptr) {
-        TEKLOG_DEBUG("Calling RemoveAt with index: %d", (int)index);
-        ((void(*)(void*, int))remove_ptr)(list, (int)index);
-        TEKLOG_DEBUG("RemoveAt operation completed");
-        return true;
-    }
-    TEKLOG_ERROR("Failed to get RemoveAt method pointer");
-    return false;
+    int index_arg = (int)index;
+    void* args[1] = { &index_arg };
+
+    bool result = patchlib_method_invoke_args(method_remove_at, list, NULL, args);
+    TEKLOG_DEBUG("RemoveAt operation %s", result ? "succeeded" : "failed");
+    return result;
 }
 
 bool patchlib_list_clear(patch_handle_t list) {
@@ -212,16 +208,9 @@ bool patchlib_list_clear(patch_handle_t list) {
     }
     TEKLOG_DEBUG("Clear method found: %p", method_clear);
 
-    void* clear_ptr = patchlib_method_get_pointer(method_clear);
-    if (clear_ptr) {
-        TEKLOG_DEBUG("Calling Clear method");
-        ((void(*)(void*))clear_ptr)(list);
-        TEKLOG_DEBUG("List cleared successfully");
-        return true;
-    } else {
-        TEKLOG_ERROR("Failed to get Clear method pointer");
-        return false;
-    }
+    bool result = patchlib_method_invoke_args(method_clear, list, NULL, NULL);
+    TEKLOG_DEBUG("List clear operation %s", result ? "succeeded" : "failed");
+    return result;
 }
 
 patch_handle_t patchlib_list_get_array(patch_handle_t list) {
@@ -239,7 +228,28 @@ patch_handle_t patchlib_list_get_array(patch_handle_t list) {
     }
     TEKLOG_DEBUG("Found _items field: %p", field_items);
 
-    patch_handle_t array;
+    patch_handle_t array = PATCH_NULL;
     patchlib_field_get_value(field_items, list, &array);
     return array;
+}
+
+size_t patchlib_list_get_count(patch_handle_t list) {
+    TEKLOG_DEBUG("patchlib_list_get_count called: list=%p", list);
+
+    if (!patchlib_is_valid(list)) {
+        TEKLOG_ERROR("Invalid list handle");
+        return 0;
+    }
+
+    patch_handle_t field_count = patchlib_type_get_field(il2cpp_object_get_class(list), "_size");
+    if (!field_count) {
+        TEKLOG_ERROR("Failed to find _size field");
+        return 0;
+    }
+    TEKLOG_DEBUG("Found _size field: %p", field_count);
+
+    size_t count = 0;
+    patchlib_field_get_value(field_count, list, &count);
+    TEKLOG_DEBUG("List count: %zu", count);
+    return count;
 }

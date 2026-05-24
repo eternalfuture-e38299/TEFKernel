@@ -22,51 +22,89 @@
 
 #include "patchlib/struct/array.h"
 
-#include "../net_api.h"
-#include "patchlib/type.h"
+#include <stdint.h>
 
-patch_handle_t patchlib_array_create(const size_t size, const patch_handle_t type) {
-    if (size <= 0 || !patchlib_is_valid(type))
-        return PATCH_NULL;
+#include "internal/log.h"
+#include <string.h>
+#include "../../il2cpp_api.h"
 
-    return net_array_create(size, type);
-}
+bool patchlib_array_at(patch_handle_t array, const size_t index, void* out_value) {
+    TEKLOG_DEBUG("patchlib_array_at called: array=%p, index=%zu, out_value=%p",
+                 array, index, out_value);
 
-bool patchlib_array_at(const patch_handle_t array, const size_t index, void* out_value, patch_type_t value_type) {
-    if (!patchlib_is_valid(array))
+    if (!patchlib_is_valid(array)) {
+        TEKLOG_ERROR("Invalid array handle");
         return false;
+    }
 
-    return net_array_at(array, (int)index, out_value);
+    il2cpp_array_at(array, index, out_value);
+
+    TEKLOG_DEBUG("Array element retrieved successfully");
+    return true;
 }
 
-bool patchlib_array_set(const patch_handle_t array, const size_t index, void* new_value, const patch_type_t value_type) {
-    if (!patchlib_is_valid(array))
+bool patchlib_array_set(patch_handle_t array, const size_t index, void* new_value) {
+    TEKLOG_DEBUG("patchlib_array_set called: array=%p, index=%zu, new_value=%p",
+                 array, index, new_value);
+
+    if (!patchlib_is_valid(array)) {
+        TEKLOG_ERROR("Invalid array handle");
         return false;
+    }
 
-    return net_array_set(array, (int)index, new_value, value_type);
+    il2cpp_array_set(array, index, new_value);
+
+    TEKLOG_DEBUG("Array element set successfully");
+    return true;
 }
 
-bool patchlib_array_fill(const patch_handle_t array, void* value, const patch_type_t value_type) {
-    if (!value || !patchlib_is_valid(array))
+bool patchlib_array_fill(patch_handle_t array, void* value) {
+    TEKLOG_DEBUG("patchlib_array_fill called: array=%p, value=%p",
+                 array, value);
+
+    if (!patchlib_is_valid(array)) {
+        TEKLOG_ERROR("Invalid array handle");
         return false;
+    }
 
-    return net_array_fill(array, value, value_type);
+    il2cpp_array_fill(array, value);
+
+    TEKLOG_DEBUG("Array filled successfully");
+    return true;
 }
 
-bool patchlib_array_empty(const patch_handle_t array) {
-    return patchlib_array_length(array) <= 0;
-}
+bool patchlib_array_copy_from_c(patch_handle_t dest, const void* src, const size_t count) {
+    TEKLOG_DEBUG("patchlib_array_copy_from_c called: dest=%p, src=%p, count=%zu", dest, src, count);
 
-size_t patchlib_array_length(const patch_handle_t array) {
-    if (!patchlib_is_valid(array))
-        return -1;
-
-    return net_array_length(array);
-}
-
-bool patchlib_array_clear(patch_handle_t array, patch_type_t value_type) {
-    if (!patchlib_is_valid(array))
+    if (!patchlib_is_valid(dest)) {
+        TEKLOG_ERROR("Invalid destination array handle");
         return false;
+    }
 
-    return net_array_clear(array);
+    if (!src) {
+        TEKLOG_ERROR("Source C array is NULL");
+        return false;
+    }
+
+    il2cpp_array_copy_from_c(dest, src, count);
+
+    return true;
+}
+
+bool patchlib_array_copy_to_c(void* dest, patch_handle_t src, const size_t count) {
+    TEKLOG_DEBUG("patchlib_array_copy_to_c called: dest=%p, src=%p, count=%zu", dest, src, count);
+
+    if (!dest) {
+        TEKLOG_ERROR("Destination C array is NULL");
+        return false;
+    }
+
+    if (!patchlib_is_valid(src)) {
+        TEKLOG_ERROR("Invalid source array handle");
+        return false;
+    }
+
+    il2cpp_array_copy_to_c(dest, src, count);
+
+    return true;
 }

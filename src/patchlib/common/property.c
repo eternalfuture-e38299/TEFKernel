@@ -1,6 +1,6 @@
 /*******************************************************************************
  * tefkernel - property
- * Copyright (C) 2025 eternalfuture-e38299
+ * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -17,13 +17,12 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2025/11/23
+ * Created: 2026/5/24
  *******************************************************************************/
 
-#include "patchlib/property.h"
 #include "internal/log.h"
-
-#include "il2cpp_api.h"
+#include "../il2cpp_api.h"
+#include "patchlib/type.h"
 
 const char* patchlib_property_get_name(patch_handle_t property) {
     TEKLOG_DEBUG("patchlib_property_get_name called: property=%p", property);
