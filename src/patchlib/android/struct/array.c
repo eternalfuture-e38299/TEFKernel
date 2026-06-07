@@ -19,28 +19,42 @@
  * GitHub: https://github.com/eternalfuture-e38299
  * Created: 2025/12/27
  *******************************************************************************/
-
 #include "patchlib/struct/array.h"
 
 #include <stdint.h>
-
-#include "internal/log.h"
 #include <string.h>
+#include "internal/log.h"
 #include "../../il2cpp_api.h"
 
-// /*
-// typedef struct il2cpp_array_t {
-//     void *m_class;
-//     void *m_monitor;
-//     void *m_bounds;
-//     uint32_t m_length;
-//     // T *m_values;
-// } il2cpp_array_t;*/
+// 最大元素大小限制为指针大小
+#define MAX_ELEMENT_SIZE sizeof(void*)
+
+// 获取数组数据起始位置
+#define ARRAY_DATA_START(array) ((char*)(array) + sizeof(void*) * 3 + sizeof(uint32_t))
+
+// 获取数组元素大小（通过字节长度和长度计算）
+static inline size_t get_array_element_size(patch_handle_t array) {
+    uint32_t byte_length = il2cpp_array_get_byte_length(array);
+    uint32_t length = il2cpp_array_length(array);
+
+    if (length == 0) {
+        return 0;
+    }
+
+    return byte_length / length;
+}
+
+// 检查元素大小是否合法
+static inline bool is_element_size_valid(size_t element_size) {
+    if (element_size == 0 || element_size > MAX_ELEMENT_SIZE) {
+        TEKLOG_ERROR("Invalid element size: %zu (max allowed: %zu)",
+                     element_size, MAX_ELEMENT_SIZE);
+        return false;
+    }
+    return true;
+}
 
 bool patchlib_array_at(patch_handle_t array, const size_t index, void* out_value) {
-    TEKLOG_DEBUG("patchlib_array_at called: array=%p, index=%zu, out_value=%p",
-                 array, index, out_value);
-
     if (!patchlib_is_valid(array)) {
         TEKLOG_ERROR("Invalid array handle");
         return false;
@@ -51,21 +65,25 @@ bool patchlib_array_at(patch_handle_t array, const size_t index, void* out_value
         return false;
     }
 
-    const size_t element_size = il2cpp_array_element_size(array);
-    const char* data_start = array + sizeof(void*) * 3 + sizeof(uint32_t);
+    const uint32_t length = il2cpp_array_length(array);
+    if (index >= length) {
+        TEKLOG_ERROR("Index %zu out of bounds (length=%u)", index, length);
+        return false;
+    }
+
+    const size_t element_size = get_array_element_size(array);
+    if (!is_element_size_valid(element_size)) {
+        return false;
+    }
+
+    const char* data_start = ARRAY_DATA_START(array);
     const char* element_ptr = data_start + (index * element_size);
 
-    TEKLOG_DEBUG("Memory copy: from=%p, to=%p, size=%zu", element_ptr, out_value, element_size);
     memcpy(out_value, element_ptr, element_size);
-
-    TEKLOG_DEBUG("Array element retrieved successfully");
     return true;
 }
 
 bool patchlib_array_set(patch_handle_t array, const size_t index, void* new_value) {
-    TEKLOG_DEBUG("patchlib_array_set called: array=%p, index=%zu, new_value=%p",
-                 array, index, new_value);
-
     if (!patchlib_is_valid(array)) {
         TEKLOG_ERROR("Invalid array handle");
         return false;
@@ -76,21 +94,25 @@ bool patchlib_array_set(patch_handle_t array, const size_t index, void* new_valu
         return false;
     }
 
-    const size_t element_size = il2cpp_array_element_size(array);
-    const char* data_start = array + sizeof(void*) * 3 + sizeof(uint32_t);
-    const char* element_ptr = data_start + (index * element_size);
+    const uint32_t length = il2cpp_array_length(array);
+    if (index >= length) {
+        TEKLOG_ERROR("Index %zu out of bounds (length=%u)", index, length);
+        return false;
+    }
 
-    TEKLOG_DEBUG("Memory copy: from=%p, to=%p, size=%zu", new_value, element_ptr, element_size);
-    memcpy((void*)element_ptr, new_value, element_size);
+    const size_t element_size = get_array_element_size(array);
+    if (!is_element_size_valid(element_size)) {
+        return false;
+    }
 
-    TEKLOG_DEBUG("Array element set successfully");
+    char* data_start = ARRAY_DATA_START(array);
+    char* element_ptr = data_start + (index * element_size);
+
+    memcpy(element_ptr, new_value, element_size);
     return true;
 }
 
 bool patchlib_array_fill(patch_handle_t array, void* value) {
-    TEKLOG_DEBUG("patchlib_array_fill called: array=%p, value=%p",
-                 array, value);
-
     if (!patchlib_is_valid(array)) {
         TEKLOG_ERROR("Invalid array handle");
         return false;
@@ -101,22 +123,34 @@ bool patchlib_array_fill(patch_handle_t array, void* value) {
         return false;
     }
 
-    const size_t data_length = il2cpp_array_length(array);
-    const size_t element_size = il2cpp_array_element_size(array);
-    void* data_start = array + sizeof(void*) * 3 + sizeof(uint32_t);
+    const uint32_t length = il2cpp_array_length(array);
+    const size_t element_size = get_array_element_size(array);
 
-    for (int32_t i = 0; i < data_length; ++i) {
-        char* element_ptr = data_start + i * element_size;
-        memcpy(element_ptr, value, element_size);
+    if (!is_element_size_valid(element_size)) {
+        return false;
     }
 
-    TEKLOG_DEBUG("Array filled successfully");
+    char* data_start = ARRAY_DATA_START(array);
+
+    // 优化：根据元素大小选择最优的填充方式
+    if (element_size == sizeof(uint8_t)) {
+        uint8_t byte_value = *(uint8_t*)value;
+        memset(data_start, byte_value, length);
+    } else if (element_size == sizeof(uint32_t) && *(uint32_t*)value == 0) {
+        memset(data_start, 0, length * element_size);
+    } else if (element_size == sizeof(uint64_t) && *(uint64_t*)value == 0) {
+        memset(data_start, 0, length * element_size);
+    } else {
+        for (size_t i = 0; i < length; ++i) {
+            char* element_ptr = data_start + i * element_size;
+            memcpy(element_ptr, value, element_size);
+        }
+    }
+
     return true;
 }
 
 bool patchlib_array_copy_from_c(patch_handle_t dest, const void* src, size_t count) {
-    TEKLOG_DEBUG("patchlib_array_copy_from_c called: dest=%p, src=%p, count=%zu", dest, src, count);
-
     if (!patchlib_is_valid(dest)) {
         TEKLOG_ERROR("Invalid destination array handle");
         return false;
@@ -127,32 +161,24 @@ bool patchlib_array_copy_from_c(patch_handle_t dest, const void* src, size_t cou
         return false;
     }
 
-    const size_t dest_len = patchlib_array_length(dest);
+    const uint32_t dest_len = il2cpp_array_length(dest);
     if (count > dest_len) {
-        TEKLOG_ERROR("Count %zu exceeds destination length %zu", count, dest_len);
+        TEKLOG_ERROR("Count %zu exceeds destination length %u", count, dest_len);
         return false;
     }
 
-    const size_t element_size = il2cpp_array_element_size(dest);
-    if (element_size == 0) {
-        TEKLOG_ERROR("Failed to get element size");
+    const size_t element_size = get_array_element_size(dest);
+    if (!is_element_size_valid(element_size)) {
         return false;
     }
 
-    void* dest_data = dest + sizeof(void*) * 3 + sizeof(uint32_t);
-    if (!dest_data) {
-        TEKLOG_ERROR("Failed to get destination data pointer");
-        return false;
-    }
-
+    char* dest_data = ARRAY_DATA_START(dest);
     memcpy(dest_data, src, count * element_size);
-    TEKLOG_DEBUG("Copied %zu elements from C to IL2CPP array", count);
+
     return true;
 }
 
 bool patchlib_array_copy_to_c(void* dest, patch_handle_t src, size_t count) {
-    TEKLOG_DEBUG("patchlib_array_copy_to_c called: dest=%p, src=%p, count=%zu", dest, src, count);
-
     if (!dest) {
         TEKLOG_ERROR("Destination C array is NULL");
         return false;
@@ -163,25 +189,19 @@ bool patchlib_array_copy_to_c(void* dest, patch_handle_t src, size_t count) {
         return false;
     }
 
-    const size_t src_len = patchlib_array_length(src);
+    const uint32_t src_len = il2cpp_array_length(src);
     if (count > src_len) {
-        TEKLOG_ERROR("Count %zu exceeds source length %zu", count, src_len);
+        TEKLOG_ERROR("Count %zu exceeds source length %u", count, src_len);
         return false;
     }
 
-    const size_t element_size = il2cpp_array_element_size(src);
-    if (element_size == 0) {
-        TEKLOG_ERROR("Failed to get element size");
+    const size_t element_size = get_array_element_size(src);
+    if (!is_element_size_valid(element_size)) {
         return false;
     }
 
-    void* src_data = src + sizeof(void*) * 3 + sizeof(uint32_t);
-    if (!src_data) {
-        TEKLOG_ERROR("Failed to get source data pointer");
-        return false;
-    }
-
+    char* src_data = ARRAY_DATA_START(src);
     memcpy(dest, src_data, count * element_size);
-    TEKLOG_DEBUG("Copied %zu elements from IL2CPP to C array", count);
+
     return true;
 }

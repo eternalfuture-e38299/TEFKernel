@@ -20,6 +20,7 @@
  * Created: 2025/12/28
  *******************************************************************************/
 
+/*
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -31,7 +32,7 @@
 #include "internal/log.h"
 #include "patchlib/method.h"
 #include "patchlib/type.h"
-#include "patchlib/android/il2cpp_api.h"
+#include "patchlib/il2cpp_api.h"
 
 
 // 辅助函数: 创建并填充纹理
@@ -296,7 +297,7 @@ void start_test() {
         "Initialize_AlmostEverything",
         0
     );
-    */
+    #1#
     // patchlib_install_prepost_hook(method, (prefix_callback_t)Initialize_AlmostEverything_pre, (postfix_callback_t)Initialize_AlmostEverything_post);
 
     patch_handle_t method = patchlib_type_get_method_by_param_count(
@@ -305,4 +306,4 @@ void start_test() {
             2
         );
     patchlib_install_prepost_hook(method, NULL, SetDefaults_post);
-}
+}*/

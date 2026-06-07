@@ -95,47 +95,78 @@ public static class Field
         return GCHandle.ToIntPtr(typeHandle);
     }
 
-    // 额外功能：il2cpp_field_get_value - 获取实例字段的值（输出到指针）
+    // 额外：il2cpp_field_get_value
     public static unsafe void il2cpp_field_get_value(IntPtr fieldPtr, IntPtr objPtr, IntPtr returnValuePtr)
     {
         if (fieldPtr == IntPtr.Zero || returnValuePtr == IntPtr.Zero)
+        {
+            Logger.Error("il2cpp_field_get_value: Invalid parameters");
             return;
+        }
 
         try
         {
             var fieldHandle = GCHandle.FromIntPtr(fieldPtr);
             var field = (FieldInfo)fieldHandle.Target;
 
-            object? target = null;
-            if (objPtr != IntPtr.Zero)
-                target = Utils.PtrToObject(objPtr);
-
-            if (field.IsStatic)
-                target = null;
-            else if (target == null)
+            if (field == null)
             {
-                Logger.Error($"Instance field {field.Name} requires a valid object");
+                Logger.Error("il2cpp_field_get_value: Invalid field");
                 return;
             }
 
+            object? target;
+
+            if (field.IsStatic)
+            {
+                target = null;
+            }
+            else
+            {
+                if (objPtr == IntPtr.Zero)
+                {
+                    Logger.Error($"Instance field '{field.Name}' requires a valid object");
+                    return;
+                }
+
+                target = Utils.PtrToObject(objPtr);
+                if (target == null)
+                {
+                    Logger.Error($"Failed to get object from pointer for field '{field.Name}'");
+                    return;
+                }
+            }
+
+            // 获取字段值
             var value = field.GetValue(target);
             var fieldType = field.FieldType;
 
-            // 根据字段类型输出值
-            if (fieldType.IsValueType)
-                // 值类型直接复制
-                Utils.SetNativeValue(returnValuePtr, value);
-            else
+            if (value == null)
             {
-                // 引用类型返回 GCHandle 指针
-                if (value == null)
-                    *(IntPtr*)returnValuePtr = IntPtr.Zero;
+                // 写入默认值
+                if (fieldType.IsValueType)
+                {
+                    var size = Utils.GetTypeSize(fieldType);
+                    for (var i = 0; i < size; i++) ((byte*)returnValuePtr)[i] = 0;
+                }
                 else
                 {
-                    var resultPtr = Utils.ObjectToPtr(value);
-                    *(IntPtr*)returnValuePtr = resultPtr;
+                    *(IntPtr*)returnValuePtr = IntPtr.Zero;
                 }
             }
+            else if (fieldType.IsValueType)
+            {
+                // 使用 Utils.SetNativeValue 写入值
+                Utils.SetNativeValue(returnValuePtr, value);
+            }
+            else
+            {
+                // 引用类型：存储 GCHandle 指针
+                var ptr = Utils.ObjectToPtr(value);
+                *(IntPtr*)returnValuePtr = ptr;
+            }
+
+            Logger.Debug($"Field '{field.Name}' read successfully");
         }
         catch (Exception ex)
         {
@@ -143,36 +174,68 @@ public static class Field
         }
     }
 
-    // 额外功能：il2cpp_field_set_value - 设置实例字段的值
-    public static bool il2cpp_field_set_value(IntPtr fieldPtr, IntPtr objPtr, IntPtr valuePtr)
+    // 额外：il2cpp_field_set_value
+    public static unsafe bool il2cpp_field_set_value(IntPtr fieldPtr, IntPtr objPtr, IntPtr valuePtr)
     {
         if (fieldPtr == IntPtr.Zero)
+        {
+            Logger.Error("il2cpp_field_set_value: fieldPtr is zero");
             return false;
+        }
 
         try
         {
             var fieldHandle = GCHandle.FromIntPtr(fieldPtr);
             var field = (FieldInfo)fieldHandle.Target;
 
-            object? target = null;
-            if (objPtr != IntPtr.Zero)
-                target = Utils.PtrToObject(objPtr);
+            if (field == null)
+            {
+                Logger.Error("il2cpp_field_set_value: Invalid field");
+                return false;
+            }
+
+            object? target;
 
             if (field.IsStatic)
             {
                 target = null;
             }
-            else if (target == null)
+            else
             {
-                Logger.Error($"Instance field {field.Name} requires a valid object");
-                return false;
+                if (objPtr == IntPtr.Zero)
+                {
+                    Logger.Error($"Instance field '{field.Name}' requires a valid object");
+                    return false;
+                }
+
+                target = Utils.PtrToObject(objPtr);
+                if (target == null)
+                {
+                    Logger.Error($"Failed to get object from pointer for field '{field.Name}'");
+                    return false;
+                }
             }
 
+            var fieldType = field.FieldType;
             object? value = null;
-            if (valuePtr != IntPtr.Zero)
-                value = Utils.PtrToObject(valuePtr);
+
+            if (fieldType.IsValueType)
+            {
+                // 使用 Utils.GetNativeValue 读取值
+                value = Utils.GetNativeValue(valuePtr, fieldType) ?? Activator.CreateInstance(fieldType);
+            }
+            else
+            {
+                // 引用类型：从 GCHandle 指针获取对象
+                if (valuePtr != IntPtr.Zero)
+                {
+                    var objHandlePtr = *(IntPtr*)valuePtr;
+                    if (objHandlePtr != IntPtr.Zero) value = Utils.PtrToObject(objHandlePtr);
+                }
+            }
 
             field.SetValue(target, value);
+            Logger.Debug($"Field '{field.Name}' set to: {value ?? "null"}");
             return true;
         }
         catch (Exception ex)

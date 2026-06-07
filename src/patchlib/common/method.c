@@ -66,17 +66,6 @@ bool patchlib_method_is_instance(patch_handle_t method) {
     return result;
 }
 
-void *patchlib_method_get_pointer(patch_handle_t method) {
-    if (!patchlib_is_valid(method)) {
-        TEKLOG_ERROR("Invalid method handle");
-        return NULL;
-    }
-
-    void* result = *(void **) method;
-    TEKLOG_DEBUG("Method pointer: %p", result);
-    return result;
-}
-
 static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
     if (!type) {
         TEKLOG_DEBUG("NULL type provided, returning PATCH_VOID");
@@ -100,7 +89,8 @@ static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
         case IL2CPP_TYPE_U8:       result = PATCH_UINT64; break;
         case IL2CPP_TYPE_R8:       result = PATCH_DOUBLE; break;
         case IL2CPP_TYPE_CHAR:     result = PATCH_CHAR; break;
-        default:                   result = PATCH_POINTER; break;
+        case IL2CPP_TYPE_PTR:      result = PATCH_POINTER; break;
+        default:                   result = PATCH_OBJECT; break;
     }
 
     TEKLOG_TRACE("Converted IL2CPP type %d to patch type: %d", il2cpp_type, result);
@@ -110,6 +100,10 @@ static patch_type_t il2cpp_type_to_patch_type(patch_handle_t type) {
 int patchlib_method_get_token(patch_handle_t method) {
     if (!patchlib_is_valid(method)) return 0;
     return (int)il2cpp_method_get_token(method);
+}
+
+patch_type_t patchlib_method_get_return_type(patch_handle_t method) {
+    return il2cpp_type_to_patch_type(il2cpp_method_get_return_type(method));
 }
 
 bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature_t* signature) {
@@ -122,7 +116,7 @@ bool patchlib_method_get_signature(patch_handle_t method, patch_method_signature
 
     signature->method = method;
     signature->token = patchlib_method_get_token(signature->method);
-    signature->return_type = il2cpp_type_to_patch_type(il2cpp_method_get_return_type(method));
+    signature->return_type = patchlib_method_get_return_type(method);
     signature->is_instance = patchlib_method_is_instance(method);
     tefstd_vector_init(&signature->arg_types, sizeof(patch_type_t));
     tefstd_vector_init(&signature->arg_names, sizeof(const char*));

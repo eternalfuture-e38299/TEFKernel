@@ -39,13 +39,14 @@
 #include "internal/log.h"
 #include "patchlib/method.h"
 #include "patchlib/type.h"
-#include "../patchlib/android/il2cpp_api.h"
+#include "../patchlib/il2cpp_api.h"
 #include "internal/runtime.h"
 #include "patchlib/android/private.h"
 #include "tefstd/vector.h"
 
 #include "internal/terraria/netmanager.h"
 #include "internal/kernel_state.h"
+#include "internal/crash_handler.h"
 
 patch_handle_t find_and_initialize_make_generic_method_impl() {
     // If already initialized, return immediately
@@ -144,8 +145,6 @@ int hook_il2cpp_init(const char* domain_name) {
     tefkernel_load();
     tefkernel_start();
 
-    start_test();
-
     TEKLOG_INFO("TEFKernel core initialization completed");
 
     return r;
@@ -174,56 +173,6 @@ JavaVM* GetJavaVMViaJNIStandard() {
 
     TEKLOG_ERROR("JNI_GetCreatedJavaVMs failed: result=%d, number of VMs=%d", result, numVMs);
     return nullptr;
-}
-
-static volatile sig_atomic_t in_signal_handler = 0;
-
-void signal_handler(const int sig, [[maybe_unused]] siginfo_t* info, [[maybe_unused]] void* context) {
-    if (in_signal_handler) {
-        TEKLOG_CRITICAL("Recursive signal handler detected, emergency exit");
-        _exit(1);
-    }
-    in_signal_handler = 1;
-
-    auto sig_name = "UNKNOWN";
-    switch(sig) {
-        case SIGSEGV: sig_name = "SIGSEGV"; break;
-        case SIGABRT: sig_name = "SIGABRT"; break;
-        case SIGILL: sig_name = "SIGILL"; break;
-        case SIGFPE: sig_name = "SIGFPE"; break;
-        case SIGBUS: sig_name = "SIGBUS"; break;
-        case SIGTRAP: sig_name = "SIGTRAP"; break;
-        default: break;
-    }
-
-    TEKLOG_CRITICAL("Signal captured: %d (%s)",
-                   sig, sig_name);
-
-    TEKLOG_INFO("Performing emergency cleanup before exit");
-    tefkernel_log_cleanup();
-
-    // Restore default handler and re-raise signal
-    signal(sig, 0);
-    TEKLOG_DEBUG("Signal handler reset to default, re-raising signal");
-    raise(sig);
-}
-
-void setup_signal_handlers() {
-    TEKLOG_DEBUG("Setting up signal handlers for crash protection");
-
-    struct sigaction sa = {};
-    sa.sa_sigaction = signal_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_SIGINFO | SA_RESETHAND;
-
-    sigaction(SIGSEGV, &sa, nullptr);
-    sigaction(SIGABRT, &sa, nullptr);
-    sigaction(SIGILL, &sa, nullptr);
-    sigaction(SIGFPE, &sa, nullptr);
-    sigaction(SIGBUS, &sa, nullptr);
-    sigaction(SIGTRAP, &sa, nullptr);
-
-    TEKLOG_INFO("Signal handlers configured successfully");
 }
 
 void init_iohook(JavaVM* vm);
@@ -531,8 +480,7 @@ int init_ary() {
     }
 
     TEKLOG_DEBUG("Setting up crash signal handlers");
-    setup_signal_handlers();
-
+    tefkernel_crash_handler_init();
 
     StartIL2CppWatcher();
 

@@ -95,6 +95,7 @@ void il2cpp_api_init(void *handle) {
     // 加载数组相关API
     LOAD_SYMBOL(il2cpp_array_new);
     LOAD_SYMBOL(il2cpp_array_element_size);
+    LOAD_SYMBOL(il2cpp_array_get_byte_length);
     LOAD_SYMBOL(il2cpp_array_length);
 
     // 加载字符串相关API

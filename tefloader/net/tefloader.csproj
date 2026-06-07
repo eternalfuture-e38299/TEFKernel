@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <StartupObject>tefloader.Test</StartupObject>
+        <StartupObject>tefloader.Program</StartupObject>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
@@ -26,7 +26,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+        <PackageReference Include="HarmonyX" Version="2.16.1" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="Fody" Version="6.9.3">
             <PrivateAssets>all</PrivateAssets>

@@ -23,48 +23,66 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using HarmonyLib;
-using tefloader.NetApi;
-using Type = System.Type;
 
 namespace tefloader;
 
 public static unsafe class HookManager
 {
-    // 基础类型映射
-    private static readonly Dictionary<Type, int> BasicTypeSizes = new()
-    {
-        { typeof(bool), sizeof(bool) },
-        { typeof(byte), sizeof(byte) },
-        { typeof(sbyte), sizeof(sbyte) },
-        { typeof(short), sizeof(short) },
-        { typeof(ushort), sizeof(ushort) },
-        { typeof(int), sizeof(int) },
-        { typeof(uint), sizeof(uint) },
-        { typeof(long), sizeof(long) },
-        { typeof(ulong), sizeof(ulong) },
-        { typeof(float), sizeof(float) },
-        { typeof(double), sizeof(double) },
-        { typeof(char), sizeof(char) },
-        { typeof(IntPtr), sizeof(IntPtr) },
-        { typeof(UIntPtr), sizeof(UIntPtr) }
-    };
+    private const short PATCH_HOOK_INVALID_ID = 0;
 
+    // 缓存
     private static readonly Dictionary<int, HookHandle> HookTab = new();
     private static readonly List<HookNode> HookNodes = [];
+
     public static readonly Harmony Harmony = new("tefkernel.HookManager");
 
-    public static short HookMethod(MethodBase methodBase, IntPtr methodSignature, IntPtr prefixHook,
+    /// <summary>
+    ///     安装前缀和后缀 Hook
+    /// </summary>
+    public static short il2cpp_hook_method(IntPtr methodPtr, IntPtr methodSignature, IntPtr prefixHook,
         IntPtr postfixHook)
     {
-        var methodHash = methodBase.GetHashCode();
+        if (prefixHook == IntPtr.Zero && postfixHook == IntPtr.Zero)
+        {
+            Logger.Error("Cannot install hook: both prefix and postfix are NULL");
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        if (methodPtr == IntPtr.Zero)
+        {
+            Logger.Error("Cannot install hook: methodPtr is NULL");
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        MethodBase? methodBase;
+        try
+        {
+            var gcHandle = GCHandle.FromIntPtr(methodPtr);
+            if (!gcHandle.IsAllocated)
+            {
+                // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
+                Logger.Error($"GCHandle is not allocated for pointer: 0x{methodPtr:X16}");
+                return PATCH_HOOK_INVALID_ID;
+            }
+
+            methodBase = gcHandle.Target as MethodBase;
+            if (methodBase == null)
+            {
+                Logger.Error($"GCHandle target is not a MethodBase: {gcHandle.Target?.GetType().FullName ?? "null"}");
+                return PATCH_HOOK_INVALID_ID;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Failed to get MethodBase from GCHandle: {ex.Message}");
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        var methodToken = methodBase.MetadataToken;
         var isNewHook = false;
 
-        if (prefixHook == IntPtr.Zero && postfixHook == IntPtr.Zero)
-            return 0;
-
-        if (!HookTab.ContainsKey(methodHash))
+        if (!HookTab.ContainsKey(methodToken))
         {
-            // 创建新的Hook句柄
             var hookHandle = new HookHandle
             {
                 Method = methodBase,
@@ -72,51 +90,48 @@ public static unsafe class HookManager
                 NodeIndexes = []
             };
 
-            HookTab[methodHash] = hookHandle;
+            HookTab[methodToken] = hookHandle;
             isNewHook = true;
         }
 
-        if (isNewHook)
+        if (!isNewHook) return AddHookNode(methodToken, prefixHook, postfixHook);
+        {
             try
             {
-                
-                var harmonyMethodPrefix = prefixHook != IntPtr.Zero 
-                    ? new HarmonyMethod(typeof(HookManager), nameof(PrefixHook)) 
+                var isVoid = methodBase is MethodInfo mi && mi.ReturnType == typeof(void);
+
+                var harmonyPrefix = prefixHook != IntPtr.Zero
+                    ? isVoid
+                        ? new HarmonyMethod(typeof(HookManager), nameof(UniversalPrefixVoid))
+                        : new HarmonyMethod(typeof(HookManager), nameof(UniversalPrefixNonVoid))
                     : null;
 
-                
-                HarmonyMethod? harmonyMethodPostfix;
-                if (methodBase is MethodInfo methodInfo)
-                    harmonyMethodPostfix = postfixHook != IntPtr.Zero 
-                        ? methodInfo.ReturnType == typeof(void)
-                            ? new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid))
-                            : new HarmonyMethod(typeof(HookManager), nameof(PostfixHook))
-                        : null;
-                else
-                    harmonyMethodPostfix = postfixHook != IntPtr.Zero 
-                        ? new HarmonyMethod(typeof(HookManager), nameof(PostfixHookVoid))
-                        : null;
+                var harmonyPostfix = postfixHook != IntPtr.Zero
+                    ? isVoid
+                        ? new HarmonyMethod(typeof(HookManager), nameof(UniversalPostfixVoid))
+                        : new HarmonyMethod(typeof(HookManager), nameof(UniversalPostfixNonVoid))
+                    : null;
 
-                Harmony.Patch(methodBase, 
-                    prefix: harmonyMethodPrefix,
-                    postfix: harmonyMethodPostfix);
-                
+                Harmony.Patch(methodBase, harmonyPrefix, harmonyPostfix);
 
-                Logger.Info($"Successfully hooked method: {methodBase.DeclaringType?.Name}.{methodBase.Name}");
+                Logger.Info(
+                    $"Successfully hooked method: {methodBase.DeclaringType?.Name}.{methodBase.Name} (Token: {methodToken})");
             }
             catch (Exception ex)
             {
-                Logger.Error($"Failed to apply Harmony patch for method {methodBase.Name}: {ex.Message}");
-                HookTab.Remove(methodHash);
-                return 0;
+                Logger.Error($"Failed to apply Harmony patch for {methodBase.Name}: {ex.Message}");
+                HookTab.Remove(methodToken);
+                return PATCH_HOOK_INVALID_ID;
             }
-        else
-            Logger.Info($"Method {methodBase.Name} is already hooked, returning existing hook handle");
+        }
 
-        return AddHookNode(methodHash, prefixHook, postfixHook);
+        return AddHookNode(methodToken, prefixHook, postfixHook);
     }
 
-    public static bool UnhookMethodByNode(short nodeIndex)
+    /// <summary>
+    ///     卸载 Hook
+    /// </summary>
+    public static bool il2cpp_unhook_method(short nodeIndex)
     {
         if (nodeIndex >= HookNodes.Count)
         {
@@ -124,486 +139,478 @@ public static unsafe class HookManager
             return false;
         }
 
-        // 标记节点为删除状态
-        HookNodes[nodeIndex] = new HookNode(IntPtr.Zero, IntPtr.Zero);
+        HookNodes[nodeIndex] = HookNode.Empty;
 
-        // 查找对应的MethodHash
-        var targetMethodHash = -1;
-
+        var targetMethodToken = -1;
         foreach (var kvp in HookTab.Where(kvp => kvp.Value.NodeIndexes.Contains(nodeIndex)))
         {
-            targetMethodHash = kvp.Key;
+            targetMethodToken = kvp.Key;
             break;
         }
 
-        if (targetMethodHash == -1)
+        if (targetMethodToken == -1)
         {
             Logger.Warning($"No method found for node index: {nodeIndex}");
-            return true; // 节点已标记为删除，返回成功
+            return true;
         }
 
-        // 从Hook句柄中移除节点引用
-        var hookHandle = HookTab[targetMethodHash];
+        var hookHandle = HookTab[targetMethodToken];
         hookHandle.NodeIndexes.Remove(nodeIndex);
 
-        // 如果这是该方法的最后一个Hook节点，则完全移除该方法
         if (hookHandle.NodeIndexes.Count == 0)
         {
             Harmony.Unpatch(hookHandle.Method, HarmonyPatchType.All, Harmony.Id);
-            HookTab.Remove(targetMethodHash);
+            HookTab.Remove(targetMethodToken);
             Logger.Info(
                 $"Unpatched and removed method: {hookHandle.Method.DeclaringType?.Name}.{hookHandle.Method.Name}");
         }
-        else
-        {
-            HookTab[targetMethodHash] = hookHandle;
-        }
 
-        Logger.Info($"Marked hook node {nodeIndex} for deletion");
         return true;
     }
 
-    private static short AddHookNode(int methodHash, IntPtr preHook, IntPtr postHook)
+    /// <summary>
+    ///     添加 Hook 节点
+    /// </summary>
+    private static short AddHookNode(int methodToken, IntPtr preHook, IntPtr postHook)
     {
-        if (!HookTab.TryGetValue(methodHash, out var hookHandle))
+        if (!HookTab.TryGetValue(methodToken, out var hookHandle))
         {
-            Logger.Warning($"Method not hooked, hash: {methodHash}");
-            return 0;
+            Logger.Warning($"Method not hooked, token: {methodToken}");
+            return PATCH_HOOK_INVALID_ID;
         }
 
-        // 查找可用的空节点（标记为删除的节点）
         for (short i = 0; i < HookNodes.Count; i++)
             if (HookNodes[i].IsEmpty)
             {
-                // 重用被标记为删除的节点
                 HookNodes[i] = new HookNode(preHook, postHook);
                 hookHandle.NodeIndexes.Add(i);
-                HookTab[methodHash] = hookHandle;
-
-                Logger.Info($"Reused deleted hook node {i} for method hash {methodHash}");
                 return i;
             }
 
-        // 没有可用的空节点，添加新节点
         var nodeIndex = (short)HookNodes.Count;
-        var hookNode = new HookNode(preHook, postHook);
-        HookNodes.Add(hookNode);
-
-        // 更新Hook句柄
+        HookNodes.Add(new HookNode(preHook, postHook));
         hookHandle.NodeIndexes.Add(nodeIndex);
-        HookTab[methodHash] = hookHandle;
 
-        Logger.Info(
-            $"Added hook function to method hash {methodHash}: pre={preHook}, post={postHook}, nodeIndex={nodeIndex}");
         return nodeIndex;
     }
 
-    /// <summary>
-    ///     检查方法是否只有一个Hook节点
-    /// </summary>
-    public static bool HasSingleHookNode(MethodBase methodBase)
-    {
-        var methodHash = methodBase.GetHashCode();
-
-        if (!HookTab.TryGetValue(methodHash, out var hookHandle)) return false; // 方法未Hook
-
-        return hookHandle.NodeIndexes.Count == 1;
-    }
-
-    public static IntPtr GetMethodSig(MethodBase methodBase)
-    {
-        var methodHash = methodBase.GetHashCode();
-
-        return !HookTab.TryGetValue(methodHash, out var hookHandle) ? IntPtr.Zero : hookHandle.MethodSignature;
-    }
+    #region 核心抽象方法
 
     /// <summary>
-    ///     检查方法是否已经被Hook
+    ///     准备 Hook 执行环境
     /// </summary>
-    public static bool IsMethodHooked(MethodBase methodBase)
+    private static HookContext PrepareContext(MethodBase method, object? instance, object[]? args, ref object? result)
     {
-        var methodHash = methodBase.GetHashCode();
-        return HookTab.ContainsKey(methodHash);
-    }
-
-    /// <summary>
-    ///     检查Hook节点是否有效（未被标记为删除）
-    /// </summary>
-    public static bool IsHookNodeValid(short nodeIndex)
-    {
-        if (nodeIndex >= HookNodes.Count) return false;
-
-        var node = HookNodes[nodeIndex];
-        return !node.IsEmpty;
-    }
-
-    /// <summary>
-    ///     通过Hook节点获取对应的方法
-    /// </summary>
-    /// <param name="nodeIndex">Hook节点ID</param>
-    /// <returns>方法句柄，-1表示未找到</returns>
-    public static int GetMethodByNode(short nodeIndex)
-    {
-        if (nodeIndex < 0 || nodeIndex >= HookNodes.Count)
+        var context = new HookContext
         {
-            Logger.Warning($"Invalid node index: {nodeIndex}");
-            return -1;
+            MethodToken = method.MetadataToken,
+            MethodInfo = method as MethodInfo,
+            InstanceHandle = IntPtr.Zero,
+            ArgsPtr = null,
+            ResultPtr = IntPtr.Zero,
+            AllocatedPointers = [],
+            GcHandlesToFree = []
+        };
+
+        if (context.MethodInfo == null)
+            return context;
+
+        // 处理实例
+        if (!method.IsStatic && instance != null)
+            context.InstanceHandle = Utils.ObjectToPtr(instance);
+
+        // 准备参数指针数组
+        var parameters = method.GetParameters();
+        context.ArgsPtr = (void**)Marshal.AllocHGlobal(IntPtr.Size * parameters.Length);
+        context.OriginalArgs = new object?[parameters.Length];
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            context.OriginalArgs[i] = args?.Length > i ? args[i] : null;
+            var argPtr = MarshalArgument(context.OriginalArgs[i], parameters[i].ParameterType, 
+                context.AllocatedPointers, context.GcHandlesToFree);
+            context.ArgsPtr[i] = argPtr.ToPointer();
         }
 
-        var node = HookNodes[nodeIndex];
-        if (node.IsEmpty)
-        {
-            Logger.Warning($"Hook node {nodeIndex} is empty");
-            return -1;
-        }
+        // 准备返回值指针
+        var returnType = context.MethodInfo.ReturnType;
+        if (returnType == typeof(void)) return context;
+        context.ResultPtr = Marshal.AllocHGlobal(Utils.GetTypeSize(returnType));
+        context.AllocatedPointers.Add(context.ResultPtr);
+        if (result != null)
+            Utils.SetNativeValue(context.ResultPtr, result);
 
-        // 查找包含此节点的方法
-        foreach (var kvp in HookTab)
+        return context;
+    }
+
+    /// <summary>
+    ///     执行 Prefix Hooks
+    /// </summary>
+    private static bool ExecutePrefixHooks(HookHandle hookHandle, HookContext context)
+    {
+        var shouldSkip = false;
+        foreach (var nodeIndex in hookHandle.NodeIndexes)
         {
-            if (kvp.Value.NodeIndexes.Contains(nodeIndex))
+            if (!IsHookNodeValid(nodeIndex))
+                continue;
+
+            var node = HookNodes[nodeIndex];
+            if (node.PrefixCallback == null)
+                continue;
+
+            try
             {
-                return Asset.MethodInfos.Add(kvp.Value.Method);
+                if (node.PrefixCallback(context.InstanceHandle, (IntPtr)context.ArgsPtr, 
+                    hookHandle.MethodSignature, context.ResultPtr))
+                    shouldSkip = true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error in prefix hook node {nodeIndex}: {ex.Message}");
             }
         }
-
-        Logger.Warning($"No method found for hook node {nodeIndex}");
-        return -1;
+        return shouldSkip;
     }
 
-    // Harmony前缀钩子
-    private static bool PrefixHook(MethodBase __originalMethod, object? __instance, object[]? __args)
+    /// <summary>
+    ///     执行 Postfix Hooks
+    /// </summary>
+    private static void ExecutePostfixHooks(HookHandle hookHandle, HookContext context)
     {
-        object? result = null;
-        return ExecuteHook(__originalMethod, __instance, __args, ref result, true);
+        foreach (var nodeIndex in hookHandle.NodeIndexes)
+        {
+            if (!IsHookNodeValid(nodeIndex))
+                continue;
+
+            var node = HookNodes[nodeIndex];
+            if (node.PostfixCallback == null)
+                continue;
+
+            try
+            {
+                node.PostfixCallback(context.InstanceHandle, (IntPtr)context.ArgsPtr, 
+                    context.ResultPtr, hookHandle.MethodSignature);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error in postfix hook node {nodeIndex}: {ex.Message}");
+            }
+        }
     }
 
-    // Harmony后缀钩子
-    private static void PostfixHookVoid(MethodBase __originalMethod, object? __instance, object[]? __args)
+    /// <summary>
+    ///     将修改后的参数写回 Harmony 参数数组
+    /// </summary>
+    private static void WriteBackParameters(MethodBase method, object[]? args, HookContext context)
     {
-        object? result = null;
-        ExecuteHook(__originalMethod, __instance, __args, ref result, false);
+        if (args == null) return;
+        
+        var parameters = method.GetParameters();
+        for (var i = 0; i < parameters.Length && i < args.Length; i++)
+        {
+            // 处理 ref 和 out 参数
+            if (parameters[i].ParameterType.IsByRef || parameters[i].IsOut)
+            {
+                var paramType = parameters[i].ParameterType.IsByRef 
+                    ? parameters[i].ParameterType.GetElementType()!
+                    : parameters[i].ParameterType;
+                
+                if (context.ArgsPtr[i] != null)
+                {
+                    var newValue = Utils.GetNativeValue((IntPtr)context.ArgsPtr[i], paramType);
+                    if (newValue != null)
+                        args[i] = newValue;
+                }
+            }
+            // 处理引用类型（可能被替换）
+            else if (!parameters[i].ParameterType.IsValueType && parameters[i].ParameterType != typeof(string))
+            {
+                var currentPtr = (IntPtr)context.ArgsPtr[i];
+                if (currentPtr != IntPtr.Zero)
+                {
+                    var handle = GCHandle.FromIntPtr(Marshal.ReadIntPtr(currentPtr));
+                    if (handle.IsAllocated && handle.Target != args[i])
+                        args[i] = handle.Target;
+                }
+            }
+        }
     }
 
-    private static void PostfixHook(MethodBase __originalMethod, object? __instance, object[]? __args,
-        ref object? __result)
+    /// <summary>
+    ///     读取修改后的返回值
+    /// </summary>
+    private static object? ReadBackResult(MethodInfo methodInfo, HookContext context, object? currentResult)
     {
-        ExecuteHook(__originalMethod, __instance, __args, ref __result, false);
+        var returnType = methodInfo.ReturnType;
+        if (returnType == typeof(void) || context.ResultPtr == IntPtr.Zero)
+            return currentResult;
+
+        var finalResult = Utils.GetNativeValue(context.ResultPtr, returnType);
+        return finalResult ?? currentResult;
     }
 
-    private static bool ExecuteHook(MethodBase originalMethod, object? instance, object[]? args, ref object? result,
-        bool isPrefix)
+    /// <summary>
+    ///     清理 Hook 上下文资源
+    /// </summary>
+    private static void CleanupContext(HookContext context)
+    {
+        foreach (var ptr in context.AllocatedPointers.Where(ptr => ptr != IntPtr.Zero))
+            Marshal.FreeHGlobal(ptr);
+        
+        foreach (var handle in context.GcHandlesToFree.Where(handle => handle.IsAllocated))
+            handle.Free();
+        
+        if (context.InstanceHandle != IntPtr.Zero)
+            GCHandle.FromIntPtr(context.InstanceHandle).Free();
+        
+        if (context.ArgsPtr != null)
+            Marshal.FreeHGlobal((IntPtr)context.ArgsPtr);
+    }
+
+    #endregion
+
+    #region Harmony Patch 方法
+
+    /// <summary>
+    ///     通用 Prefix Hook (Void 返回值)
+    /// </summary>
+    [HarmonyPrefix]
+    public static bool UniversalPrefixVoid(MethodBase __originalMethod, object? __instance, object[]? __args)
     {
         try
         {
-            var methodHash = originalMethod.GetHashCode();
-            if (!HookTab.TryGetValue(methodHash, out var hookHandle))
-                return true; // 继续执行原方法
+            var methodToken = __originalMethod.MetadataToken;
+            if (!HookTab.TryGetValue(methodToken, out var hookHandle))
+                return true;
 
-            var methodInfo = originalMethod as MethodInfo;
-            var isStatic = originalMethod.IsStatic;
-            var parameters = originalMethod.GetParameters();
-
-            // 处理实例
-            var instanceIndex = -1;
-            if (!isStatic && instance != null) instanceIndex = Asset.Objects.Add(instance);
-
-            // 准备参数数组
-            var argsPtr = (void**)Marshal.AllocHGlobal(IntPtr.Size * parameters.Length);
-            var objectsToCleanup = new List<int>();
-            var paramIndices = new int[parameters.Length];
-            if (paramIndices == null) throw new ArgumentNullException(nameof(paramIndices));
-
-            for (var i = 0; i < parameters.Length; i++)
+            object? dummyResult = null;
+            var context = PrepareContext(__originalMethod, __instance, __args, ref dummyResult);
+            
+            if (context.MethodInfo == null)
             {
-                var paramType = parameters[i].ParameterType;
-                paramIndices[i] = -1;
-
-                if (args?[i] != null)
-                    paramIndices[i] = ProcessArgument(args[i], paramType, argsPtr, i, objectsToCleanup);
-                else
-                    argsPtr[i] = null;
+                CleanupContext(context);
+                return true;
             }
 
-            // 处理返回值
-            var resultPtr = IntPtr.Zero;
-            var resultIndex = -1;
-            var hasReturnValue = !isPrefix && methodInfo != null && methodInfo.ReturnType != typeof(void);
-
-            if (hasReturnValue)
-                // 创建返回值的副本
-                resultIndex = ProcessArgument(result, methodInfo!.ReturnType, (void**)&resultPtr, 0, objectsToCleanup,
-                    true);
-
-            // 调用所有钩子节点
-            const bool shouldContinue = true;
-            foreach (var nodeIndex in hookHandle.NodeIndexes)
-            {
-                if (!IsHookNodeValid(nodeIndex))
-                    continue;
-
-                var node = HookNodes[nodeIndex];
-
-                switch (isPrefix)
-                {
-                    case true when node.PrefixCallback != null:
-                        try
-                        {
-                            node.PrefixCallback(instanceIndex, (IntPtr)argsPtr, hookHandle.MethodSignature);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Error($"Error in prefix hook node {nodeIndex}: {ex.Message}");
-                        }
-
-                        break;
-
-                    case false when node.PostfixCallback != null:
-                        try
-                        {
-                            // 传入当前的结果
-                            node.PostfixCallback(instanceIndex, (IntPtr)argsPtr, resultPtr, hookHandle.MethodSignature);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Error($"Error in postfix hook node {nodeIndex}: {ex.Message}");
-                        }
-
-                        break;
-                }
-            }
-
-            // 如果返回值被修改，从 resultPtr 中读取
-            if (hasReturnValue && resultPtr != IntPtr.Zero)
-            {
-                var modifiedResult = RetrieveArgument(resultPtr, methodInfo!.ReturnType);
-                if (modifiedResult != null) result = modifiedResult;
-            }
-
-            // 清理资源
-            CleanupResources(argsPtr, parameters.Length, objectsToCleanup, resultIndex, resultPtr);
-
-            // 清理实例
-            if (instanceIndex != -1) Asset.Objects.RemoveAt(instanceIndex);
-
-            return shouldContinue;
+            var shouldSkip = ExecutePrefixHooks(hookHandle, context);
+            
+            // 对于 void 方法，只需要写回 ref/out 参数
+            WriteBackParameters(__originalMethod, __args, context);
+            
+            CleanupContext(context);
+            return !shouldSkip;
         }
         catch (Exception ex)
         {
-            Logger.Error($"Error in {(isPrefix ? "Prefix" : "Postfix")}Hook: {ex.Message}");
+            Logger.Error($"Error in UniversalPrefixVoid: {ex.Message}");
             return true;
         }
     }
 
-    private static int ProcessArgument(object? value, Type type, void** argsPtr, int index, List<int> objectsToCleanup,
-        bool isReturnValue = false)
+    /// <summary>
+    ///     通用 Prefix Hook (非 Void 返回值)
+    /// </summary>
+    [HarmonyPrefix]
+    public static bool UniversalPrefixNonVoid(MethodBase __originalMethod, object? __instance, object[]? __args,
+        ref object? __result)
     {
-        var objectIndex = -1;
-
-        if (value == null)
+        try
         {
-            // 处理 null 值
-            if (isReturnValue)
-                *(IntPtr*)argsPtr = IntPtr.Zero;
-            else
-                argsPtr[index] = null;
-            return -1;
+            var methodToken = __originalMethod.MetadataToken;
+            if (!HookTab.TryGetValue(methodToken, out var hookHandle))
+                return true;
+
+            var context = PrepareContext(__originalMethod, __instance, __args, ref __result);
+            
+            if (context.MethodInfo == null)
+            {
+                CleanupContext(context);
+                return true;
+            }
+
+            var shouldSkip = ExecutePrefixHooks(hookHandle, context);
+            
+            // 写回修改的参数
+            WriteBackParameters(__originalMethod, __args, context);
+            
+            // 读取修改后的返回值
+            __result = ReadBackResult(context.MethodInfo, context, __result);
+            
+            CleanupContext(context);
+            return !shouldSkip;
         }
-
-        if (IsBasicType(type))
+        catch (Exception ex)
         {
-            var size = GetTypeSize(type);
-            var ptr = Marshal.AllocHGlobal(size);
-            WriteBasicTypeValue(ptr, value, type);
+            Logger.Error($"Error in UniversalPrefixNonVoid: {ex.Message}");
+            return true;
+        }
+    }
 
-            if (isReturnValue)
-                *(IntPtr*)argsPtr = ptr;
-            else
-                argsPtr[index] = ptr.ToPointer();
+    /// <summary>
+    ///     通用 Postfix Hook (Void 返回值)
+    /// </summary>
+    [HarmonyPostfix]
+    public static void UniversalPostfixVoid(MethodBase __originalMethod, object? __instance, object[]? __args)
+    {
+        try
+        {
+            var methodToken = __originalMethod.MetadataToken;
+            if (!HookTab.TryGetValue(methodToken, out var hookHandle))
+                return;
+
+            object? dummyResult = null;
+            var context = PrepareContext(__originalMethod, __instance, __args, ref dummyResult);
+            
+            if (context.MethodInfo == null)
+            {
+                CleanupContext(context);
+                return;
+            }
+
+            ExecutePostfixHooks(hookHandle, context);
+            
+            // void 方法只需要写回 ref/out 参数
+            WriteBackParameters(__originalMethod, __args, context);
+            
+            CleanupContext(context);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error in UniversalPostfixVoid: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     通用 Postfix Hook (非 Void 返回值)
+    /// </summary>
+    [HarmonyPostfix]
+    public static void UniversalPostfixNonVoid(MethodBase __originalMethod, object? __instance, object[]? __args,
+        ref object? __result)
+    {
+        try
+        {
+            var methodToken = __originalMethod.MetadataToken;
+            if (!HookTab.TryGetValue(methodToken, out var hookHandle))
+                return;
+
+            var context = PrepareContext(__originalMethod, __instance, __args, ref __result);
+            
+            if (context.MethodInfo == null)
+            {
+                CleanupContext(context);
+                return;
+            }
+
+            ExecutePostfixHooks(hookHandle, context);
+            
+            // 写回修改的参数
+            WriteBackParameters(__originalMethod, __args, context);
+            
+            // 读取修改后的返回值
+            __result = ReadBackResult(context.MethodInfo, context, __result);
+            
+            CleanupContext(context);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error in UniversalPostfixNonVoid: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    private static IntPtr MarshalArgument(object? value, Type type, List<IntPtr> allocatedPointers,
+        List<GCHandle> gcHandlesToFree)
+    {
+        if (value == null)
+            return IntPtr.Zero;
+
+        var ptr = Marshal.AllocHGlobal(Utils.GetTypeSize(type));
+        allocatedPointers.Add(ptr);
+
+        if (Utils.IsValueType(type) || type == typeof(string) || type.IsPrimitive)
+        {
+            Utils.SetNativeValue(ptr, value);
         }
         else
         {
-            objectIndex = Asset.Objects.Add(value);
-            objectsToCleanup.Add(objectIndex);
-            var ptr = Marshal.AllocHGlobal(sizeof(int));
-            Marshal.WriteInt32(ptr, objectIndex);
-
-            if (isReturnValue)
-                *(IntPtr*)argsPtr = ptr;
-            else
-                argsPtr[index] = ptr.ToPointer();
+            var handle = GCHandle.Alloc(value, GCHandleType.Normal);
+            gcHandlesToFree.Add(handle);
+            Marshal.WriteIntPtr(ptr, GCHandle.ToIntPtr(handle));
         }
 
-        return objectIndex;
+        return ptr;
     }
 
-    private static object? RetrieveArgument(IntPtr ptr, Type type)
+    public static bool il2cpp_has_single_hook_node(IntPtr methodPtr)
     {
-        if (ptr == IntPtr.Zero)
-            return GetDefaultValue(type);
-
-        if (IsBasicType(type)) return ReadBasicTypeValue(ptr, type);
-
-        var index = Marshal.ReadInt32(ptr);
-        if (index >= 0 && index < Asset.Objects.Count) return Asset.Objects[index];
-
-        return null;
+        var methodBase = (MethodBase)GCHandle.FromIntPtr(methodPtr).Target;
+        var methodToken = methodBase.MetadataToken;
+        return HookTab.TryGetValue(methodToken, out var hookHandle) && hookHandle.NodeIndexes.Count == 1;
     }
 
-    private static void CleanupResources(void** argsPtr, int argsCount, List<int> objectsToCleanup, int resultIndex,
-        IntPtr resultPtr)
+    public static IntPtr il2cpp_get_hooked_method_sig(IntPtr methodPtr)
     {
-        // 清理参数内存
-        for (var i = 0; i < argsCount; i++)
-            if (argsPtr[i] != null)
-                Marshal.FreeHGlobal(new IntPtr(argsPtr[i]));
-
-        if (argsPtr != null) Marshal.FreeHGlobal(new IntPtr(argsPtr));
-
-        // 清理返回值内存
-        if (resultPtr != IntPtr.Zero) Marshal.FreeHGlobal(resultPtr);
-
-        // 清理Objects中的对象引用
-        foreach (var index in objectsToCleanup.Where(index => index != resultIndex)) Asset.Objects.RemoveAt(index);
-
-        // 清理返回值
-        if (resultIndex != -1) Asset.Objects.RemoveAt(resultIndex);
+        var methodBase = (MethodBase)GCHandle.FromIntPtr(methodPtr).Target;
+        var methodToken = methodBase.MetadataToken;
+        return HookTab.TryGetValue(methodToken, out var hookHandle) ? hookHandle.MethodSignature : IntPtr.Zero;
     }
 
-    private static void WriteBasicTypeValue(IntPtr ptr, object value, Type type)
+    public static bool il2cpp_is_method_hooked(IntPtr methodPtr)
     {
-        if (type == typeof(bool))
-        {
-            Marshal.WriteByte(ptr, (byte)((bool)value ? 1 : 0));
-        }
-        else if (type == typeof(byte))
-        {
-            Marshal.WriteByte(ptr, (byte)value);
-        }
-        else if (type == typeof(sbyte))
-        {
-            Marshal.WriteByte(ptr, (byte)(sbyte)value);
-        }
-        else if (type == typeof(short))
-        {
-            Marshal.WriteInt16(ptr, (short)value);
-        }
-        else if (type == typeof(ushort))
-        {
-            Marshal.WriteInt16(ptr, (short)(ushort)value);
-        }
-        else if (type == typeof(int))
-        {
-            Marshal.WriteInt32(ptr, (int)value);
-        }
-        else if (type == typeof(uint))
-        {
-            Marshal.WriteInt32(ptr, (int)(uint)value);
-        }
-        else if (type == typeof(long))
-        {
-            Marshal.WriteInt64(ptr, (long)value);
-        }
-        else if (type == typeof(ulong))
-        {
-            Marshal.WriteInt64(ptr, (long)(ulong)value);
-        }
-        else if (type == typeof(float))
-        {
-            var bytes = BitConverter.GetBytes((float)value);
-            Marshal.Copy(bytes, 0, ptr, 4);
-        }
-        else if (type == typeof(double))
-        {
-            var bytes = BitConverter.GetBytes((double)value);
-            Marshal.Copy(bytes, 0, ptr, 8);
-        }
-        else if (type == typeof(char))
-        {
-            Marshal.WriteInt16(ptr, (short)(char)value);
-        }
-        else if (type == typeof(IntPtr))
-        {
-            Marshal.WriteIntPtr(ptr, (IntPtr)value);
-        }
-        else if (type == typeof(UIntPtr))
-        {
-            Marshal.WriteIntPtr(ptr, (IntPtr)value);
-        }
+        var methodBase = (MethodBase)GCHandle.FromIntPtr(methodPtr).Target;
+        var methodToken = methodBase.MetadataToken;
+        return HookTab.ContainsKey(methodToken);
     }
 
-    private static object? ReadBasicTypeValue(IntPtr ptr, Type type)
+    private static bool IsHookNodeValid(short nodeIndex)
     {
-        if (type == typeof(bool))
-            return Marshal.ReadByte(ptr) != 0;
-        if (type == typeof(byte))
-            return Marshal.ReadByte(ptr);
-        if (type == typeof(sbyte))
-            return (sbyte)Marshal.ReadByte(ptr);
-        if (type == typeof(short))
-            return Marshal.ReadInt16(ptr);
-        if (type == typeof(ushort))
-            return (ushort)Marshal.ReadInt16(ptr);
-        if (type == typeof(int))
-            return Marshal.ReadInt32(ptr);
-        if (type == typeof(uint))
-            return (uint)Marshal.ReadInt32(ptr);
-        if (type == typeof(long))
-            return Marshal.ReadInt64(ptr);
-        if (type == typeof(ulong))
-            return (ulong)Marshal.ReadInt64(ptr);
-        if (type == typeof(float))
+        return nodeIndex < HookNodes.Count && !HookNodes[nodeIndex].IsEmpty;
+    }
+
+    public static IntPtr il2cpp_get_method_by_hook_node(short nodeIndex)
+    {
+        if (nodeIndex < 0 || nodeIndex >= HookNodes.Count)
         {
-            var bytes = new byte[4];
-            Marshal.Copy(ptr, bytes, 0, 4);
-            return BitConverter.ToSingle(bytes, 0);
+            Logger.Warning($"Invalid node index: {nodeIndex}");
+            return IntPtr.Zero;
         }
 
-        if (type == typeof(double))
+        if (HookNodes[nodeIndex].IsEmpty)
         {
-            var bytes = new byte[8];
-            Marshal.Copy(ptr, bytes, 0, 8);
-            return BitConverter.ToDouble(bytes, 0);
+            Logger.Warning($"Hook node {nodeIndex} is empty");
+            return IntPtr.Zero;
         }
 
-        if (type == typeof(char))
-            return (char)Marshal.ReadInt16(ptr);
-        if (type == typeof(IntPtr) || type == typeof(UIntPtr))
-            return Marshal.ReadIntPtr(ptr);
+        foreach (var kvp in HookTab.Where(kvp => kvp.Value.NodeIndexes.Contains(nodeIndex)))
+            return Utils.ObjectToPtr(kvp.Value.Method);
 
-        return null;
+        return IntPtr.Zero;
     }
 
-    private static object? GetDefaultValue(Type type)
+    #region 辅助结构
+
+    /// <summary>
+    ///     Hook 执行上下文
+    /// </summary>
+    private class HookContext
     {
-        return type.IsValueType ? Activator.CreateInstance(type) : null;
+        public int MethodToken;
+        public MethodInfo? MethodInfo;
+        public IntPtr InstanceHandle;
+        public void** ArgsPtr;
+        public IntPtr ResultPtr;
+        public List<IntPtr> AllocatedPointers = [];
+        public List<GCHandle> GcHandlesToFree = [];
+        public object?[]? OriginalArgs;
     }
 
-    private static bool IsBasicType(Type type)
-    {
-        return type.IsPrimitive || type == typeof(IntPtr) || type == typeof(UIntPtr) ||
-               type.IsEnum || type == typeof(decimal);
-    }
-
-    private static int GetTypeSize(Type type)
-    {
-        if (type.IsEnum)
-            return Marshal.SizeOf(Enum.GetUnderlyingType(type));
-
-        if (type == typeof(decimal))
-            return sizeof(decimal);
-
-        if (BasicTypeSizes.TryGetValue(type, out var size))
-            return size;
-
-        return IntPtr.Size;
-    }
-
-    // 定义C++委托类型
+    // 回调委托定义
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void PrefixCallback(int instance, IntPtr args, IntPtr sigInfo);
+    private delegate bool PrefixCallback(IntPtr instance, IntPtr args, IntPtr sigInfo, IntPtr result);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void PostfixCallback(int instance, IntPtr args, IntPtr result, IntPtr sigInfo);
+    private delegate void PostfixCallback(IntPtr instance, IntPtr args, IntPtr result, IntPtr sigInfo);
 
     private struct HookNode
     {
@@ -613,12 +620,22 @@ public static unsafe class HookManager
         public readonly IntPtr PostFix;
         public readonly bool IsEmpty;
 
+        public static readonly HookNode Empty = new(true);
+
+        private HookNode(bool isEmpty)
+        {
+            PreFix = IntPtr.Zero;
+            PostFix = IntPtr.Zero;
+            PrefixCallback = null;
+            PostfixCallback = null;
+            IsEmpty = isEmpty;
+        }
+
         public HookNode(IntPtr preFix, IntPtr postFix)
         {
             PreFix = preFix;
             PostFix = postFix;
 
-            // 缓存委托
             PrefixCallback = preFix != IntPtr.Zero
                 ? Marshal.GetDelegateForFunctionPointer<PrefixCallback>(preFix)
                 : null;
@@ -632,8 +649,10 @@ public static unsafe class HookManager
 
     private struct HookHandle
     {
-        public MethodBase Method; // 保存原始方法引用
-        public IntPtr MethodSignature; // 函数签名 
-        public List<short> NodeIndexes; // Hook节点索引
+        public MethodBase Method;
+        public IntPtr MethodSignature;
+        public List<short> NodeIndexes;
     }
+
+    #endregion
 }

@@ -70,6 +70,7 @@ set(INTERNAL_SRC
         src/log.c
         src/runtime.c
         src/mod_core.c
+        src/crash_handler.c
 )
 
 set(TERRARIA_SRC)
@@ -218,13 +219,13 @@ if(ANDROID)
 elseif(MINGW OR WIN32)
     # Windows: 通过编译器名称判断架构
     if(CMAKE_C_COMPILER MATCHES "x86_64-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "x86_64-w64-mingw32")
-        set(ARCH "x64")
+        set(ARCH "x86_64")
     elseif(CMAKE_C_COMPILER MATCHES "i686-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "i686-w64-mingw32")
         set(ARCH "x86")
     else()
         # 备用方案：通过指针大小判断
         if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(ARCH "x64")
+            set(ARCH "x86_64")
         else()
             set(ARCH "x86")
         endif()
@@ -236,7 +237,7 @@ else()
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7a|ARMv7|arm")
         set(ARCH "arm32")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
-        set(ARCH "x64")
+        set(ARCH "x86_64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86")
         set(ARCH "x86")
     else()

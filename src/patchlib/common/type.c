@@ -154,7 +154,6 @@ bool patchlib_is_valid(patch_handle_t h) {
         TEKLOG_WARN("patch_handle is null");
         return false;
     }
-    TEKLOG_TRACE("patch_handle is valid: " PATCH_HANDLE_FMT, h);
     return true;
 }
 
@@ -573,7 +572,7 @@ patch_handle_t patchlib_type_get_method(patch_handle_t type, const char *name) {
                 TEKLOG_INFO("Found method '%s' at " PATCH_HANDLE_FMT, name, result);
                 break;
             }
-            il2cpp_free(method);
+            il2cpp_free(*method);
         }
     } else {
         TEKLOG_DEBUG("No methods found in type");
@@ -678,64 +677,59 @@ static bool patchlib_collect_from_type_hierarchy(
 }
 
 #else
-// 非安卓模式：一次性返回嵌套类型数组
 static bool patchlib_collect_from_type_hierarchy(
     void *start_type,
     const bool including_parent,
     tefstd_vector_t *array,
-    const il2cpp_class_iterator_fn iterator_fn) {
-    TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy: start_type=%p, including_parent=%s",
-                 start_type, including_parent ? "true" : "false");
+    il2cpp_class_iterator_fn iterator_fn) {
 
-    if (!array || !iterator_fn) {
-        TEKLOG_ERROR("Invalid array or iterator function");
+    TEKLOG_DEBUG("patchlib_collect_from_type_hierarchy: start_type=%p", start_type);
+
+    if (!array || !iterator_fn || !start_type) {
+        TEKLOG_ERROR("Invalid parameters");
         return false;
     }
 
     tefstd_vector_init(array, sizeof(patch_handle_t));
 
     void *current_type = start_type;
-    size_t total_collected = 0;
-    bool collection_success = true;
 
     do {
-        int size = 0; // 用于接收嵌套类型的数量
-        void **nested_types = NULL;
+        int size = 0;
+        void **members = NULL;
 
-        // 一次性获取所有嵌套类型
-        nested_types = iterator_fn(current_type, &size);
+        // 调用 Il2Cpp API 获取成员数组
+        members = iterator_fn(current_type, &size);
 
-        if (nested_types != NULL && size > 0) {
-            // 遍历数组，添加所有嵌套类型
+        if (members != NULL && size > 0) {
+            TEKLOG_DEBUG("Found %d members in type %p", size, current_type);
+
+            // 添加所有成员
             for (int i = 0; i < size; i++) {
-                const void *item = nested_types[i];
-                if (tefstd_vector_push_back(array, &item)) {
-                    total_collected++;
-                } else {
-                    TEKLOG_ERROR("Failed to add item to vector: %p", item);
-                    collection_success = false;
-                    break;
+                if (members[i] != NULL) {
+                    if (!tefstd_vector_push_back(array, &members[i])) {
+                        TEKLOG_ERROR("Failed to add member %d", i);
+                        free(members);
+                        return false;
+                    }
                 }
             }
+
+            // 重要：释放 Il2Cpp 返回的数组
+            free(members);
+            members = NULL;
         }
-        free(nested_types);
 
-        if (!collection_success)
+        if (!including_parent) {
             break;
+        }
 
-        if (!including_parent)
-            break;
-
-        // 获取父类继续遍历
         current_type = il2cpp_class_get_parent(current_type);
     } while (current_type != NULL);
 
-    TEKLOG_DEBUG("Collection completed: total_collected=%zu, final_vector_size=%zu, success=%s",
-                 total_collected, tefstd_vector_size(array), collection_success ? "true" : "false");
-
-    return collection_success;
+    TEKLOG_DEBUG("Collection completed: %zu items", tefstd_vector_size(array));
+    return true;
 }
-
 #endif
 
 

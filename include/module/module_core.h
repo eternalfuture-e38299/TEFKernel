@@ -32,7 +32,7 @@
 #define TEFKERNEL_MODULE_CORE_H
 #include <stdbool.h>
 
-#include "tefpackage/tefpkg.h"
+#include "../tefpackage/tefpkg.h"
 
 #ifdef __cplusplus
 extern "C" {

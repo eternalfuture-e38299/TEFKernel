@@ -124,6 +124,13 @@ typedef struct patch_method_signature_t {
 DEFINE_FUNCTION(int, patchlib_method_get_token, patch_handle_t method)
 
 /**
+ * @brief 获取函数的返回值类型
+ * @param method 函数句柄
+ * @return 返回值类型
+ */
+DEFINE_FUNCTION(patch_type_t, patchlib_method_get_return_type, patch_handle_t method)
+
+/**
  * @brief 获取函数签名
  * @param method 函数句柄
  * @param signature[out] 函数输出签名

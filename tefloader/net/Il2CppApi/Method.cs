@@ -178,7 +178,7 @@ public static class Method
     }
 
     // 模拟 il2cpp_method_get_object
-    public static IntPtr il2cpp_method_get_object(IntPtr methodPtr, IntPtr refclassPtr)
+    /*public static IntPtr il2cpp_method_get_object(IntPtr methodPtr, IntPtr refclassPtr)
     {
         if (methodPtr == IntPtr.Zero)
             return IntPtr.Zero;
@@ -189,7 +189,7 @@ public static class Method
         // 创建反射方法对象
         var methodHandleNew = GCHandle.Alloc(method);
         return GCHandle.ToIntPtr(methodHandleNew);
-    }
+    }*/
 
     // 模拟 il2cpp_method_get_from_reflection
     /*public static IntPtr il2cpp_method_get_from_reflection(IntPtr reflectionMethodPtr)

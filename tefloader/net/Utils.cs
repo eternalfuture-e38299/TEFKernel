@@ -52,7 +52,7 @@ public static class Utils
         if (obj == null)
             return IntPtr.Zero;
 
-        var handle = GCHandle.Alloc(obj);
+        var handle = GCHandle.Alloc(obj, GCHandleType.Normal);
         return GCHandle.ToIntPtr(handle);
     }
 
@@ -69,93 +69,143 @@ public static class Utils
     }
 
     /// <summary>
-    ///     将值类型复制到非托管内存
+    ///     将值复制到非托管内存
     /// </summary>
     public static bool SetNativeValue(IntPtr target, object? value)
     {
-        if (target == IntPtr.Zero || value == null)
+        if (target == IntPtr.Zero)
+        {
+            Logger.Error("SetNativeValue: target pointer is NULL");
             return false;
+        }
+
+        if (value == null)
+        {
+            Logger.Error("SetNativeValue: value is NULL");
+            return false;
+        }
 
         try
         {
-            // 根据值的类型进行处理
-            switch (value)
+            var type = value.GetType();
+            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
+            Logger.Debug($"SetNativeValue: writing value '{value}' of type '{type.Name}' to address {target:X8}");
+
+            // 根据类型写入对应的值
+            if (type == typeof(sbyte))
             {
-                // 基本整数类型
-                case sbyte sbyteVal:
-                    Marshal.WriteByte(target, (byte)sbyteVal);
-                    return true;
-
-                case byte byteVal:
-                    Marshal.WriteByte(target, byteVal);
-                    return true;
-
-                case short shortVal:
-                    Marshal.WriteInt16(target, shortVal);
-                    return true;
-
-                case ushort ushortVal:
-                    Marshal.WriteInt16(target, (short)ushortVal);
-                    return true;
-
-                case int intVal:
-                    Marshal.WriteInt32(target, intVal);
-                    return true;
-
-                case uint uintVal:
-                    Marshal.WriteInt32(target, (int)uintVal);
-                    return true;
-
-                case long longVal:
-                    Marshal.WriteInt64(target, longVal);
-                    return true;
-
-                case ulong ulongVal:
-                    Marshal.WriteInt64(target, (long)ulongVal);
-                    return true;
-
-                // 浮点类型
-                case float floatVal:
-                    unsafe
-                    {
-                        *(float*)target = floatVal;
-                    }
-
-                    return true;
-
-                case double doubleVal:
-                    unsafe
-                    {
-                        *(double*)target = doubleVal;
-                    }
-
-                    return true;
-
-                // 布尔类型
-                case bool boolVal:
-                    Marshal.WriteByte(target, boolVal ? (byte)1 : (byte)0);
-                    return true;
-
-                // 字符类型
-                case char charVal:
-                    Marshal.WriteInt16(target, (short)charVal);
-                    return true;
-
-                // 指针类型
-                case IntPtr ptrVal:
-                    Marshal.WriteIntPtr(target, ptrVal);
-                    return true;
-
-                // 引用类型 - 使用 GCHandle
-                default:
-                    var ptr = ObjectToPtr(value);
-                    Marshal.WriteIntPtr(target, ptr);
-                    return true;
+                Marshal.WriteByte(target, (byte)(sbyte)value);
+                Logger.Debug($"Wrote sbyte: {(sbyte)value}");
+                return true;
             }
+
+            if (type == typeof(byte))
+            {
+                Marshal.WriteByte(target, (byte)value);
+                Logger.Debug($"Wrote byte: {(byte)value}");
+                return true;
+            }
+
+            if (type == typeof(short))
+            {
+                Marshal.WriteInt16(target, (short)value);
+                Logger.Debug($"Wrote short: {(short)value}");
+                return true;
+            }
+
+            if (type == typeof(ushort))
+            {
+                Marshal.WriteInt16(target, (short)(ushort)value);
+                Logger.Debug($"Wrote ushort: {(ushort)value}");
+                return true;
+            }
+
+            if (type == typeof(int))
+            {
+                Marshal.WriteInt32(target, (int)value);
+                Logger.Debug($"Wrote int: {(int)value}");
+                return true;
+            }
+
+            if (type == typeof(uint))
+            {
+                Marshal.WriteInt32(target, (int)(uint)value);
+                Logger.Debug($"Wrote uint: {(uint)value}");
+                return true;
+            }
+
+            if (type == typeof(long))
+            {
+                Marshal.WriteInt64(target, (long)value);
+                Logger.Debug($"Wrote long: {(long)value}");
+                return true;
+            }
+
+            if (type == typeof(ulong))
+            {
+                Marshal.WriteInt64(target, (long)(ulong)value);
+                Logger.Debug($"Wrote ulong: {(ulong)value}");
+                return true;
+            }
+
+            if (type == typeof(float))
+            {
+                // float 需要特殊处理
+                unsafe
+                {
+                    var floatVal = (float)value;
+                    *(float*)target = floatVal;
+                }
+
+                Logger.Debug($"Wrote float: {(float)value}");
+                return true;
+            }
+
+            if (type == typeof(double))
+            {
+                unsafe
+                {
+                    var doubleVal = (double)value;
+                    *(double*)target = doubleVal;
+                }
+
+                Logger.Debug($"Wrote double: {(double)value}");
+                return true;
+            }
+
+            if (type == typeof(bool))
+            {
+                Marshal.WriteByte(target, (bool)value ? (byte)1 : (byte)0);
+                Logger.Debug($"Wrote bool: {(bool)value}");
+                return true;
+            }
+
+            if (type == typeof(char))
+            {
+                Marshal.WriteInt16(target, (short)(char)value);
+                Logger.Debug($"Wrote char: {(char)value}");
+                return true;
+            }
+
+            if (type == typeof(IntPtr))
+            {
+                Marshal.WriteIntPtr(target, (IntPtr)value);
+                // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
+                Logger.Debug($"Wrote IntPtr: {(IntPtr)value:X8}");
+                return true;
+            }
+
+            // 其他类型（引用类型）使用 GCHandle
+            Logger.Debug($"Writing reference type: {type.Name}");
+            var ptr = ObjectToPtr(value);
+            Marshal.WriteIntPtr(target, ptr);
+            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
+            Logger.Debug($"Wrote reference pointer: {ptr:X8}");
+            return true;
         }
         catch (Exception ex)
         {
-            Logger.Error($"SetNativeValue error: {ex.Message}");
+            Logger.Error($"SetNativeValue failed for type {value.GetType().Name}: {ex.Message}");
             return false;
         }
     }
@@ -163,14 +213,26 @@ public static class Utils
     /// <summary>
     ///     从非托管内存读取值
     /// </summary>
-    public static object? GetNativeValue(IntPtr source, Type targetType)
+    public static object? GetNativeValue(IntPtr source, Type? targetType)
     {
         if (source == IntPtr.Zero)
+        {
+            Logger.Error("GetNativeValue: source pointer is NULL");
             return null;
+        }
+
+        if (targetType == null)
+        {
+            Logger.Error("GetNativeValue: target type is NULL");
+            return null;
+        }
 
         try
         {
-            // 基本类型处理
+            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
+            Logger.Debug($"GetNativeValue: reading from {source:X8} as type {targetType.Name}");
+
+            // 基本类型读取
             if (targetType == typeof(sbyte))
                 return (sbyte)Marshal.ReadByte(source);
 
@@ -216,52 +278,18 @@ public static class Utils
             if (targetType == typeof(IntPtr))
                 return Marshal.ReadIntPtr(source);
 
-            // 引用类型 - 从 GCHandle 获取
-            var ptr = Marshal.ReadIntPtr(source);
-            return PtrToObject(ptr);
+            // 引用类型：从 GCHandle 读取
+            var objPtr = Marshal.ReadIntPtr(source);
+            if (objPtr == IntPtr.Zero)
+                return null;
+
+            return PtrToObject(objPtr);
         }
         catch (Exception ex)
         {
-            Logger.Error($"GetNativeValue error: {ex.Message}");
+            Logger.Error($"GetNativeValue failed for type {targetType.Name}: {ex.Message}");
             return null;
         }
-    }
-
-    /// <summary>
-    ///     获取类型对应的 PatchType 枚举值
-    /// </summary>
-    public static int GetPatchTypeByType(Type type)
-    {
-        if (type == typeof(void))
-            return (int)NetApi.Type.PatchType.PatchVoid;
-        if (type == typeof(sbyte))
-            return (int)NetApi.Type.PatchType.PatchInt8;
-        if (type == typeof(short))
-            return (int)NetApi.Type.PatchType.PatchInt16;
-        if (type == typeof(int))
-            return (int)NetApi.Type.PatchType.PatchInt32;
-        if (type == typeof(long))
-            return (int)NetApi.Type.PatchType.PatchInt64;
-        if (type == typeof(byte))
-            return (int)NetApi.Type.PatchType.PatchUint8;
-        if (type == typeof(ushort))
-            return (int)NetApi.Type.PatchType.PatchUint16;
-        if (type == typeof(uint))
-            return (int)NetApi.Type.PatchType.PatchUint32;
-        if (type == typeof(ulong))
-            return (int)NetApi.Type.PatchType.PatchUint64;
-        if (type == typeof(bool))
-            return (int)NetApi.Type.PatchType.PatchBool;
-        if (type == typeof(float))
-            return (int)NetApi.Type.PatchType.PatchFloat;
-        if (type == typeof(double))
-            return (int)NetApi.Type.PatchType.PatchDouble;
-        if (type == typeof(char))
-            return (int)NetApi.Type.PatchType.PatchChar;
-        if (type.IsPointer)
-            return (int)NetApi.Type.PatchType.PatchPointer;
-
-        return (int)NetApi.Type.PatchType.PatchObject;
     }
 
     /// <summary>

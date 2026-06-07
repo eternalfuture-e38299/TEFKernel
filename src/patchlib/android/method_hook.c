@@ -205,53 +205,33 @@ static void free_executable_memory(void* ptr, const size_t size) {
 
 static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* user_data) {
     const patchlib_hook_handle_t* handle = user_data;
-    TEKLOG_DEBUG("Hook dispatcher called, cif: %p, ret: %p, args: %p, user_data: %p",
-                 cif, ret, args, user_data);
 
     bool call_original = true;
-    size_t hook_count = 0;  // 记录哪个钩子触发了跳过
 
-     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
+    const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
     if (prefix_count > 0) {
-        TEKLOG_DEBUG("Calling %zu prefix hooks", prefix_count);
         for (size_t i = 0; i < prefix_count; ++i) {
             void** prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
             if (prefix_ptr && *prefix_ptr) {
                 const prefix_callback_t prefix = *prefix_ptr;
-                TEKLOG_TRACE("Calling prefix hook %zu: %p", i, prefix);
-
-                // 调用前缀钩子，直接传递 ret 指针
-                const bool should_skip = prefix(NULL, args,
-                                         &handle->method_signature,
-                                         ret);  // 直接传递返回值的指针
-
-                if (should_skip) {
+                if (prefix(NULL, args, &handle->method_signature, ret)) {
                     call_original = false;
-                    hook_count = i;
-                    TEKLOG_DEBUG("Prefix hook %zu requested skip original", i);
-                    break;  // 一旦有钩子要求跳过，就停止执行后续前置钩子
+                    break;
                 }
             }
         }
     }
 
-    // 根据 call_original 决定是否调用原始函数
     if (call_original) {
-        // 调用原始函数
         ffi_call(cif, handle->original, ret, args);
-    } else {
-        TEKLOG_DEBUG("Skipping original function (triggered by hook %zu)", hook_count);
     }
 
-    // 调用后置钩子
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
     if (postfix_count > 0) {
-        TEKLOG_DEBUG("Calling %zu postfix hooks", postfix_count);
         for (size_t i = 0; i < postfix_count; ++i) {
             void** postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
             if (postfix_ptr && *postfix_ptr) {
                 const postfix_callback_t postfix = *postfix_ptr;
-                TEKLOG_TRACE("Calling postfix hook %zu: %p", i, postfix);
                 postfix(NULL, args, ret, &handle->method_signature);
             }
         }
@@ -260,60 +240,36 @@ static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* u
 
 static void hook_dispatcher(ffi_cif* cif, void* ret, void** args, void* user_data) {
     const patchlib_hook_handle_t* handle = user_data;
-    TEKLOG_DEBUG("Hook dispatcher called, cif: %p, ret: %p, args: %p, user_data: %p",
-                 cif, ret, args, user_data);
 
     void* instance = *(void**)args[0];
     void** actual_args = args + 1;
 
     bool call_original = true;
-    size_t hook_count = 0;  // 记录哪个钩子触发了跳过
 
-    // 调用前置钩子
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
     if (prefix_count > 0) {
-        TEKLOG_DEBUG("Calling %zu prefix hooks", prefix_count);
         for (size_t i = 0; i < prefix_count; ++i) {
             void** prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
             if (prefix_ptr && *prefix_ptr) {
                 const prefix_callback_t prefix = *prefix_ptr;
-                TEKLOG_TRACE("Calling prefix hook %zu: %p", i, prefix);
-
-                // 调用前缀钩子，直接传递 ret 指针
-                const bool should_skip = prefix(instance, actual_args,
-                                         &handle->method_signature,
-                                         ret);  // 直接传递返回值的指针
-
-                if (should_skip) {
+                if (prefix(instance, actual_args, &handle->method_signature, ret)) {
                     call_original = false;
-                    hook_count = i;
-                    TEKLOG_DEBUG("Prefix hook %zu requested skip original", i);
-                    break;  // 一旦有钩子要求跳过，就停止执行后续前置钩子
+                    break;
                 }
             }
         }
     }
 
-    // 根据 call_original 决定是否调用原始函数
     if (call_original) {
-        // 调用原始函数
         ffi_call(cif, handle->original, ret, args);
-    } else {
-        TEKLOG_DEBUG("Skipping original function (triggered by hook %zu)", hook_count);
     }
 
-    // 调用后置钩子
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
     if (postfix_count > 0) {
-        TEKLOG_DEBUG("Calling %zu postfix hooks", postfix_count);
         for (size_t i = 0; i < postfix_count; ++i) {
             void** postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
             if (postfix_ptr && *postfix_ptr) {
                 const postfix_callback_t postfix = *postfix_ptr;
-                TEKLOG_TRACE("Calling postfix hook %zu: %p", i, postfix);
-
-                // 传递 ret 指针给后置钩子
-                // 如果跳过了原始函数，ret 包含钩子设置的值或默认值
                 postfix(instance, actual_args, ret, &handle->method_signature);
             }
         }

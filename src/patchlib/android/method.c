@@ -36,6 +36,142 @@ void* patchlib_method_get_pointer(patch_handle_t method) {
     return *(void**)method;
 }
 
+static bool patchlib_is_primitive_type(patch_type_t type) {
+    switch (type) {
+        case PATCH_BOOL:
+        case PATCH_INT8:
+        case PATCH_UINT8:
+        case PATCH_INT16:
+        case PATCH_UINT16:
+        case PATCH_INT32:
+        case PATCH_UINT32:
+        case PATCH_INT64:
+        case PATCH_UINT64:
+        case PATCH_FLOAT:
+        case PATCH_DOUBLE:
+        case PATCH_CHAR:
+            return true;
+        case PATCH_VOID:
+        case PATCH_POINTER:
+        case PATCH_OBJECT:
+        default:
+            return false;
+    }
+}
+
+/*
+bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
+                                void *return_value, void** args) {
+    TEKLOG_DEBUG("patchlib_method_invoke_args (Android): method=%p, instance=%p, return_value=%p",
+                 method, instance, return_value);
+
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("Invalid method handle");
+        return false;
+    }
+
+    // 获取参数数量
+    const int param_count = patchlib_method_get_param_count(method);
+    const bool is_instance = patchlib_method_is_instance(method);
+
+    TEKLOG_DEBUG("Method: param_count=%d, is_instance=%s", param_count, is_instance ? "true" : "false");
+
+    // 验证实例：实例方法需要有效的 instance
+    if (is_instance && !patchlib_is_valid(instance)) {
+        TEKLOG_ERROR("Instance method requires valid instance");
+        return false;
+    }
+
+    // 静态方法：instance 应该为 NULL
+    if (!is_instance && instance != PATCH_NULL) {
+        TEKLOG_WARN("Static method called with non-NULL instance, ignoring instance");
+        instance = PATCH_NULL;
+    }
+
+    // 准备参数数组（只包含方法参数，不包括 this）
+    void** invoke_args = NULL;
+    if (param_count > 0) {
+        invoke_args = (void**)malloc(sizeof(void*) * param_count);
+        if (!invoke_args) {
+            TEKLOG_ERROR("Failed to allocate arguments array");
+            return false;
+        }
+
+        for (int i = 0; i < param_count; i++) {
+            if (args && i < param_count) {
+                invoke_args[i] = args[i];
+                TEKLOG_DEBUG("Arg[%d] = %p", i, invoke_args[i]);
+            } else {
+                invoke_args[i] = NULL;
+                TEKLOG_DEBUG("Arg[%d] = NULL", i);
+            }
+        }
+    }
+
+    // 异常对象
+    void* exception = NULL;
+
+    TEKLOG_DEBUG("Calling il2cpp_runtime_invoke with method=%p, obj=%p, params=%p",
+                 method, instance, invoke_args);
+
+    // 调用方法（obj 参数就是实例，不需要放入 params 数组）
+    void* result = il2cpp_runtime_invoke(method, instance, invoke_args, &exception);
+
+    // 检查异常
+    if (exception != NULL) {
+        TEKLOG_ERROR("Exception occurred during method invocation: exception=%p", exception);
+        if (invoke_args) free(invoke_args);
+        return false;
+    }
+
+    TEKLOG_DEBUG("il2cpp_runtime_invoke returned: %p", result);
+
+    // 处理返回值
+    if (return_value != NULL) {
+        const patch_type_t return_type = patchlib_method_get_return_type(method);
+
+        if (return_type != PATCH_VOID) {
+            if (result == NULL) {
+                // 返回 null
+                if (return_type == PATCH_OBJECT || return_type == PATCH_POINTER) {
+                    *(void**)return_value = NULL;
+                } else {
+                    // 值类型返回默认值 0
+                    memset(return_value, 0, get_size_from_patch_type(return_type));
+                }
+                TEKLOG_DEBUG("Return value is NULL");
+            } else if (return_type != PATCH_OBJECT && return_type != PATCH_POINTER) {
+                // 值类型需要拆箱
+                void* unboxed = il2cpp_object_unbox(result);
+                if (unboxed) {
+                    const size_t size = get_size_from_patch_type(return_type);
+                    memcpy(return_value, unboxed, size);
+                    TEKLOG_DEBUG("Return value (unboxed): type=%d, size=%zu, value=%p",
+                                 return_type, size, unboxed);
+                } else {
+                    TEKLOG_ERROR("Failed to unbox return value");
+                    if (invoke_args) free(invoke_args);
+                    return false;
+                }
+            } else {
+                // 引用类型：直接返回对象指针
+                *(void**)return_value = result;
+                TEKLOG_DEBUG("Return value (reference): %p", result);
+            }
+        }
+    }
+
+    TEKLOG_DEBUG("Method invocation completed successfully");
+
+    // 清理
+    if (invoke_args) {
+        free(invoke_args);
+    }
+
+    return true;
+}
+*/
+
 bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
                                 void *return_value, void** args) {
     TEKLOG_DEBUG("patchlib_method_invoke_args called: method=%p, instance=%p, return_value=%p",
@@ -138,6 +274,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     free(arg_types);
     return true;
 }
+
 
 patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tefstd_vector_t *template_types) {
     TEKLOG_DEBUG("Manual generic method instantiation without symbols");

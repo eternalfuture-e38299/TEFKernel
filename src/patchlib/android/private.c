@@ -22,7 +22,7 @@
 
 #include "private.h"
 
-#include "il2cpp_api.h"
+#include "../il2cpp_api.h"
 #include "internal/log.h"
 
 typedef struct il2cpp_array_t {

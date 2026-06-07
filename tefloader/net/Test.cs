@@ -30,21 +30,34 @@ public class Test
 {
     private static Test i = new();
     private int bb = 1114514;
-    private static int Hello(int a)
+    private int Hello(int a)
     {
         Logger.Info($"Hello! {a}");
         return 0;
     }
+    
+    private static int HelloStatic(int a)
+    {
+        Logger.Info($"Hello! {a}");
+        return 0;
+    } 
 
     private delegate void TestD();
     public static void Main()
     {
-        Program.TefKernelLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-release/libtefkernel.linux.x64.so");
+        Program.TefKernelLib.LoadLib("/home/eternalfuture/开源项目/TEFKernel/cmake-build-debug/libtefkernel.linux.x64.so");
         Logger.Initialize(Program.TefKernelLib);
         
         Initialization.RegisterAllApis();
         
         var t = Marshal.GetDelegateForFunctionPointer<TestD>(Program.TefKernelLib.GetSym("init_tefkernel"));
         t();
+
+        int staticResult = HelloStatic(1);
+        Console.WriteLine($"HelloStatic(1) 返回值: {staticResult}");
+        
+        // 调用实例方法
+        int instanceResult = i.Hello(2);
+        Console.WriteLine($"i.Hello(2) 返回值: {instanceResult}");
     }
 }

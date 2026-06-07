@@ -22,23 +22,26 @@
 
 #include "internal/runtime.h"
 
-
 #include "tef_api.h"
 #include "internal/log.h"
 #include "internal/kernel_state.h"
+#include "internal/crash_handler.h"
 
-char* tefkernel_working_dir = "/home/eternalfuture/.local/share/tefmanager";
+#include <string.h>
 
-void Test();
+char* tefkernel_working_dir = NULL;
+API_EXPORT int init_tefkernel(const char* workdir) {
 
-API_EXPORT int init_tefkernel() {
+    tefkernel_working_dir = strdup(workdir);;
 
     // Initialize logging system first
+
     tefkernel_log_init("tefkernel.log");
-    Test();
-    // tefkernel_init();
-    // tefkernel_load();
-    // tefkernel_start();
+    tefkernel_crash_handler_init();
+
+    tefkernel_init();
+    tefkernel_load();
+    tefkernel_start();
 
     return 0;
 }

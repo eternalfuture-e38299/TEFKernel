@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - desktop_test
+ * tefkernel - crash_handler
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,38 +17,19 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/1/3
+ * Created: 2026/5/30
  *******************************************************************************/
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef TEFKERNEL_CRASH_HANDLER_H
+#define TEFKERNEL_CRASH_HANDLER_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "internal/log.h"
-#include "patchlib/field.h"
-#include "patchlib/type.h"
-#include "patchlib/method.h"
-#include "patchlib/property.h"
+// 初始化崩溃处理器
+void tefkernel_crash_handler_init(void);
 
-bool hook_prefix(patch_handle_t instance, void **args,
-                                  const patch_method_signature_t *sig_info, void *result) {
-
-
-
-    return true;
+#ifdef __cplusplus
 }
-
-void hook_postfix(patch_handle_t instance, void **args, void *result,
-                                   const patch_method_signature_t *sig_info) {
-
-
-    *(int*)result = 114514;
-}
-
-void Test(void) {
-    patch_handle_t method = patchlib_type_get_method_by_param_count(patchlib_type_get_type("tefloader", "Test"), "Hello", 1);
-    patch_handle_t method2 = patchlib_type_get_method_by_param_count(patchlib_type_get_type("tefloader", "Test"), "HelloStatic", 1);
-
-    // patchlib_install_prepost_hook(method, hook_prefix, NULL);
-}
+#endif
+#endif //TEFKERNEL_CRASH_HANDLER_H

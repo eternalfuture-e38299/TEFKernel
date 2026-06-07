@@ -119,6 +119,7 @@ public static class Initialization
             RegisterApiMethod<DelegateIl2CppClassMakeGeneric>(Class.il2cpp_class_make_generic,
                 "il2cpp_class_make_generic");
             RegisterApiMethod<DelegateIl2CppClassIsSame>(Class.il2cpp_class_is_same, "il2cpp_class_is_same");
+            RegisterApiMethod<DelegateIl2CppTypeGetType>(Class.il2cpp_type_get_type, "il2cpp_type_get_type");
         }
 
         // Delegates for Class API methods
@@ -176,6 +177,9 @@ public static class Initialization
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate bool DelegateIl2CppClassIsSame(IntPtr classPtr1, IntPtr classPtr2);
+        
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate int DelegateIl2CppTypeGetType(IntPtr typePtr);
     }
 
     public static class MethodApi
@@ -198,12 +202,18 @@ public static class Initialization
             RegisterApiMethod<DelegateIl2CppMethodGetDeclaringType>(Method.il2cpp_method_get_declaring_type,
                 "il2cpp_method_get_declaring_type");
             RegisterApiMethod<DelegateIl2CppMethodGetClass>(Method.il2cpp_method_get_class, "il2cpp_method_get_class");
-            RegisterApiMethod<DelegateIl2CppMethodGetObject>(Method.il2cpp_method_get_object,
-                "il2cpp_method_get_object");
+            /*RegisterApiMethod<DelegateIl2CppMethodGetObject>(Method.il2cpp_method_get_object,
+                "il2cpp_method_get_object");*/
             RegisterApiMethod<DelegateIl2CppMethodGetToken>(Method.il2cpp_method_get_token, "il2cpp_method_get_token");
             RegisterApiMethod<DelegateIl2CppMethodInvoke>(Method.il2cpp_method_invoke, "il2cpp_method_invoke");
             RegisterApiMethod<DelegateIl2cppMethodMakeGeneric>(Method.il2cpp_method_make_generic,
                 "il2cpp_method_make_generic");
+            RegisterApiMethod<DelegateIl2CppHookMethod>(HookManager.il2cpp_hook_method, "il2cpp_hook_method");
+            RegisterApiMethod<DelegateIl2CppUnhookMethod>(HookManager.il2cpp_unhook_method, "il2cpp_unhook_method");
+            RegisterApiMethod<DelegateIl2CppIsMethodHooked>(HookManager.il2cpp_is_method_hooked, "il2cpp_is_method_hooked");
+            RegisterApiMethod<DelegateIl2CppHasSingleHookNode>(HookManager.il2cpp_has_single_hook_node, "il2cpp_has_single_hook_node");
+            RegisterApiMethod<DelegateIl2CppGetHookedMethodSig>(HookManager.il2cpp_get_hooked_method_sig, "il2cpp_get_hooked_method_sig");
+            RegisterApiMethod<DelegateIl2CppGetMethodByHookNode>(HookManager.il2cpp_get_method_by_hook_node, "il2cpp_get_method_by_hook_node");
         }
 
         // Delegates for Method API methods
@@ -233,10 +243,7 @@ public static class Initialization
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate IntPtr DelegateIl2CppMethodGetClass(IntPtr methodPtr);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate IntPtr DelegateIl2CppMethodGetObject(IntPtr methodPtr, IntPtr refclassPtr);
-
+        
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate uint DelegateIl2CppMethodGetToken(IntPtr methodPtr);
 
@@ -247,6 +254,24 @@ public static class Initialization
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private unsafe delegate IntPtr DelegateIl2cppMethodMakeGeneric(IntPtr methodPtr, IntPtr* typesPtr,
             int typesCount);
+        
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate short DelegateIl2CppHookMethod(IntPtr methodHandle, IntPtr methodSignature, IntPtr prefixHook, IntPtr postfixHook);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate bool DelegateIl2CppUnhookMethod(short nodeIndex);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate bool DelegateIl2CppIsMethodHooked(IntPtr methodHandle);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate bool DelegateIl2CppHasSingleHookNode(IntPtr methodHandle);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate IntPtr DelegateIl2CppGetHookedMethodSig(IntPtr methodHandle);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate IntPtr DelegateIl2CppGetMethodByHookNode(short nodeIndex);
     }
 
     public static class PropertyApi

@@ -514,6 +514,13 @@ DEFINE_IL2CPP_API(bool, il2cpp_array_copy_to_c, void* dest, void* src, size_t co
 DEFINE_IL2CPP_API(int, il2cpp_array_element_size, const void* array_class)
 
 /**
+ * @brief 获取数组字节长度
+ * @param array 数组对象(原始类型: Il2CppArray*)
+ * @return 字节长度
+ */
+DEFINE_IL2CPP_API(uint32_t, il2cpp_array_get_byte_length, void* array)
+
+/**
  * @brief 获取数组长度
  * @param array 数组对象(原始类型: Il2CppArray*)
  * @return 数组元素数量
@@ -714,6 +721,59 @@ DEFINE_IL2CPP_API(void, il2cpp_field_static_get_value,
                   void* field, void* value)
 #endif
 
+
+// ==================== Hook API (仅非 Android 平台) ====================
+#if !defined(__ANDROID__)
+
+/**
+ * @brief 安装 Hook
+ * @param method 方法句柄
+ * @param methodSignature 方法签名指针
+ * @param prefix 前置回调
+ * @param postfix 后置回调
+ * @return Hook ID，失败返回 0
+ */
+DEFINE_IL2CPP_API(short, il2cpp_hook_method,
+                  void* method, void* methodSignature,
+                  void* prefix,
+                  void* postfix)
+
+/**
+ * @brief 卸载 Hook
+ * @param hookId Hook ID
+ * @return 成功返回 true
+ */
+DEFINE_IL2CPP_API(bool, il2cpp_unhook_method, short hookId)
+
+/**
+ * @brief 检查方法是否已被 Hook
+ * @param method 方法句柄
+ * @return 已 Hook 返回 true
+ */
+DEFINE_IL2CPP_API(bool, il2cpp_is_method_hooked, void* method)
+
+/**
+ * @brief 检查方法是否只有一个 Hook 节点
+ * @param method 方法句柄
+ * @return 只有一个节点返回 true
+ */
+DEFINE_IL2CPP_API(bool, il2cpp_has_single_hook_node, void* method)
+
+/**
+ * @brief 获取被 Hook 方法的签名
+ * @param method 方法句柄
+ * @return 方法签名指针
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_get_hooked_method_sig, void* method)
+
+/**
+ * @brief 通过 Hook 节点获取方法句柄
+ * @param hookId Hook ID
+ * @return 方法句柄，失败返回 -1
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_get_method_by_hook_node, short hookId)
+
+#endif // !defined(__ANDROID__)
 
 #ifdef __cplusplus
 }

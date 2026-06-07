@@ -31,7 +31,7 @@ namespace tefloader;
 
 public abstract class Program
 {
-    private const string LaunchConfig = "tefloader-config.json";
+    private static string _kernelLibPath = string.Empty;
     private static string _exePath = "Terraria.exe";
     private static string _workDirs = string.Empty;
 
@@ -41,41 +41,70 @@ public abstract class Program
     public static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-
-        if (!File.Exists(LaunchConfig))
+        
+        for (var i = 0; i < args.Length; i++)
         {
-            const string defaultJson = """
-
-                                       {
-                                         "kernelLibPath": "libtefkernel.so",
-                                         "loadersPath": ".",
-                                         "modsPath": "."
-                                       }
-
-                                       """;
-            File.WriteAllText(LaunchConfig, defaultJson);
+            switch (args[i].ToLower())
+            {
+                case "--server":
+                case "-server":
+                    _exePath = "TerrariaServer.exe";
+                    break;
+                case "--workpath":
+                case "-w":
+                    if (i + 1 < args.Length)
+                    {
+                        _workDirs = args[++i];
+                    }
+                    break;
+                case "--kernel":
+                case "-k":
+                    if (i + 1 < args.Length)
+                    {
+                        _kernelLibPath = args[++i];
+                    }
+                    break;
+                case "--exe":
+                case "-e":
+                    if (i + 1 < args.Length)
+                    {
+                        _exePath = args[++i];
+                    }
+                    break;
+                case "--help":
+                case "-h":
+                    ShowHelp();
+                    return;
+            }
         }
 
-        var jsonContent = File.ReadAllText(LaunchConfig);
-        var config = JObject.Parse(jsonContent);
-
-        var kernelLibPath = (string)config["kernelLibPath"]!;
-
-        // Check if kernel library file exists
-        if (!File.Exists(kernelLibPath))
+        // 确保工作路径存在
+        if (!Directory.Exists(_workDirs))
         {
-            Console.WriteLine($"ERROR: TefKernel library not found at '{kernelLibPath}'");
-            Console.WriteLine("Please check the configuration file and ensure the library exists.");
+            Console.WriteLine("Unable to find the working directory");
+            Environment.Exit(1);
+        }
+        
+        // 检查kernel库文件是否存在
+        if (!File.Exists(_kernelLibPath))
+        {
+            Console.WriteLine($"ERROR: TefKernel library not found at '{_kernelLibPath}'");
+            Console.WriteLine("Please specify the correct path using --kernel parameter.");
+            Console.WriteLine($"Current work directory: {Directory.GetCurrentDirectory()}");
             Environment.Exit(1);
         }
 
+        Console.WriteLine($"Using TefKernel: {Path.GetFullPath(_kernelLibPath)}");
+        Console.WriteLine($"Using executable: {_kernelLibPath}");
+
         try
         {
-            TefKernelLib.LoadLib(kernelLibPath);
+            TefKernelLib.LoadLib(_kernelLibPath);
+            Console.WriteLine($"Successfully loaded TefKernel from: {_kernelLibPath}");
         }
-        catch (Exception ex) when (ex is DllNotFoundException || ex is FileNotFoundException)
+        catch (Exception ex) when (ex is DllNotFoundException or FileNotFoundException)
         {
-            Console.WriteLine($"ERROR: Failed to load TefKernel library from '{kernelLibPath}'");
+            Console.WriteLine($"ERROR: Failed to load TefKernel library from '{_kernelLibPath}'");
             Console.WriteLine($"Error details: {ex.Message}");
             Console.WriteLine("Please ensure the library file is not corrupted and is compatible with your system.");
             Environment.Exit(1);
@@ -87,17 +116,14 @@ public abstract class Program
             Environment.Exit(1);
         }
 
-        _workDirs = (string)config["work_directory"]!;
-        var exePath = config["exe_path"]?.Value<string>();
-        if (exePath != null)
-            _exePath = exePath;
-
-        // Logger.Initialize(TefKernelLib);
-        // NetApi.Initialization.InitializeAllApis();
-
         try
         {
-            // _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(TefKernelLib.GetSym("init_tefkernel"));
+            // 验证必要的符号是否存在
+            var initSymbol = TefKernelLib.GetSym("init_tefkernel");
+            if (initSymbol == IntPtr.Zero)
+                throw new Exception("Symbol 'init_tefkernel' not found");
+            _initAry = Marshal.GetDelegateForFunctionPointer<InitAryDelegate>(initSymbol);
+            Console.WriteLine("Successfully initialized TefKernel symbols");
         }
         catch (Exception ex)
         {
@@ -107,7 +133,33 @@ public abstract class Program
             Environment.Exit(1);
         }
 
-        Launch(args);
+        // 传递参数到启动函数
+        Launch([]);
+    }
+
+    private static void ShowHelp()
+    {
+        Console.WriteLine("Usage: TefLoader [options]");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  --server, -server           Run in server mode (TerrariaServer.exe)");
+        Console.WriteLine("  --workpath, -w <path>       Set working directory path");
+        Console.WriteLine("  --kernel, -k <path>         Specify TefKernel library path");
+        Console.WriteLine("  --exe, -e <path>            Specify game executable path");
+        Console.WriteLine("  --help, -h                  Show this help message");
+        Console.WriteLine();
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  TefLoader                                   # Client mode, default workpath");
+        Console.WriteLine("  TefLoader --server                          # Server mode, default workpath");
+        Console.WriteLine("  TefLoader -w ./my_server                    # Set custom workpath");
+        Console.WriteLine("  TefLoader --server -w /path/to/server       # Server with custom workpath");
+        Console.WriteLine("  TefLoader -k ./custom/libtefkernel.so       # Client with custom kernel");
+        Console.WriteLine("  TefLoader --server -w ./server -k lib.so    # Full server setup");
+        Console.WriteLine();
+        Console.WriteLine("Default paths:");
+        Console.WriteLine("  Client mode:  workpath='./workspace', kernel='libtefkernel.so', exe='Terraria.exe'");
+        Console.WriteLine("  Server mode:  workpath='./server_workspace', kernel='libtefkernel_server.so', exe='TerrariaServer.exe'");
+        Console.WriteLine("  (If default kernel not found, falls back to 'libtefkernel.so')");
     }
 
     private static void LoadEmbeddedDependencies()
@@ -396,12 +448,8 @@ public abstract class Program
     {
         try
         {
-            Initialization.BasicApi.Init();
-            Initialization.ClassApi.Init();
-            var t = Marshal.GetDelegateForFunctionPointer<TestD>(TefKernelLib.GetSym("test"));
-            t();
-            
-            // Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
+            Initialization.RegisterAllApis();
+            Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
         }
         catch (Exception ex)
         {
