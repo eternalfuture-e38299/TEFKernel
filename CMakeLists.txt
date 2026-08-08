@@ -14,7 +14,7 @@ set(ANDROID_MODE OFF)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
-    set(CMAKE_SYSROOT /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/)
+    #set(CMAKE_SYSROOT /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/)
 endif ()
 
 set(PATCHLIB_SRC src/patchlib/common/type.c
