@@ -23,6 +23,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-linux-x86_64-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64-${{ matrix.build_type }}
+          path: build/ci-linux-x86_64-${{ matrix.build_type }}/
 
   linux-x86:
     runs-on: ubuntu-latest
@@ -43,6 +49,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-linux-x86-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86-${{ matrix.build_type }}
+          path: build/ci-linux-x86-${{ matrix.build_type }}/
 
   windows-x86_64:
     runs-on: windows-latest
@@ -61,6 +73,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-windows-x86_64-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64-${{ matrix.build_type }}
+          path: build/ci-windows-x86_64-${{ matrix.build_type }}/
 
   windows-x86:
     runs-on: windows-latest
@@ -79,6 +97,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-windows-x86-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86-${{ matrix.build_type }}
+          path: build/ci-windows-x86-${{ matrix.build_type }}/
 
   macos-x86_64:
     runs-on: macos-latest
@@ -97,6 +121,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-macos-x86_64-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x86_64-${{ matrix.build_type }}
+          path: build/ci-macos-x86_64-${{ matrix.build_type }}/
 
   macos-arm64:
     runs-on: macos-latest
@@ -115,6 +145,12 @@ jobs:
         
       - name: Build
         run: cmake --build --preset ci-macos-arm64-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-${{ matrix.build_type }}
+          path: build/ci-macos-arm64-${{ matrix.build_type }}/
 
   android-arm64:
     runs-on: ubuntu-latest
@@ -130,14 +166,21 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r28
+          
+      - name: Set NDK environment
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         
       - name: Configure
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: cmake --preset ci-android-arm64-${{ matrix.build_type }}
         
       - name: Build
         run: cmake --build --preset ci-android-arm64-${{ matrix.build_type }}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-${{ matrix.build_type }}
+          path: build/ci-android-arm64-${{ matrix.build_type }}/
 
   android-arm32:
     runs-on: ubuntu-latest
@@ -153,12 +196,18 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r28
+          
+      - name: Set NDK environment
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         
       - name: Configure
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: cmake --preset ci-android-arm32-${{ matrix.build_type }}
         
       - name: Build
         run: cmake --build --preset ci-android-arm32-${{ matrix.build_type }}
-
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm32-${{ matrix.build_type }}
+          path: build/ci-android-arm32-${{ matrix.build_type }}/
