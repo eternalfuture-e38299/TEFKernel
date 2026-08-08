@@ -162,7 +162,8 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
         offset += id_len;
 
         // 写入mod的version_code (从manifest获取)
-        const int version_code = mod->manifest->version_code ? mod->manifest->version_code : 0;
+        const multiplayer_mod_info_t* mod_info = mod->owner_ml->ml_entry->ops->get_multiplayer_info(mod->manifest);
+        const int version_code =  mod_info->version_code ? mod_info->version_code : 0;
         buffer[offset++] = (version_code >> 24) & 0xFF;
         buffer[offset++] = (version_code >> 16) & 0xFF;
         buffer[offset++] = (version_code >> 8) & 0xFF;
