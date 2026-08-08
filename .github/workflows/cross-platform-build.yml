@@ -171,7 +171,10 @@ jobs:
         run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         
       - name: Configure
-        run: cmake --preset ci-android-arm64-${{ matrix.build_type }}
+        run: |
+          TOOLCHAIN_FILE="${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake"
+          cmake --preset ci-android-arm64-${{ matrix.build_type }} \
+                -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
         
       - name: Build
         run: cmake --build --preset ci-android-arm64-${{ matrix.build_type }}
@@ -201,7 +204,10 @@ jobs:
         run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         
       - name: Configure
-        run: cmake --preset ci-android-arm32-${{ matrix.build_type }}
+        run: |
+          TOOLCHAIN_FILE="${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake"
+          cmake --preset ci-android-arm32-${{ matrix.build_type }} \
+                -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
         
       - name: Build
         run: cmake --build --preset ci-android-arm32-${{ matrix.build_type }}
