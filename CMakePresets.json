@@ -287,136 +287,92 @@
       "name": "ci-windows-x86_64-debug",
       "inherits": "ci-base",
       "displayName": "CI Windows x86_64 Debug",
-      "description": "Build for Windows x86_64 on CI using MinGW-GCC - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for Windows x86_64 on CI - Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_SYSTEM_NAME": "Windows",
-        "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc",
-        "CMAKE_CXX_COMPILER": "x86_64-w64-mingw32-g++",
-        "TARGET": "X86_WIN64"
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
       }
     },
     {
       "name": "ci-windows-x86_64-release",
       "inherits": "ci-base",
       "displayName": "CI Windows x86_64 Release",
-      "description": "Build for Windows x86_64 on CI using MinGW-GCC - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for Windows x86_64 on CI - Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_SYSTEM_NAME": "Windows",
-        "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc",
-        "CMAKE_CXX_COMPILER": "x86_64-w64-mingw32-g++",
-        "TARGET": "X86_WIN64"
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
       }
     },
     {
       "name": "ci-windows-x86-debug",
       "inherits": "ci-base",
       "displayName": "CI Windows x86 Debug",
-      "description": "Build for Windows x86 on CI using MinGW-GCC - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for Windows x86 on CI - Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_SYSTEM_NAME": "Windows",
-        "CMAKE_C_COMPILER": "i686-w64-mingw32-gcc",
-        "CMAKE_CXX_COMPILER": "i686-w64-mingw32-g++",
-        "TARGET": "X86_WIN32"
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32"
       }
     },
     {
       "name": "ci-windows-x86-release",
       "inherits": "ci-base",
       "displayName": "CI Windows x86 Release",
-      "description": "Build for Windows x86 on CI using MinGW-GCC - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for Windows x86 on CI - Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_SYSTEM_NAME": "Windows",
-        "CMAKE_C_COMPILER": "i686-w64-mingw32-gcc",
-        "CMAKE_CXX_COMPILER": "i686-w64-mingw32-g++",
-        "TARGET": "X86_WIN32"
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32"
       }
     },
     {
       "name": "ci-macos-x86_64-debug",
       "inherits": "ci-base",
       "displayName": "CI macOS x86_64 Debug",
-      "description": "Build for macOS x86_64 on CI using osxcross - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for macOS x86_64 on CI - Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_SYSTEM_NAME": "Darwin",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/osxcross-x86_64.cmake"
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
       "name": "ci-macos-x86_64-release",
       "inherits": "ci-base",
       "displayName": "CI macOS x86_64 Release",
-      "description": "Build for macOS x86_64 on CI using osxcross - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for macOS x86_64 on CI - Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_SYSTEM_NAME": "Darwin",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/osxcross-x86_64.cmake"
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
       "name": "ci-macos-arm64-debug",
       "inherits": "ci-base",
       "displayName": "CI macOS ARM64 Debug",
-      "description": "Build for macOS ARM64 on CI using osxcross - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for macOS ARM64 on CI - Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_SYSTEM_NAME": "Darwin",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/osxcross-arm64.cmake"
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
       "name": "ci-macos-arm64-release",
       "inherits": "ci-base",
       "displayName": "CI macOS ARM64 Release",
-      "description": "Build for macOS ARM64 on CI using osxcross - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
+      "description": "Build for macOS ARM64 on CI - Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_SYSTEM_NAME": "Darwin",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchains/osxcross-arm64.cmake"
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
@@ -424,14 +380,8 @@
       "inherits": "ci-base",
       "displayName": "CI Android ARM64 Debug",
       "description": "Build for Android ARM64 on CI using NDK Clang - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ANDROID_MODE": "OFF",
         "ANDROID_ABI": "arm64-v8a",
         "CMAKE_TOOLCHAIN_FILE": "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
       }
@@ -441,14 +391,8 @@
       "inherits": "ci-base",
       "displayName": "CI Android ARM64 Release",
       "description": "Build for Android ARM64 on CI using NDK Clang - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ANDROID_MODE": "OFF",
         "ANDROID_ABI": "arm64-v8a",
         "CMAKE_TOOLCHAIN_FILE": "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
       }
@@ -458,14 +402,8 @@
       "inherits": "ci-base",
       "displayName": "CI Android ARM32 Debug",
       "description": "Build for Android ARM32 on CI using NDK Clang - Debug",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ANDROID_MODE": "OFF",
         "ANDROID_ABI": "armeabi-v7a",
         "CMAKE_TOOLCHAIN_FILE": "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
       }
@@ -475,14 +413,8 @@
       "inherits": "ci-base",
       "displayName": "CI Android ARM32 Release",
       "description": "Build for Android ARM32 on CI using NDK Clang - Release",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ANDROID_MODE": "OFF",
         "ANDROID_ABI": "armeabi-v7a",
         "CMAKE_TOOLCHAIN_FILE": "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
       }
