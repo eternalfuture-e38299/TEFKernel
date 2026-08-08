@@ -1,0 +1,166 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake make
+        
+      - name: Configure
+        run: cmake --preset linux-x86_64-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset linux-x86_64-${{ matrix.build_type }}
+
+  linux-x86:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake make gcc-multilib g++-multilib
+        
+      - name: Configure
+        run: cmake --preset linux-x86-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset linux-x86-${{ matrix.build_type }}
+
+  windows-x86_64:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: choco install cmake mingw -y
+        
+      - name: Configure
+        run: cmake --preset windows-x86_64-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset windows-x86_64-${{ matrix.build_type }}
+
+  windows-x86:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: choco install cmake mingw -y
+        
+      - name: Configure
+        run: cmake --preset windows-x86-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset windows-x86-${{ matrix.build_type }}
+
+  macos-x86_64:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: brew install cmake make
+        
+      - name: Configure
+        run: cmake --preset macos-x86_64-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset macos-x86_64-${{ matrix.build_type }}
+
+  macos-arm64:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: brew install cmake make
+        
+      - name: Configure
+        run: cmake --preset macos-arm64-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset macos-arm64-${{ matrix.build_type }}
+
+  android-arm64:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28
+        
+      - name: Configure
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: cmake --preset android-arm64-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset android-arm64-${{ matrix.build_type }}
+
+  android-arm32:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type: [debug, release]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28
+        
+      - name: Configure
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: cmake --preset android-arm32-${{ matrix.build_type }}
+        
+      - name: Build
+        run: cmake --build --preset android-arm32-${{ matrix.build_type }}
