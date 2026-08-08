@@ -49,33 +49,16 @@ static int compare_strings(const char* a, const char* b) {
     return strcmp(a, b);
 }
 
-// 自动选择哈希/比较函数
+// 自动选择哈希函数 - 统一按内存块哈希
 static uint64_t auto_hash(const void* key, const size_t key_size) {
     if (!key || key_size == 0) return 0;
-
-    // 如果key_size是sizeof(char*)并且key看起来像字符串
-    if (key_size == sizeof(const char*)) {
-        const char* str = *(const char**)key;
-        if (str) {
-            return tefstd_hash_str(str);
-        }
-    }
-
     return tefstd_hash_mem(key, key_size);
 }
 
-// 自动比较键
+// 自动比较键 - 统一按内存块比较
 static int auto_compare(const void* a, const void* b, const size_t key_size) {
     if (a == b) return 0;
     if (!a || !b) return 1;
-
-    // 如果key_size是sizeof(char*)，比较字符串内容
-    if (key_size == sizeof(const char*)) {
-        const char* str_a = *(const char**)a;
-        const char* str_b = *(const char**)b;
-        return compare_strings(str_a, str_b);
-    }
-
     return memcmp(a, b, key_size);
 }
 
@@ -121,7 +104,7 @@ static size_t find_slot(const tefstd_hashmap_t* map, const void* key, bool* foun
         return SIZE_MAX;
     }
 
-    if (map->capacity == 0 || map->size == 0) {
+    if (map->capacity == 0) {
         *found = false;
         return 0;
     }
