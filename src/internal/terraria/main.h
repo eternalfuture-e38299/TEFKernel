@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - desktop_test
+ * tefkernel - main
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,20 +17,20 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/1/3
+ * Created: 2026/7/24
  *******************************************************************************/
 
-#include <stdlib.h>
+#ifndef TEFKERNEL_INTERNAL_MAIN_H
+#define TEFKERNEL_INTERNAL_MAIN_H
 
-#include "internal/log.h"
-#include "patchlib/field.h"
-#include "patchlib/type.h"
-#include "patchlib/method.h"
-#include "terraria/asset.h"
-#include "terraria/texture2d.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+void terraria_main_init(bool is_server);
 
-void Test(void) {/*
-    patch_handle_t method = patchlib_type_get_method_by_param_count(patchlib_type_get_type("Terraria", "Main"), "Initialize_AlmostEverything", 0);
-    patchlib_install_prepost_hook(method, NULL, hook_postfix);*/
+#ifdef __cplusplus
 }
+#endif
+
+#endif //TEFKERNEL_INTERNAL_MAIN_H

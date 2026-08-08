@@ -254,13 +254,7 @@ public static class Method
                     }
 
                     var paramType = paramInfos[i].ParameterType;
-
-                    if (Utils.IsValueType(paramType))
-                        // 值类型：直接读取值
-                        parameters[i] = Utils.GetNativeValue(paramValuePtr, paramType);
-                    else
-                        // 引用类型：从 GCHandle 解引用
-                        parameters[i] = Utils.PtrToObject(paramValuePtr);
+                    parameters[i] = Utils.GetNativeValue(paramValuePtr, paramType);
                 }
             }
 

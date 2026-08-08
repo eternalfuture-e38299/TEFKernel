@@ -295,6 +295,10 @@ DEFINE_FUNCTION(bool, patchlib_type_get_fields, patch_handle_t type, bool includ
 DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool including_parent, tefstd_vector_t* array)
 
 #if !defined(__ANDROID__)
+/**
+ * @brief 释放句柄
+ * @param h 句柄
+ */
 DEFINE_FUNCTION(void, patchlib_free, patch_handle_t h)
 #endif
 

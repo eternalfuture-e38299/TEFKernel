@@ -73,91 +73,74 @@ public static class Utils
     /// </summary>
     public static bool SetNativeValue(IntPtr target, object? value)
     {
-        if (target == IntPtr.Zero)
-        {
-            Logger.Error("SetNativeValue: target pointer is NULL");
+        if (target == IntPtr.Zero || value == null)
             return false;
-        }
-
-        if (value == null)
-        {
-            Logger.Error("SetNativeValue: value is NULL");
-            return false;
-        }
 
         try
         {
             var type = value.GetType();
-            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
-            Logger.Debug($"SetNativeValue: writing value '{value}' of type '{type.Name}' to address {target:X8}");
 
-            // 根据类型写入对应的值
+            // 处理枚举类型
+            if (type.IsEnum)
+            {
+                return WriteEnumValue(target, value);
+            }
+
             if (type == typeof(sbyte))
             {
                 Marshal.WriteByte(target, (byte)(sbyte)value);
-                Logger.Debug($"Wrote sbyte: {(sbyte)value}");
                 return true;
             }
 
             if (type == typeof(byte))
             {
                 Marshal.WriteByte(target, (byte)value);
-                Logger.Debug($"Wrote byte: {(byte)value}");
                 return true;
             }
 
             if (type == typeof(short))
             {
                 Marshal.WriteInt16(target, (short)value);
-                Logger.Debug($"Wrote short: {(short)value}");
                 return true;
             }
 
             if (type == typeof(ushort))
             {
                 Marshal.WriteInt16(target, (short)(ushort)value);
-                Logger.Debug($"Wrote ushort: {(ushort)value}");
                 return true;
             }
 
             if (type == typeof(int))
             {
                 Marshal.WriteInt32(target, (int)value);
-                Logger.Debug($"Wrote int: {(int)value}");
                 return true;
             }
 
             if (type == typeof(uint))
             {
                 Marshal.WriteInt32(target, (int)(uint)value);
-                Logger.Debug($"Wrote uint: {(uint)value}");
                 return true;
             }
 
             if (type == typeof(long))
             {
                 Marshal.WriteInt64(target, (long)value);
-                Logger.Debug($"Wrote long: {(long)value}");
                 return true;
             }
 
             if (type == typeof(ulong))
             {
                 Marshal.WriteInt64(target, (long)(ulong)value);
-                Logger.Debug($"Wrote ulong: {(ulong)value}");
                 return true;
             }
 
             if (type == typeof(float))
             {
-                // float 需要特殊处理
                 unsafe
                 {
                     var floatVal = (float)value;
                     *(float*)target = floatVal;
                 }
-
-                Logger.Debug($"Wrote float: {(float)value}");
                 return true;
             }
 
@@ -168,46 +151,80 @@ public static class Utils
                     var doubleVal = (double)value;
                     *(double*)target = doubleVal;
                 }
-
-                Logger.Debug($"Wrote double: {(double)value}");
                 return true;
             }
 
             if (type == typeof(bool))
             {
                 Marshal.WriteByte(target, (bool)value ? (byte)1 : (byte)0);
-                Logger.Debug($"Wrote bool: {(bool)value}");
                 return true;
             }
 
             if (type == typeof(char))
             {
                 Marshal.WriteInt16(target, (short)(char)value);
-                Logger.Debug($"Wrote char: {(char)value}");
                 return true;
             }
 
-            if (type == typeof(IntPtr))
+            if (type == typeof(IntPtr) || type == typeof(UIntPtr))
             {
                 Marshal.WriteIntPtr(target, (IntPtr)value);
-                // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
-                Logger.Debug($"Wrote IntPtr: {(IntPtr)value:X8}");
                 return true;
             }
 
-            // 其他类型（引用类型）使用 GCHandle
-            Logger.Debug($"Writing reference type: {type.Name}");
+            // 引用类型：使用 GCHandle
             var ptr = ObjectToPtr(value);
             Marshal.WriteIntPtr(target, ptr);
-            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
-            Logger.Debug($"Wrote reference pointer: {ptr:X8}");
             return true;
         }
-        catch (Exception ex)
+        catch
         {
-            Logger.Error($"SetNativeValue failed for type {value.GetType().Name}: {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    ///     将枚举值写入非托管内存
+    /// </summary>
+    private static bool WriteEnumValue(IntPtr target, object? enumValue)
+    {
+        if (target == IntPtr.Zero || enumValue == null || !enumValue.GetType().IsEnum)
+            return false;
+
+        Type enumType = enumValue.GetType();
+        Type underlyingType = Enum.GetUnderlyingType(enumType);
+
+        // 获取枚举的原始值
+        object rawValue = Convert.ChangeType(enumValue, underlyingType);
+
+        // 根据基础类型写入
+        if (underlyingType == typeof(sbyte) || underlyingType == typeof(byte))
+        {
+            Marshal.WriteByte(target, Convert.ToByte(rawValue));
+            return true;
+        }
+
+        if (underlyingType == typeof(short) || underlyingType == typeof(ushort))
+        {
+            Marshal.WriteInt16(target, Convert.ToInt16(rawValue));
+            return true;
+        }
+
+        if (underlyingType == typeof(int) || underlyingType == typeof(uint))
+        {
+            Marshal.WriteInt32(target, Convert.ToInt32(rawValue));
+            return true;
+        }
+
+        if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
+        {
+            Marshal.WriteInt64(target, Convert.ToInt64(rawValue));
+            return true;
+        }
+
+        // 默认按 int 处理
+        Marshal.WriteInt32(target, Convert.ToInt32(rawValue));
+        return true;
     }
 
     /// <summary>
@@ -215,96 +232,135 @@ public static class Utils
     /// </summary>
     public static object? GetNativeValue(IntPtr source, Type? targetType)
     {
-        if (source == IntPtr.Zero)
-        {
-            Logger.Error("GetNativeValue: source pointer is NULL");
+        if (source == IntPtr.Zero || targetType == null)
             return null;
-        }
-
-        if (targetType == null)
-        {
-            Logger.Error("GetNativeValue: target type is NULL");
-            return null;
-        }
 
         try
         {
-            // ReSharper disable once InterpolatedStringExpressionIsNotIFormattable
-            Logger.Debug($"GetNativeValue: reading from {source:X8} as type {targetType.Name}");
+            // 处理枚举类型
+            if (targetType.IsEnum)
+            {
+                return ReadEnumValue(source, targetType);
+            }
 
-            // 基本类型读取
-            if (targetType == typeof(sbyte))
-                return (sbyte)Marshal.ReadByte(source);
+            // 基本类型读取（对应 patch_type_t）
+            if (targetType == typeof(void)) return null;
+            if (targetType == typeof(sbyte)) return (sbyte)Marshal.ReadByte(source);
+            if (targetType == typeof(byte)) return Marshal.ReadByte(source);
+            if (targetType == typeof(short)) return Marshal.ReadInt16(source);
+            if (targetType == typeof(ushort)) return (ushort)Marshal.ReadInt16(source);
+            if (targetType == typeof(int)) return Marshal.ReadInt32(source);
+            if (targetType == typeof(uint)) return (uint)Marshal.ReadInt32(source);
+            if (targetType == typeof(long)) return Marshal.ReadInt64(source);
+            if (targetType == typeof(ulong)) return (ulong)Marshal.ReadInt64(source);
+            if (targetType == typeof(bool)) return Marshal.ReadByte(source) != 0;
+            if (targetType == typeof(float)) unsafe { return *(float*)source; }
+            if (targetType == typeof(double)) unsafe { return *(double*)source; }
+            if (targetType == typeof(IntPtr)) return Marshal.ReadIntPtr(source);
+            if (targetType == typeof(UIntPtr)) return (UIntPtr)Marshal.ReadIntPtr(source).ToInt64();
+            if (targetType == typeof(char)) return (char)Marshal.ReadInt16(source);
 
-            if (targetType == typeof(byte))
-                return Marshal.ReadByte(source);
+            // PATCH_OBJECT: 从指针读取 GCHandle
+            var ptr = Marshal.ReadIntPtr(source);
+            if (ptr == IntPtr.Zero) return null;
 
-            if (targetType == typeof(short))
-                return Marshal.ReadInt16(source);
-
-            if (targetType == typeof(ushort))
-                return (ushort)Marshal.ReadInt16(source);
-
-            if (targetType == typeof(int))
-                return Marshal.ReadInt32(source);
-
-            if (targetType == typeof(uint))
-                return (uint)Marshal.ReadInt32(source);
-
-            if (targetType == typeof(long))
-                return Marshal.ReadInt64(source);
-
-            if (targetType == typeof(ulong))
-                return (ulong)Marshal.ReadInt64(source);
-
-            if (targetType == typeof(float))
-                unsafe
-                {
-                    return *(float*)source;
-                }
-
-            if (targetType == typeof(double))
-                unsafe
-                {
-                    return *(double*)source;
-                }
-
-            if (targetType == typeof(bool))
-                return Marshal.ReadByte(source) != 0;
-
-            if (targetType == typeof(char))
-                return (char)Marshal.ReadInt16(source);
-
-            if (targetType == typeof(IntPtr))
-                return Marshal.ReadIntPtr(source);
-
-            // 引用类型：从 GCHandle 读取
-            var objPtr = Marshal.ReadIntPtr(source);
-            if (objPtr == IntPtr.Zero)
-                return null;
-
-            return PtrToObject(objPtr);
+            var handle = GCHandle.FromIntPtr(ptr);
+            return handle.IsAllocated ? handle.Target : null;
         }
-        catch (Exception ex)
+        catch
         {
-            Logger.Error($"GetNativeValue failed for type {targetType.Name}: {ex.Message}");
             return null;
         }
     }
 
     /// <summary>
-    ///     判断类型是否为值类型（基础类型）
+    ///     从非托管内存读取枚举值
     /// </summary>
-    public static bool IsValueType(Type type)
+    private static object? ReadEnumValue(IntPtr source, Type enumType)
     {
-        return type.IsValueType || type == typeof(void) || type.IsPrimitive;
+        if (source == IntPtr.Zero || !enumType.IsEnum)
+            return null;
+
+        // 获取枚举的基础类型
+        var underlyingType = Enum.GetUnderlyingType(enumType);
+
+        // 根据基础类型读取值
+        object rawValue = underlyingType switch
+        {
+            not null when underlyingType == typeof(sbyte) => (sbyte)Marshal.ReadByte(source),
+            not null when underlyingType == typeof(byte) => Marshal.ReadByte(source),
+            not null when underlyingType == typeof(short) => Marshal.ReadInt16(source),
+            not null when underlyingType == typeof(ushort) => (ushort)Marshal.ReadInt16(source),
+            not null when underlyingType == typeof(int) => Marshal.ReadInt32(source),
+            not null when underlyingType == typeof(uint) => (uint)Marshal.ReadInt32(source),
+            not null when underlyingType == typeof(long) => Marshal.ReadInt64(source),
+            not null when underlyingType == typeof(ulong) => (ulong)Marshal.ReadInt64(source),
+            _ => Marshal.ReadInt32(source) // 默认按 int 处理
+        };
+
+        // 将原始值转换为枚举
+        return Enum.ToObject(enumType, rawValue);
+    }
+
+    /// <summary>
+    /// 判断类型是否为基本类型（对应 C 端的 patch_type_t）
+    /// 只有这些类型被视为基础类型，其他全部视为 PATCH_OBJECT
+    /// </summary>
+    public static bool IsValueType(Type? type)
+    {
+        if (type == null) return false;
+
+        // 枚举是值类型
+        if (type.IsEnum) return true;
+
+        // 对应 PATCH_VOID
+        if (type == typeof(void)) return true;
+
+        // 对应 PATCH_INT8, PATCH_UINT8
+        if (type == typeof(sbyte) || type == typeof(byte)) return true;
+
+        // 对应 PATCH_INT16, PATCH_UINT16
+        if (type == typeof(short) || type == typeof(ushort)) return true;
+
+        // 对应 PATCH_INT32, PATCH_UINT32
+        if (type == typeof(int) || type == typeof(uint)) return true;
+
+        // 对应 PATCH_INT64, PATCH_UINT64
+        if (type == typeof(long) || type == typeof(ulong)) return true;
+
+        // 对应 PATCH_BOOL
+        if (type == typeof(bool)) return true;
+
+        // 对应 PATCH_FLOAT
+        if (type == typeof(float)) return true;
+
+        // 对应 PATCH_DOUBLE
+        if (type == typeof(double)) return true;
+
+        // 对应 PATCH_POINTER
+        if (type == typeof(IntPtr) || type == typeof(UIntPtr)) return true;
+
+        // 对应 PATCH_CHAR
+        if (type == typeof(char)) return true;
+
+        // 所有其他类型（包括 string、数组、类、结构体等）都视为 PATCH_OBJECT
+        return false;
     }
 
     /// <summary>
     ///     获取类型的大小（用于值类型）
     /// </summary>
-    public static int GetTypeSize(Type type)
+    public static int GetTypeSize(Type? type)
     {
+        if (type == null) return 0;
+
+        // 枚举类型：返回其基础类型的大小
+        if (type.IsEnum)
+        {
+            Type underlyingType = Enum.GetUnderlyingType(type);
+            return GetTypeSize(underlyingType);
+        }
+
         if (type == typeof(void)) return 0;
         if (type == typeof(sbyte) || type == typeof(byte)) return 1;
         if (type == typeof(short) || type == typeof(ushort)) return 2;
@@ -312,8 +368,56 @@ public static class Utils
         if (type == typeof(long) || type == typeof(ulong) || type == typeof(double)) return 8;
         if (type == typeof(bool)) return 1;
         if (type == typeof(char)) return 2;
-        if (type == typeof(IntPtr)) return IntPtr.Size;
+        if (type == typeof(IntPtr) || type == typeof(UIntPtr)) return IntPtr.Size;
 
-        return Marshal.SizeOf(type);
+        // 结构体或类：使用 Marshal.SizeOf 或按指针处理
+        try
+        {
+            return Marshal.SizeOf(type);
+        }
+        catch
+        {
+            // 如果无法获取大小，按指针处理
+            return IntPtr.Size;
+        }
+    }
+
+    /// <summary>
+    ///     释放 GCHandle 指针
+    /// </summary>
+    public static void FreeGCHandle(IntPtr ptr)
+    {
+        if (ptr == IntPtr.Zero)
+            return;
+
+        try
+        {
+            var handle = GCHandle.FromIntPtr(ptr);
+            if (handle.IsAllocated)
+                handle.Free();
+        }
+        catch
+        {
+            // 忽略无效的 GCHandle
+        }
+    }
+
+    /// <summary>
+    ///     检查指针是否为有效的 GCHandle
+    /// </summary>
+    public static bool IsValidGCHandle(IntPtr ptr)
+    {
+        if (ptr == IntPtr.Zero)
+            return false;
+
+        try
+        {
+            var handle = GCHandle.FromIntPtr(ptr);
+            return handle.IsAllocated;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

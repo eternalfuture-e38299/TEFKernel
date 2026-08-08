@@ -105,7 +105,7 @@ ffi_type* patch_type_to_ffi_type(const patch_type_t type) {
         case PATCH_UINT64:  result = &ffi_type_uint64; type_name = "UINT64"; break;
         case PATCH_FLOAT:   result = &ffi_type_float; type_name = "FLOAT"; break;
         case PATCH_DOUBLE:  result = &ffi_type_double; type_name = "DOUBLE"; break;
-        case PATCH_CHAR:    result = &ffi_type_uint8; type_name = "CHAR"; break;
+        case PATCH_CHAR:    result = &ffi_type_uint32; type_name = "CHAR"; break;
         default:            result = &ffi_type_pointer; type_name = "POINTER"; break;
     }
 

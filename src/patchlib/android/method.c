@@ -192,30 +192,33 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     // 验证实例方法调用
     if (signature.is_instance && !patchlib_is_valid(instance)) {
         TEKLOG_ERROR("Instance method requires valid instance");
+        patchlib_method_signature_free(&signature);
         return false;
     }
 
     void* method_ptr = patchlib_method_get_pointer(method);
     if (!method_ptr) {
         TEKLOG_ERROR("Failed to get method pointer");
+        patchlib_method_signature_free(&signature);
         return false;
     }
 
     // 计算总参数个数
-    const int total_arg_count = (int)tefstd_vector_size(&signature.arg_types)
-                        + (signature.is_instance ? 1 : 0);
+    size_t explicit_arg_count = tefstd_vector_size(&signature.arg_types);
+    const int total_arg_count = (int)explicit_arg_count + (signature.is_instance ? 1 : 0);
 
     TEKLOG_DEBUG("Method invocation: ptr=%p, total_args=%d, is_instance=%s",
                  method_ptr, total_arg_count, signature.is_instance ? "true" : "false");
 
-    // 准备ffi类型数组
+    // 分配FFI参数数组（使用 RAII 风格，先分配再检查）
     ffi_type** arg_types = malloc(sizeof(ffi_type*) * total_arg_count);
     void** arg_values = malloc(sizeof(void*) * total_arg_count);
 
     if (!arg_types || !arg_values) {
         TEKLOG_ERROR("Memory allocation failed for FFI arguments");
-        free(arg_types);
+        free(arg_types);   // free(NULL) 是安全的
         free(arg_values);
+        patchlib_method_signature_free(&signature);
         return false;
     }
 
@@ -229,18 +232,44 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
         arg_index++;
     }
 
-    // 设置方法参数
-    for (size_t i = 0; i < tefstd_vector_size(&signature.arg_types); i++) {
-        const patch_type_t* arg_type = tefstd_vector_at(&signature.arg_types, i);
-        arg_types[arg_index] = patch_type_to_ffi_type(*arg_type);
-        arg_values[arg_index] = args ? args[i] : NULL;
-        TEKLOG_DEBUG("Argument %d: type=%d, value=%p", arg_index, *arg_type, arg_values[arg_index]);
-        arg_index++;
+    // 设置方法参数 - 添加边界检查
+    if (args) {
+        for (size_t i = 0; i < explicit_arg_count; i++) {
+            const patch_type_t* arg_type = tefstd_vector_at(&signature.arg_types, i);
+            if (!arg_type) {
+                TEKLOG_ERROR("Failed to get argument type at index %zu", i);
+                free(arg_values);
+                free(arg_types);
+                patchlib_method_signature_free(&signature);
+                return false;
+            }
+
+            arg_types[arg_index] = patch_type_to_ffi_type(*arg_type);
+            arg_values[arg_index] = args[i];  // args 应该有 explicit_arg_count 个元素
+            TEKLOG_DEBUG("Argument %d: type=%d, value=%p", arg_index, *arg_type, arg_values[arg_index]);
+            arg_index++;
+        }
+    } else {
+        // args 为 NULL，所有参数传 NULL
+        for (size_t i = 0; i < explicit_arg_count; i++) {
+            const patch_type_t* arg_type = tefstd_vector_at(&signature.arg_types, i);
+            arg_types[arg_index] = patch_type_to_ffi_type(*arg_type);
+            arg_values[arg_index] = NULL;
+            TEKLOG_DEBUG("Argument %d: type=%d, value=NULL", arg_index, *arg_type);
+            arg_index++;
+        }
     }
 
-    // 准备ffi调用
+    // 准备FFI调用
     ffi_cif cif;
     ffi_type* return_ffi_type = patch_type_to_ffi_type(signature.return_type);
+    if (!return_ffi_type) {
+        TEKLOG_ERROR("Invalid return type");
+        free(arg_values);
+        free(arg_types);
+        patchlib_method_signature_free(&signature);
+        return false;
+    }
 
     ffi_abi abi = FFI_DEFAULT_ABI;
 #if defined(__aarch64__)
@@ -255,10 +284,12 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
 
     TEKLOG_DEBUG("Preparing FFI CIF: abi=%d, nargs=%d", abi, total_arg_count);
 
-    if (ffi_prep_cif(&cif, abi, total_arg_count, return_ffi_type, arg_types) != FFI_OK) {
-        TEKLOG_ERROR("FFI CIF preparation failed");
+    ffi_status status = ffi_prep_cif(&cif, abi, (unsigned int)total_arg_count, return_ffi_type, arg_types);
+    if (status != FFI_OK) {
+        TEKLOG_ERROR("FFI CIF preparation failed: %d", status);
         free(arg_values);
         free(arg_types);
+        patchlib_method_signature_free(&signature);
         return false;
     }
 
@@ -269,11 +300,37 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
 
     TEKLOG_DEBUG("Method invocation completed successfully");
 
+    // 清理资源
+    if (arg_values) free(arg_values);
+    if (arg_types) free(arg_types);
     patchlib_method_signature_free(&signature);
-    free(arg_values);
-    free(arg_types);
     return true;
 }
+
+bool patchlib_constructor_invoke(patch_handle_t constructor,
+                patch_handle_t *return_instance, void **args) {
+    patch_handle_t instance = patchlib_type_new_instance(il2cpp_method_get_class(constructor));
+    *return_instance = instance;
+    return patchlib_method_invoke_args(constructor,
+        instance,
+        NULL, args);
+}
+
+// ReSharper disable once CppUseInternalLinkage
+typedef struct Il2CppObject
+{
+    void*/*Il2CppClass*/ *klass;
+    void*/*MonitorData*/ *monitor;
+} Il2CppObject;
+
+// ReSharper disable once CppUseInternalLinkage
+typedef struct Il2CppReflectionMethod
+{
+    Il2CppObject object;
+    const void/*MethodInfo*/ *method;
+    void*/*Il2CppString*/ *name;
+    void*/*Il2CppReflectionType*/ *reftype;
+} Il2CppReflectionMethod;
 
 
 patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, const tefstd_vector_t *template_types) {
@@ -284,19 +341,14 @@ patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, cons
         return PATCH_NULL;
     }
 
-    patch_handle_t declaring_class = il2cpp_method_get_declaring_type(method);
-    void* reflection_method = il2cpp_method_get_object(method, declaring_class);
-
-    if (!reflection_method) {
-        TEKLOG_ERROR("Failed to get reflection method object");
-        return PATCH_NULL;
-    }
+    Il2CppReflectionMethod reflection_method;
+    reflection_method.method = method;
 
     void* type_array = create_type_array_from_vector(template_types, il2cpp_class_from_name(il2cpp_get_corlib(), "System", "Type"));
 
-    const void* result_obj = ((void*(*)(void*, void*))patchlib_method_get_pointer(patchlib_MakeGenericMethod_impl))(reflection_method, type_array);
+    const Il2CppReflectionMethod* result_obj = ((void*(*)(void*, void*))patchlib_method_get_pointer(patchlib_MakeGenericMethod_impl))(&reflection_method, type_array);
 
-    void* result_method = il2cpp_method_get_from_reflection(result_obj);
+    patch_handle_t result_method = (patch_handle_t)result_obj->method;
     if (!result_method) {
         TEKLOG_ERROR("Failed to convert reflection result to MethodInfo");
         return PATCH_NULL;

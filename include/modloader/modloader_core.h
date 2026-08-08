@@ -50,6 +50,7 @@ typedef struct {
     const char *mod_id;
     const char *private_dir;
     const char *logs_dir;
+    int version_code;               ///< mod版本代码
 } mod_manifest_t;
 
 typedef struct {

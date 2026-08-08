@@ -408,8 +408,57 @@ int memdl_close(memdl_handle_t handle) {
     }
     return result;
 }
-
 #elif defined(MEMDL_LINUX)
+
+#include <pthread.h>
+
+// 简单的链表结构来管理 fd -> handle 映射
+typedef struct fd_entry {
+    int fd;
+    void *dl_handle;
+    struct fd_entry *next;
+} fd_entry_t;
+
+static fd_entry_t *fd_map = NULL;
+static pthread_mutex_t fd_map_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// 添加映射
+static int fd_map_add(int fd, void *handle) {
+    fd_entry_t *entry = malloc(sizeof(fd_entry_t));
+    if (!entry) return -1;
+
+    entry->fd = fd;
+    entry->dl_handle = handle;
+
+    pthread_mutex_lock(&fd_map_mutex);
+    entry->next = fd_map;
+    fd_map = entry;
+    pthread_mutex_unlock(&fd_map_mutex);
+
+    return 0;
+}
+
+// 查找并移除映射
+static void *fd_map_remove(int fd) {
+    pthread_mutex_lock(&fd_map_mutex);
+
+    fd_entry_t **pp = &fd_map;
+    void *handle = NULL;
+
+    while (*pp) {
+        if ((*pp)->fd == fd) {
+            fd_entry_t *entry = *pp;
+            handle = entry->dl_handle;
+            *pp = entry->next;
+            free(entry);
+            break;
+        }
+        pp = &(*pp)->next;
+    }
+
+    pthread_mutex_unlock(&fd_map_mutex);
+    return handle;
+}
 
 memdl_handle_t memdl_open_file(const char *filename, const int flags) {
     int dl_flags = (flags & MEMDL_NOW) ? RTLD_NOW : RTLD_LAZY;
@@ -425,8 +474,7 @@ memdl_handle_t memdl_open(const void *so_data, const size_t so_size, const int f
     int dl_flags = (flags & MEMDL_NOW) ? RTLD_NOW : RTLD_LAZY;
     dl_flags |= (flags & MEMDL_LOCAL) ? RTLD_LOCAL : RTLD_GLOBAL;
 
-    // Linux 使用memfd方案
-    // 定义MFD_CLOEXEC常量（如果系统头文件没有定义）
+    // 尝试 memfd 方案
 #ifndef MFD_CLOEXEC
 #define MFD_CLOEXEC 0x0001U
 #endif
@@ -440,27 +488,37 @@ memdl_handle_t memdl_open(const void *so_data, const size_t so_size, const int f
             char fd_path[64];
             snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
             void *handle = dlopen(fd_path, dl_flags);
-            close(fd);
 
-            if (handle) return handle;
-        } else {
-            close(fd);
+            if (handle) {
+                // 保存 fd 和 handle 的映射关系
+                if (fd_map_add(fd, handle) == 0) {
+                    return handle;
+                }
+                // 如果映射保存失败，需要清理
+                dlclose(handle);
+                close(fd);
+                memdl_set_error("Failed to store fd mapping");
+                return NULL;
+            }
         }
+        close(fd);
     }
 
     // 降级方案：临时文件
-    char template[] = "/tmp/memdl_tmp";
+    char template[] = "/tmp/memdl_tmpXXXXXX";
     fd = mkstemp(template);
     if (fd >= 0) {
         if (write(fd, so_data, so_size) == (ssize_t) so_size) {
+            close(fd);  // 临时文件方案不需要保持fd打开
+
             void *handle = dlopen(template, dl_flags);
             unlink(template);
-            close(fd);
 
-            if (!handle) {
-                memdl_set_error(dlerror());
+            if (handle) {
+                return handle;
             }
-            return handle;
+            memdl_set_error(dlerror());
+            return NULL;
         }
         close(fd);
         unlink(template);
@@ -487,7 +545,34 @@ int memdl_close(memdl_handle_t handle) {
         memdl_set_error("Invalid handle");
         return -1;
     }
-    const int result = dlclose(handle);
+
+    // 尝试从map中查找并移除对应的fd
+    // 注意：这里可能找不到（如果是临时文件方案），这是正常的
+    int fd = -1;
+    pthread_mutex_lock(&fd_map_mutex);
+
+    fd_entry_t **pp = &fd_map;
+    while (*pp) {
+        if ((*pp)->dl_handle == handle) {
+            fd_entry_t *entry = *pp;
+            fd = entry->fd;
+            *pp = entry->next;
+            free(entry);
+            break;
+        }
+        pp = &(*pp)->next;
+    }
+
+    pthread_mutex_unlock(&fd_map_mutex);
+
+    // 关闭动态库
+    int result = dlclose(handle);
+
+    // 如果是 memfd 方案，关闭对应的文件描述符
+    if (fd >= 0) {
+        close(fd);
+    }
+
     if (result != 0) {
         memdl_set_error(dlerror());
     }

@@ -1,13 +1,13 @@
 /*******************************************************************************
-* File: tef_api_imp
+ * File: thread
  * Project: tefkernel
- * Created: 2026/06/06
+ * Created: 2026/7/27
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  *
  * MIT License
  *
- * Copyright (c) 2025 eternalfuture-e38299
+ * Copyright (c) 2026 eternalfuture-e38299
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,26 +28,41 @@
  * SOFTWARE.
  *******************************************************************************/
 
-#define TEF_API_IMPL 1
+#ifndef TEFKERNEL_THREAD_H
+#define TEFKERNEL_THREAD_H
 
-#include "tef_api.h"
-#include "patchlib/field.h"
-#include "patchlib/method.h"
-#include "patchlib/property.h"
-#include "patchlib/type.h"
-#include "patchlib/struct/array.h"
-#include "patchlib/struct/dictionary.h"
-#include "patchlib/struct/string.h"
-#include "patchlib/struct/list.h"
-#include "patchlib/thread.h"
-#include "tefstd/vector.h"
-#include "tefstd/hashmap.h"
-#include "tefstd/skipmap.h"
-#include "memdl/memdl.h"
-#include "modloader/modloader_core.h"
-#include "module/module_core.h"
-#include "tefpackage/tefpkg.h"
-#include "tefplugin/tpf_core.h"
-#include "terraria/main.h"
-#include "terraria/asset.h"
-#include "terraria/texture2d.h"
+#include "type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if __ANDROID__
+/**
+ * @brief 获取当前线程
+ * @return 线程句柄
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_thread_current)
+
+/**
+ * @brief 附加当前线程到运行时
+ * @return 线程句柄
+ */
+DEFINE_FUNCTION(patch_handle_t, patchlib_thread_attach)
+
+/**
+ * @brief 分离当前线程
+ * @param thread 线程句柄
+ */
+DEFINE_FUNCTION(void, patchlib_thread_detach, patch_handle_t thread)
+
+#else
+#define patchlib_thread_current() ((patch_handle_t)1)
+#define patchlib_thread_attach() ((void)0)
+#define patchlib_thread_detach(thread) ((void)0)
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+#endif //TEFKERNEL_THREAD_H

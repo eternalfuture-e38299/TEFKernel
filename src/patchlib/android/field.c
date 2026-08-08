@@ -33,9 +33,7 @@ bool patchlib_field_is_thread_static(patch_handle_t field) {
         return false;
     }
 
-    const bool result = il2cpp_field_get_offset(field) == -1;
-    TEKLOG_DEBUG("Field is thread static: %s", result ? "true" : "false");
-    return result;
+    return il2cpp_field_get_offset(field) == -1;
 }
 
 bool patchlib_field_is_static(patch_handle_t field) {
@@ -44,11 +42,8 @@ bool patchlib_field_is_static(patch_handle_t field) {
         return false;
     }
 
-    const bool result = (*(int*)((uintptr_t)il2cpp_field_get_type(field) + sizeof(void*)) & 0x0010) != 0;
-    TEKLOG_DEBUG("Field is static: %s", result ? "true" : "false");
-    return result;
+    return (*(int*)((uintptr_t)il2cpp_field_get_type(field) + sizeof(void*)) & 0x0010) != 0;
 }
-
 
 bool patchlib_field_is_const(patch_handle_t field) {
     if (!patchlib_is_valid(field)) {
@@ -56,9 +51,7 @@ bool patchlib_field_is_const(patch_handle_t field) {
         return false;
     }
 
-    const bool result = (*(int*)((uintptr_t)il2cpp_field_get_type(field) + sizeof(void*)) & 0x0040) != 0;
-    TEKLOG_DEBUG("Field is const: %s", result ? "true" : "false");
-    return result;
+    return (*(int*)((uintptr_t)il2cpp_field_get_type(field) + sizeof(void*)) & 0x0040) != 0;
 }
 
 void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, void *value) {
@@ -73,8 +66,6 @@ void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, voi
     }
 
     if (patchlib_field_is_const(field) || patchlib_field_is_thread_static(field)) {
-        TEKLOG_DEBUG("Getting const or threadStatic field value: field=%p",
-                     field);
         il2cpp_field_static_get_value(field, value);
         return;
     }
@@ -87,11 +78,7 @@ void patchlib_field_get_value(patch_handle_t field, patch_handle_t instance, voi
         return;
     }
 
-    TEKLOG_DEBUG("Getting field value: field=%p, instance=%p, size=%zu",
-                 field, instance, field_size);
-
     memcpy(value, field_pointer, field_size);
-    TEKLOG_DEBUG("Field value retrieved successfully");
 }
 
 void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, void *value) {
@@ -113,11 +100,7 @@ void patchlib_field_set_value(patch_handle_t field, patch_handle_t instance, voi
         return;
     }
 
-    TEKLOG_DEBUG("Setting field value: field=%p, instance=%p, size=%zu",
-                 field, instance, field_size);
-
     memcpy(field_pointer, value, field_size);
-    TEKLOG_DEBUG("Field value set successfully");
 }
 
 void * patchlib_field_get_pointer(patch_handle_t field, void *instance) {
@@ -139,8 +122,6 @@ void * patchlib_field_get_pointer(patch_handle_t field, void *instance) {
     const size_t offset = il2cpp_field_get_offset(field);
     const void* p_class = il2cpp_field_get_parent(field);
 
-    TEKLOG_DEBUG("Field offset: %zu, class: %p", offset, p_class);
-
     if (patchlib_field_is_static(field)) {
         void* staticData = il2cpp_class_get_static_field_data(p_class);
         if (!staticData) {
@@ -148,15 +129,9 @@ void * patchlib_field_get_pointer(patch_handle_t field, void *instance) {
             return NULL;
         }
 
-        void* result = (void*)((uintptr_t)staticData + offset);
-        TEKLOG_DEBUG("Static field pointer: %p (base=%p, offset=%zu)", result, staticData, offset);
-        return result;
+        return (void*)((uintptr_t)staticData + offset);
     }
 
     const bool isValueType = il2cpp_type_get_type(p_class) == IL2CPP_TYPE_VALUETYPE;
-    void* result = (void*)((uintptr_t)instance + offset - (isValueType ? sizeof(void*) : 0x0));
-
-    TEKLOG_DEBUG("Instance field pointer: %p (instance=%p, offset=%zu, isValueType=%s)",
-                 result, instance, offset, isValueType ? "true" : "false");
-    return result;
+    return (void*)((uintptr_t)instance + offset - (isValueType ? sizeof(void*) * 2 : 0x0));
 }

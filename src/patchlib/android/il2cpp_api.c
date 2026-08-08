@@ -106,8 +106,39 @@ void il2cpp_api_init(void *handle) {
     //加载runtime相关API
     LOAD_SYMBOL(il2cpp_runtime_invoke);
     LOAD_SYMBOL(il2cpp_object_unbox);
+
+    // 加载线程相关API
+    LOAD_SYMBOL(il2cpp_thread_current);
+    LOAD_SYMBOL(il2cpp_thread_attach);
+    LOAD_SYMBOL(il2cpp_thread_detach);
 }
 
 void * il2cpp_object_get_class(void *object) {
     return *(void**)object;
+}
+
+/*
+typedef struct Il2CppType
+{
+    void* /*union
+    {
+        void* dummy;
+        TypeDefinitionIndex __klassIndex;
+        Il2CppMetadataTypeHandle typeHandle;
+        const Il2CppType *type;
+        Il2CppArrayType *array;
+        GenericParameterIndex __genericParameterIndex;
+        Il2CppMetadataGenericParameterHandle genericParameterHandle;
+        Il2CppGenericClass *generic_class;
+    }#1# data;
+    unsigned int attrs : 16;
+    il2cpp_type_enum_t type : 8;
+    unsigned int num_mods : 5;
+    unsigned int byref : 1;
+    unsigned int pinned : 1;
+    unsigned int valuetype : 1;
+} Il2CppType;
+*/
+bool il2cpp_type_is_byref(const void* type) {
+    return type && (((*(const unsigned char*)((const char*)type + (sizeof(void*) == 8 ? 11 : 7))) & 0x20) != 0);
 }

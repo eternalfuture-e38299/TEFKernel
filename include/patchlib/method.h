@@ -102,6 +102,16 @@ DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
 DEFINE_FUNCTION(bool, patchlib_method_invoke_args, patch_handle_t method, patch_handle_t instance,
                                  void *return_value, void **args)
 
+/**
+ * @brief 调用构造函数并返回新实例
+ * @param constructor 构造函数句柄
+ * @param return_instance[out] 输出新创建的实例
+ * @param args 参数指针数组
+ * @return 执行结果 (true=成功, false=失败)
+ */
+DEFINE_FUNCTION(bool, patchlib_constructor_invoke, patch_handle_t constructor,
+                patch_handle_t *return_instance, void **args)
+
 // ==================== 高级 ====================
 
 typedef short patch_hook_id_t;
@@ -155,7 +165,7 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  * @brief 安装前缀和后缀 Hook (Prefix/Postfix Hook)
  *
  * 此函数允许你在目标函数 `method` 执行前后插入自定义逻辑。
- * - Prefix Hook (前缀 Hook) 在目标函数执行*之前*运行。可以通过返回 `true` 跳过原始函数的执行。
+ * - Prefix Hook (前缀 Hook) 在目标函数执行*之前*运行。
  * - Postfix Hook (后缀 Hook) 在目标函数执行*之后*运行，并可以访问函数的返回值。
  * 可以为同一个 `method` 多次调用此函数来安装多组不同的 Pre/Post Hook。
  *
@@ -167,14 +177,14 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  *                      - sig_info: 指向描述被 Hook 函数签名的 `patch_method_signature_t` 结构的指针。
  *                      - result: 函数返回值，仅在跳过原始函数时生效
  *                      - 返回值:
- *                          - false: 跳过原始函数的执行，直接进入 Postfix Hook
- *                          - true: 正常执行原始函数
+ *                          - true: 跳过原始函数的执行（即阻止调用原方法），直接进入 Postfix Hook
+ *                          - false: 正常执行原始函数（默认行为）
  *                      如果不需要 Prefix Hook，可以传入 NULL。
  * @param postfix       指向 Postfix Hook 函数的指针。该函数将在目标函数执行后被调用。
  *                      函数签名应为: void postfix(patch_handle_t instance, void** args, void* result, const patch_method_signature_t* sig_info)
  *                      - instance: 对象实例指针（如果是成员函数），可能为空。
  *                      - args: 指向函数参数数组的指针（可能为空）。
- *                      - result: 目标函数的返回值指针。如果目标函数返回 void 或 Hook 不关心返回值，则可能为空。
+ *                      - result: 目标函数的返回值指针。如果目标函数返回 void，则可能为空。
  *                              注意：当 Prefix Hook 返回 true 时，result 可能为空或包含未定义的值。
  *                      - sig_info: 指向描述被 Hook 函数签名的 `patch_method_signature_t` 结构的指针。
  *                      如果不需要 Postfix Hook，可以传入 NULL。
@@ -185,6 +195,8 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  *                      至少 `prefix` 或 `postfix` 其中一个必须非空。
  *                      `sig_info` 指针指向的数据由 Hook 库管理，Hook 函数只需读取，不应尝试修改或释放它。
  *                      当 Prefix Hook 返回 true 时，原始函数将被完全跳过，Postfix Hook 仍会执行，但 result 参数可能无效。
+ *                      修改参数并让原方法继续执行 → 返回 false
+ *                      完全替换原方法逻辑（不调用原方法）→ 返回 true
  * @warning             Hook 函数的实现必须非常小心，避免引入不稳定性或死循环。
  *                      多个 Hook 的执行顺序需要明确定义（例如，按安装顺序）。
  *                      Hook 函数必须能正确处理 `sig_info` 中描述的各种类型。

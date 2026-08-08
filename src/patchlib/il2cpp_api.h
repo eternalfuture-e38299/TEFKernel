@@ -772,8 +772,34 @@ DEFINE_IL2CPP_API(void*, il2cpp_get_hooked_method_sig, void* method)
  * @return 方法句柄，失败返回 -1
  */
 DEFINE_IL2CPP_API(void*, il2cpp_get_method_by_hook_node, short hookId)
+#endif
 
-#endif // !defined(__ANDROID__)
+#if defined(__ANDROID__)
+bool il2cpp_type_is_byref(const void* type);
+#else
+DEFINE_IL2CPP_API(bool, il2cpp_type_is_byref, const void* type)
+#endif
+
+#if __ANDROID__
+/**
+ * @brief 获取当前线程
+ * @return 线程指针(原始类型: Il2CppThread*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_thread_current)
+
+/**
+ * @brief 附加线程到域
+ * @param domain 域指针(原始类型: Il2CppDomain*)
+ * @return 线程指针(原始类型: Il2CppThread*)
+ */
+DEFINE_IL2CPP_API(void*, il2cpp_thread_attach, void* domain)
+
+/**
+ * @brief 分离线程
+ * @param thread 线程指针(原始类型: Il2CppThread*)
+ */
+DEFINE_IL2CPP_API(void, il2cpp_thread_detach, void* thread)
+#endif
 
 #ifdef __cplusplus
 }

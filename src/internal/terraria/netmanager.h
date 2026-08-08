@@ -23,11 +23,33 @@
 #ifndef TEFKERNEL_MANAGER_H
 #define TEFKERNEL_MANAGER_H
 
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// 全局状态
+typedef enum {
+    CONNECTION_TYPE_NONE = 0,      // 无连接
+    CONNECTION_TYPE_VANILLA = 1,   // 原版客户端
+    CONNECTION_TYPE_TEFKERNEL = 2, // TEFKernel客户端
+    CONNECTION_TYPE_BAD_HASH = 3,  // Hash错误
+    CONNECTION_TYPE_VERSION_MISMATCH = 4, // 版本不匹配
+} connection_type_t;
+
+typedef enum {
+    ERROR_NONE = 0,
+    ERROR_KICK = 2,      // Lang.mp[1] - "Invalid operation at this state."
+    ERROR_BANNED = 3,    // Lang.mp[3] - "Banned."
+    ERROR_VERSION = 4,   // Lang.mp[4] - "Wrong version."
+    ERROR_MOD_REQUIRED = 5, // 自定义错误：需要TEFKernel
+} error_type_t;
+
+#define TEFKERNEL_MAGIC_STRING "Terraria With TEFKernel"
+#define TEFKERNEL_VERSION_CODE 2026080800ULL
+
+extern connection_type_t terraria_netmanager_client_connections[256];
+extern error_type_t terraria_netmanager_client_errors[256];
+extern char terraria_netmanager_error_details[256][512]; // 错误信息
 
 void terraria_netmanager_init();
 

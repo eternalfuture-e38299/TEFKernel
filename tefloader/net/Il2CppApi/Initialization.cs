@@ -120,6 +120,7 @@ public static class Initialization
                 "il2cpp_class_make_generic");
             RegisterApiMethod<DelegateIl2CppClassIsSame>(Class.il2cpp_class_is_same, "il2cpp_class_is_same");
             RegisterApiMethod<DelegateIl2CppTypeGetType>(Class.il2cpp_type_get_type, "il2cpp_type_get_type");
+            RegisterApiMethod<DelegateIl2CppTypeIsByref>(Class.il2cpp_type_is_byref, "il2cpp_type_is_byref");
         }
 
         // Delegates for Class API methods
@@ -179,7 +180,10 @@ public static class Initialization
         private delegate bool DelegateIl2CppClassIsSame(IntPtr classPtr1, IntPtr classPtr2);
         
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate int DelegateIl2CppTypeGetType(IntPtr typePtr);
+        private delegate int DelegateIl2CppTypeGetType(IntPtr typePtr);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate bool DelegateIl2CppTypeIsByref(IntPtr typePtr);
     }
 
     public static class MethodApi

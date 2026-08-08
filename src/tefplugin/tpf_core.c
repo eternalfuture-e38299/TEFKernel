@@ -799,11 +799,15 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/type.h"
+#include "patchlib/thread.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/struct/dictionary.h"
 #include "patchlib/struct/list.h"
 #include "patchlib/struct/string.h"
 #include "tefpackage/tefpkg.h"
+#include "terraria/main.h"
+#include "terraria/texture2d.h"
+#include "terraria/asset.h"
 
 void tpf_init_libtefkernel() {
     TEKLOG_INFO("Initializing libtefkernel - creating TPF instance");
@@ -973,6 +977,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_method_is_static);
     TPF_KERNEL_SYMBOL(patchlib_method_make_generic_instance);
     TPF_KERNEL_SYMBOL(patchlib_method_invoke_args);
+    TPF_KERNEL_SYMBOL(patchlib_constructor_invoke);
     TPF_KERNEL_SYMBOL(patchlib_method_get_token);
     TPF_KERNEL_SYMBOL(patchlib_method_get_signature);
     TPF_KERNEL_SYMBOL(patchlib_method_signature_free);
@@ -1022,6 +1027,10 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_field_get_pointer);
     TPF_KERNEL_SYMBOL(patchlib_field_get_size);
     TPF_KERNEL_SYMBOL(patchlib_method_get_pointer);
+
+    TPF_KERNEL_SYMBOL(patchlib_thread_attach);
+    TPF_KERNEL_SYMBOL(patchlib_thread_current);
+    TPF_KERNEL_SYMBOL(patchlib_thread_detach);
 #endif
 
     // 在Android平台，不需要注册资源管理相关的符号，因为它们被宏定义为空操作
@@ -1034,6 +1043,23 @@ void tpf_init_libtefkernel() {
 #endif
 
     TPF_KERNEL_SYMBOL(tpf_register_shared_plugin_library);
+
+
+    // Terraria专属API
+
+    // Main
+    TPF_KERNEL_SYMBOL(terraria_main_get_cur_release);
+    TPF_KERNEL_SYMBOL(terraria_main_get_graphics_device);
+
+    // Texture2d
+    TPF_KERNEL_SYMBOL(terraria_texture2d_create);
+    TPF_KERNEL_SYMBOL(terraria_texture2d_get_width);
+    TPF_KERNEL_SYMBOL(terraria_texture2d_get_height);
+    TPF_KERNEL_SYMBOL(terraria_texture2d_get_class);
+
+    // asset
+    TPF_KERNEL_SYMBOL(terraria_asset_create);
+
 
     // 将内核插件添加到全局列表
     if (tefstd_vector_push_back(&g_tpf_symbols.plugin_handles, &kernel_plugin)) {

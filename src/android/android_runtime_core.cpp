@@ -28,11 +28,8 @@
 #include <string>
 #include <unistd.h>
 
-#include <csignal>
 #include <thread>
 #include <atomic>
-#include <mutex>
-#include <condition_variable>
 
 #include "dobby.h"
 #include "xdl.h"
@@ -47,8 +44,11 @@
 #include "internal/terraria/netmanager.h"
 #include "internal/kernel_state.h"
 #include "internal/crash_handler.h"
+#include "internal/terraria/asset.h"
+#include "internal/terraria/main.h"
+#include "internal/terraria/texture2d.h"
 
-patch_handle_t find_and_initialize_make_generic_method_impl() {
+static patch_handle_t find_and_initialize_make_generic_method_impl() {
     // If already initialized, return immediately
     if (patchlib_MakeGenericMethod_impl != nullptr) {
         return patchlib_MakeGenericMethod_impl;
@@ -121,8 +121,8 @@ patch_handle_t find_and_initialize_make_generic_method_impl() {
 
 void start_test();
 
-int (*orig_il2cpp_init)(const char*) = nullptr;
-int hook_il2cpp_init(const char* domain_name) {
+static int (*orig_il2cpp_init)(const char*) = nullptr;
+static int hook_il2cpp_init(const char* domain_name) {
     TEKLOG_INFO("il2cpp_init hook called, domain: %s", domain_name);
 
     if (orig_il2cpp_init == nullptr) {
@@ -140,7 +140,11 @@ int hook_il2cpp_init(const char* domain_name) {
     patchlib_MakeGenericType = patchlib_type_get_method_by_param_count(patchlib_type_get_type("System", "RuntimeType"), "MakeGenericType", 2);
     find_and_initialize_make_generic_method_impl();
 
+    terraria_main_init(false);
+    terraria_texture2d_init(false);
     terraria_netmanager_init();
+    terraria_asset_init();
+
     tefkernel_init();
     tefkernel_load();
     tefkernel_start();
@@ -150,7 +154,7 @@ int hook_il2cpp_init(const char* domain_name) {
     return r;
 }
 
-JavaVM* GetJavaVMViaJNIStandard() {
+static JavaVM* GetJavaVMViaJNIStandard() {
     TEKLOG_DEBUG("Attempting to get JavaVM via JNI standard");
 
     void* jniGetCreatedJavaVMs = DobbySymbolResolver("libart.so", "JNI_GetCreatedJavaVMs");
@@ -336,28 +340,25 @@ static char* get_current_app_data_dir(JavaVM* vm) {
 
 char* tefkernel_working_dir = nullptr;
 
-
-static std::atomic<bool> il2cpp_loaded{false};
+static std::atomic il2cpp_loaded{false};
 static std::atomic<void*> il2cpp_handle{nullptr};
 static std::thread il2cpp_watcher_thread;
-static std::atomic<bool> il2cpp_watcher_running{false};
+static std::atomic il2cpp_watcher_running{false};
 
 // 修改WaitForIL2CppLib，不再阻塞主线程
-void* WaitForIL2CppLib(int timeout_seconds = 30) {
+static void* WaitForIL2CppLib(const int timeout_seconds = 30) {
     TEKLOG_INFO("[xDL] Starting IL2CPP watcher, timeout: %d seconds", timeout_seconds);
 
-    const int check_interval_ms = 100;
     int total_wait_time = 0;
     const int max_wait_time = timeout_seconds * 1000;
 
     while (total_wait_time < max_wait_time && il2cpp_watcher_running.load()) {
+        constexpr int check_interval_ms = 100;
         // 使用xdl_open查找已加载的il2cpp库
-        void* handle = xdl_open("libil2cpp.so", XDL_DEFAULT);
 
-        if (handle != nullptr) {
+        if (void* handle = xdl_open("libil2cpp.so", XDL_DEFAULT); handle != nullptr) {
             // 验证确实是il2cpp库
-            void* test_symbol = xdl_sym(handle, "il2cpp_init", nullptr);
-            if (test_symbol != nullptr) {
+            if (void* test_symbol = xdl_sym(handle, "il2cpp_init", nullptr); test_symbol != nullptr) {
                 TEKLOG_INFO("[xDL] Found valid IL2CPP library: %p (il2cpp_init at %p)", handle, test_symbol);
                 return handle;
             }
@@ -379,7 +380,7 @@ void* WaitForIL2CppLib(int timeout_seconds = 30) {
     return nullptr;
 }
 
-void IL2CppWatcherThreadFunc() {
+static void IL2CppWatcherThreadFunc() {
     TEKLOG_INFO("[IL2CPP-Watcher] Starting IL2CPP watcher thread");
 
     // 等待IL2CPP库加载
@@ -414,7 +415,7 @@ void IL2CppWatcherThreadFunc() {
     TEKLOG_INFO("[IL2CPP-Watcher] IL2CPP watcher thread completed");
 }
 
-void StartIL2CppWatcher() {
+static void StartIL2CppWatcher() {
     if (il2cpp_watcher_running.load() || il2cpp_loaded.load()) {
         TEKLOG_DEBUG("[Main] IL2CPP watcher already running or IL2CPP already loaded");
         return;
@@ -427,7 +428,7 @@ void StartIL2CppWatcher() {
 }
 
 __attribute__((constructor))
-int init_ary() {
+static int init_ary() {
     // 初始化日志系统
     tefkernel_log_init(nullptr);
     TEKLOG_INFO("TEFKernel initializing");

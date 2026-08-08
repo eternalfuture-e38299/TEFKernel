@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - desktop_test
+ * tefkernel - thread
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,20 +17,20 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/1/3
+ * Created: 2026/7/27
  *******************************************************************************/
 
-#include <stdlib.h>
+#include "patchlib/thread.h"
+#include "../il2cpp_api.h"
 
-#include "internal/log.h"
-#include "patchlib/field.h"
-#include "patchlib/type.h"
-#include "patchlib/method.h"
-#include "terraria/asset.h"
-#include "terraria/texture2d.h"
+patch_handle_t patchlib_thread_current() {
+    return il2cpp_thread_current();
+}
 
+patch_handle_t patchlib_thread_attach() {
+    return il2cpp_thread_attach(il2cpp_domain_get());
+}
 
-void Test(void) {/*
-    patch_handle_t method = patchlib_type_get_method_by_param_count(patchlib_type_get_type("Terraria", "Main"), "Initialize_AlmostEverything", 0);
-    patchlib_install_prepost_hook(method, NULL, hook_postfix);*/
+void patchlib_thread_detach(patch_handle_t thread) {
+    il2cpp_thread_detach(thread);
 }

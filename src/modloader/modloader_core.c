@@ -210,9 +210,13 @@ bool tefkernel_load_ml(void* handle, tefpkg_t* pkg_handle,
     const ml_ops_t* (*ml_create)() = memdl_sym(handle, "ml_create");
     if (!ml_create) {
         TEKLOG_ERROR("Failed to find ml_create symbol in modloader library");
+        TEKLOG_ERROR("memdl_error=%s", memdl_error());
         memdl_close(handle);
         return false;
     }
+
+    // 注册共享库
+    tpf_register_shared_plugin_library(handle);
 
     // 创建ModLoader实例
     const ml_ops_t* ml_ops = ml_create();
@@ -326,9 +330,6 @@ bool tefkernel_load_ml(void* handle, tefpkg_t* pkg_handle,
             return false;
         }
     }
-
-    // 注册共享库
-    tpf_register_shared_plugin_library(handle);
 
     if (out_ml) *out_ml = new_ml;
     TEKLOG_INFO("Successfully loaded modloader: pkg_id=%s, index=%zu, handle=%p",

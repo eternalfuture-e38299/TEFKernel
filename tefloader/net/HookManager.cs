@@ -227,9 +227,41 @@ public static unsafe class HookManager
         for (var i = 0; i < parameters.Length; i++)
         {
             context.OriginalArgs[i] = args?.Length > i ? args[i] : null;
-            var argPtr = MarshalArgument(context.OriginalArgs[i], parameters[i].ParameterType, 
-                context.AllocatedPointers, context.GcHandlesToFree);
-            context.ArgsPtr[i] = argPtr.ToPointer();
+            
+            // ★ 特殊处理 ref 和 out 参数
+            var paramInfo = parameters[i];
+            var isRefOrOut = paramInfo.ParameterType.IsByRef || paramInfo.IsOut;
+            
+            if (isRefOrOut)
+            {
+                // ref/out 参数：分配指针大小的内存，指向实际数据
+                var elementType = paramInfo.ParameterType.GetElementType()!;
+                var ptr = Marshal.AllocHGlobal(IntPtr.Size);
+                context.AllocatedPointers.Add(ptr);
+                
+                if (context.OriginalArgs[i] != null)
+                {
+                    // 分配实际数据内存并写入值
+                    var dataPtr = Marshal.AllocHGlobal(Utils.GetTypeSize(elementType));
+                    context.AllocatedPointers.Add(dataPtr);
+                    Utils.SetNativeValue(dataPtr, context.OriginalArgs[i]);
+                    Marshal.WriteIntPtr(ptr, dataPtr);
+                }
+                else
+                {
+                    Marshal.WriteIntPtr(ptr, IntPtr.Zero);
+                }
+                
+                context.ArgsPtr[i] = ptr.ToPointer();
+                Logger.Debug($"PrepareContext: ref/out param {i}, type={elementType.Name}, ptr={ptr}");
+            }
+            else
+            {
+                // 普通参数
+                var argPtr = MarshalArgument(context.OriginalArgs[i], parameters[i].ParameterType, 
+                    context.AllocatedPointers, context.GcHandlesToFree);
+                context.ArgsPtr[i] = argPtr.ToPointer();
+            }
         }
 
         // 准备返回值指针
@@ -304,34 +336,54 @@ public static unsafe class HookManager
     private static void WriteBackParameters(MethodBase method, object[]? args, HookContext context)
     {
         if (args == null) return;
-        
+    
         var parameters = method.GetParameters();
         for (var i = 0; i < parameters.Length && i < args.Length; i++)
         {
-            // 处理 ref 和 out 参数
-            if (parameters[i].ParameterType.IsByRef || parameters[i].IsOut)
+            var paramInfo = parameters[i];
+            var isRefOrOut = paramInfo.ParameterType.IsByRef || paramInfo.IsOut;
+            var argPtr = (IntPtr)context.ArgsPtr[i];
+        
+            if (argPtr == IntPtr.Zero) continue;
+        
+            if (isRefOrOut)
             {
-                var paramType = parameters[i].ParameterType.IsByRef 
-                    ? parameters[i].ParameterType.GetElementType()!
-                    : parameters[i].ParameterType;
+                // ★ ref/out 参数：读取两次指针
+                // 第一次：读取指向实际数据的指针
+                var dataPtrPtr = Marshal.ReadIntPtr(argPtr);
+                if (dataPtrPtr == IntPtr.Zero) continue;
                 
-                if (context.ArgsPtr[i] != null)
+                var elementType = paramInfo.ParameterType.GetElementType()!;
+                
+                // 第二次：从实际数据指针读取值
+                if (Utils.IsValueType(elementType) || elementType.IsEnum)
                 {
-                    var newValue = Utils.GetNativeValue((IntPtr)context.ArgsPtr[i], paramType);
+                    var newValue = Utils.GetNativeValue(dataPtrPtr, elementType);
                     if (newValue != null)
                         args[i] = newValue;
                 }
-            }
-            // 处理引用类型（可能被替换）
-            else if (!parameters[i].ParameterType.IsValueType && parameters[i].ParameterType != typeof(string))
-            {
-                var currentPtr = (IntPtr)context.ArgsPtr[i];
-                if (currentPtr != IntPtr.Zero)
+                else
                 {
-                    var handle = GCHandle.FromIntPtr(Marshal.ReadIntPtr(currentPtr));
-                    if (handle.IsAllocated && handle.Target != args[i])
-                        args[i] = handle.Target;
+                    // 引用类型：从 GCHandle 读取
+                    var handlePtr = Marshal.ReadIntPtr(dataPtrPtr);
+                    if (handlePtr != IntPtr.Zero)
+                    {
+                        var handle = GCHandle.FromIntPtr(handlePtr);
+                        if (handle.IsAllocated)
+                            args[i] = handle.Target;
+                    }
                 }
+                
+                Logger.Debug($"WriteBackParameters: ref/out param {i}, value={args[i]}");
+            }
+            else if (!Utils.IsValueType(paramInfo.ParameterType))
+            {
+                // 普通引用类型参数
+                var handlePtr = Marshal.ReadIntPtr(argPtr);
+                if (handlePtr == IntPtr.Zero) continue;
+                var handle = GCHandle.FromIntPtr(handlePtr);
+                if (handle.IsAllocated && handle.Target != args[i])
+                    args[i] = handle.Target;
             }
         }
     }
@@ -525,23 +577,28 @@ public static unsafe class HookManager
         if (value == null)
             return IntPtr.Zero;
 
-        var ptr = Marshal.AllocHGlobal(Utils.GetTypeSize(type));
-        allocatedPointers.Add(ptr);
-
-        if (Utils.IsValueType(type) || type == typeof(string) || type.IsPrimitive)
+        // 检查是否为基本类型（对应 C 端的 patch_type_t）
+        if (Utils.IsValueType(type))
         {
+            // 基本类型：直接分配内存并写入值
+            var ptr = Marshal.AllocHGlobal(Utils.GetTypeSize(type));
+            allocatedPointers.Add(ptr);
             Utils.SetNativeValue(ptr, value);
-        }
-        else
-        {
-            var handle = GCHandle.Alloc(value, GCHandleType.Normal);
-            gcHandlesToFree.Add(handle);
-            Marshal.WriteIntPtr(ptr, GCHandle.ToIntPtr(handle));
+            return ptr;
         }
 
-        return ptr;
+        // 所有非基本类型都作为 PATCH_OBJECT 处理
+        // 只需要分配一个指针大小的内存来存储对象的 GCHandle
+        var objPtr = Marshal.AllocHGlobal(IntPtr.Size);
+        allocatedPointers.Add(objPtr);
+    
+        var handle = GCHandle.Alloc(value, GCHandleType.Normal);
+        gcHandlesToFree.Add(handle);
+        Marshal.WriteIntPtr(objPtr, GCHandle.ToIntPtr(handle));
+    
+        return objPtr;
     }
-
+    
     public static bool il2cpp_has_single_hook_node(IntPtr methodPtr)
     {
         var methodBase = (MethodBase)GCHandle.FromIntPtr(methodPtr).Target;

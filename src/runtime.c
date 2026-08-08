@@ -433,6 +433,7 @@ static void load_all_modloaders(void) {
 
             if (result == TEF_OK && dylib && dylib_size > 0) {
                 void* dylib_handle = memdl_open(dylib, dylib_size, MEMDL_LAZY);
+
                 if (dylib_handle) {
                     if (tefkernel_load_ml(dylib_handle, entry.pkg, NULL)) {
                         loaded++;
@@ -476,6 +477,8 @@ static void load_all_modules(void) {
 
             if (result == TEF_OK && dylib && dylib_size > 0) {
                 void* dylib_handle = memdl_open(dylib, dylib_size, MEMDL_LAZY);
+
+                free(dylib);
                 if (dylib_handle) {
                     if (tefkernel_load_module(dylib_handle, entry.pkg, NULL)) {
                         loaded++;
@@ -525,8 +528,8 @@ void tefkernel_load(void) {
     tpf_initialize_all_plugins();
 
     // 3. 加载ModLoader和模块
-    load_all_modloaders();
     load_all_modules();
+    load_all_modloaders();
 
     // 4. 加载所有Mod
     load_all_mods();

@@ -1,13 +1,13 @@
 /*******************************************************************************
-* File: tef_api_imp
+ * File: asset
  * Project: tefkernel
- * Created: 2026/06/06
+ * Created: 2026/7/26
  * Author: eternalfuture-e38299
  * Github: https://github.com/eternalfuture-e38299
  *
  * MIT License
  *
- * Copyright (c) 2025 eternalfuture-e38299
+ * Copyright (c) 2026 eternalfuture-e38299
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,26 +28,25 @@
  * SOFTWARE.
  *******************************************************************************/
 
-#define TEF_API_IMPL 1
+#ifndef TEFKERNEL_ASSET_H
+#define TEFKERNEL_ASSET_H
 
-#include "tef_api.h"
-#include "patchlib/field.h"
-#include "patchlib/method.h"
-#include "patchlib/property.h"
-#include "patchlib/type.h"
-#include "patchlib/struct/array.h"
-#include "patchlib/struct/dictionary.h"
-#include "patchlib/struct/string.h"
-#include "patchlib/struct/list.h"
-#include "patchlib/thread.h"
-#include "tefstd/vector.h"
-#include "tefstd/hashmap.h"
-#include "tefstd/skipmap.h"
-#include "memdl/memdl.h"
-#include "modloader/modloader_core.h"
-#include "module/module_core.h"
-#include "tefpackage/tefpkg.h"
-#include "tefplugin/tpf_core.h"
-#include "terraria/main.h"
-#include "terraria/asset.h"
-#include "terraria/texture2d.h"
+#include "../tef_api.h"
+#include "../patchlib/type.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief 创建资源
+ * @param type 资源类型
+ * @param value 资源值
+ * @return 资源实例
+ */
+DEFINE_FUNCTION(patch_handle_t, terraria_asset_create, patch_handle_t type, patch_handle_t value)
+
+#ifdef __cplusplus
+}
+#endif
+#endif //TEFKERNEL_ASSET_H

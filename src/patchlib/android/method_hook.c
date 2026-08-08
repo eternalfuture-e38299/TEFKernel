@@ -30,6 +30,7 @@
 
 #include "private.h"
 #include "internal/log.h"
+#include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
 #include "tefstd/hashmap.h"
 
@@ -286,7 +287,7 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     ffi_type* re_type = patch_type_to_ffi_type(handle->method_signature.return_type);
 
     const size_t args_count = tefstd_vector_size(&handle->method_signature.arg_types);
-    const size_t total_args = args_count + (handle->method_signature.is_instance ? 1 : 0);
+    const size_t total_args = args_count + (handle->method_signature.is_instance ? 1 : 0) + (il2cpp_method_is_generic(handle->method) ? 1 : 0);
 
     ffi_type** arg_types = malloc(total_args * sizeof(ffi_type*));
     if (!arg_types) {
@@ -309,6 +310,7 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
         arg_types[arg_index++] = patch_type_to_ffi_type(*type);
     }
 
+    if (il2cpp_method_is_generic(handle->method)) arg_types[arg_index++] = &ffi_type_pointer;
 
 
     ffi_abi abi = FFI_DEFAULT_ABI;

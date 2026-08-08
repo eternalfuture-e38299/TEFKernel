@@ -23,7 +23,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using tefloader.Il2CppApi;
 using static System.Reflection.Assembly;
 
@@ -33,6 +32,7 @@ public abstract class Program
 {
     private static string _kernelLibPath = string.Empty;
     private static string _exePath = "Terraria.exe";
+    private static bool _isServer;
     private static string _workDirs = string.Empty;
 
     public static readonly LibLoader TefKernelLib = new();
@@ -48,6 +48,7 @@ public abstract class Program
             {
                 case "--server":
                 case "-server":
+                    _isServer = true;
                     _exePath = "TerrariaServer.exe";
                     break;
                 case "--workpath":
@@ -449,7 +450,7 @@ public abstract class Program
         try
         {
             Initialization.RegisterAllApis();
-            Logger.Info($"init_ary={_initAry!.Invoke(_workDirs)}");
+            Logger.Info($"init_ary={_initAry!.Invoke(_workDirs, _isServer)}");
         }
         catch (Exception ex)
         {
@@ -460,7 +461,5 @@ public abstract class Program
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int InitAryDelegate([MarshalAs(UnmanagedType.LPStr)] string workDirs);
-
-    private delegate void TestD();
+    private delegate int InitAryDelegate([MarshalAs(UnmanagedType.LPStr)] string workDirs, bool isServer);
 }

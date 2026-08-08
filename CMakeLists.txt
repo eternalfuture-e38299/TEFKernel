@@ -31,6 +31,7 @@ if (ANDROID)
             src/patchlib/android/type.c
             src/patchlib/android/field.c
             src/patchlib/android/method.c
+            src/patchlib/android/thread.c
             src/patchlib/android/il2cpp_api.c
             src/patchlib/android/private.c
             src/patchlib/android/method_hook.c
@@ -73,7 +74,11 @@ set(INTERNAL_SRC
         src/crash_handler.c
 )
 
-set(TERRARIA_SRC)
+set(TERRARIA_SRC
+        src/terraria/common/netmanager.c
+        src/terraria/common/main.c
+        src/terraria/common/asset.c
+)
 
 set(TEFPACKAGE_SRC
         src/tefpackage/compressor.c
@@ -92,13 +97,16 @@ if (ANDROID)
     )
 
     list(APPEND TERRARIA_SRC
-            src/terraria/android/netmanager.c
             src/terraria/android/texture2d.c
     )
 else ()
     list(APPEND INTERNAL_SRC
             src/desktop/desktop_runtime_core.c
             src/desktop/desktop_test.c
+    )
+
+    list(APPEND TERRARIA_SRC
+            src/terraria/desktop/texture2d.c
     )
 endif ()
 
@@ -135,6 +143,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
             ws2_32
             bcrypt
             winmm
+            dbghelp
     )
 endif()
 
@@ -182,15 +191,23 @@ target_include_directories(tefkernel
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
         add_custom_command(TARGET tefkernel POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
                 COMMAND ${CMAKE_STRIP} --strip-all $<TARGET_FILE:tefkernel>
                 COMMENT "Stripping symbols from tefkernel library using strip command"
                 VERBATIM
         )
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        # macOS 使用不同的 strip 选项
+        add_custom_command(TARGET tefkernel POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
+                COMMAND ${CMAKE_STRIP} -S $<TARGET_FILE:tefkernel>
+                COMMENT "Stripping symbols from tefkernel library using strip command"
+                VERBATIM
+        )
     endif()
-endif ()
+endif()
 
 # 获取系统名称和架构
 if(ANDROID)

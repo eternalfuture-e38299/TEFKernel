@@ -38,8 +38,15 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
         return false;
     }
 
-    // 验证实例方法调用
-    if (!patchlib_method_is_static(method) && !patchlib_is_valid(instance)) {
+    bool is_constructor = false;
+    const char* method_name = il2cpp_method_get_name(method);
+    if (method_name != NULL && strcmp(method_name, ".ctor") == 0) {
+        is_constructor = true;
+        TEKLOG_DEBUG("Method is constructor, skipping instance validation");
+    }
+
+    // 验证实例方法调用（构造函数除外）
+    if (!is_constructor && !patchlib_method_is_static(method) && !patchlib_is_valid(instance)) {
         TEKLOG_ERROR("Instance method requires valid instance");
         return false;
     }
@@ -53,6 +60,34 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     TEKLOG_DEBUG("Method invocation completed successfully");
+    return true;
+}
+
+bool patchlib_constructor_invoke(patch_handle_t constructor,
+                patch_handle_t *return_instance, void **args) {
+    TEKLOG_DEBUG("patchlib_constructor_invoke: constructor=%p, return_instance=%p",
+                 constructor, return_instance);
+
+    if (!patchlib_is_valid(constructor)) {
+        TEKLOG_ERROR("Invalid constructor handle");
+        return false;
+    }
+
+    if (return_instance == NULL) {
+        TEKLOG_ERROR("return_instance is NULL");
+        return false;
+    }
+
+    *return_instance = PATCH_NULL;
+
+    const bool result = patchlib_method_invoke_args(constructor, PATCH_NULL, return_instance, args);
+
+    if (!result) {
+        TEKLOG_ERROR("Constructor invocation failed");
+        return false;
+    }
+
+    TEKLOG_DEBUG("Constructor invoked successfully, instance=%p", *return_instance);
     return true;
 }
 

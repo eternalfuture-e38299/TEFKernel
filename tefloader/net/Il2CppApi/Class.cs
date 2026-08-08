@@ -426,15 +426,8 @@ public static class Class
 
             object? instance;
 
-            // 特殊处理字符串类型
-            if (type == typeof(string))
-            {
-                // 字符串使用空字符串而不是未初始化对象
-                instance = string.Empty;
-                Logger.Debug("Created empty string instance");
-            }
             // 委托类型特殊处理
-            else if (typeof(Delegate).IsAssignableFrom(type))
+            if (typeof(Delegate).IsAssignableFrom(type))
             {
                 Logger.Warning($"Cannot create delegate instance directly: {type.FullName}");
                 return IntPtr.Zero;
@@ -657,5 +650,12 @@ public static class Class
         {
             return (int)Il2CppTypeEnum.IL2CPP_TYPE_END;
         }
+    }
+
+    public static bool il2cpp_type_is_byref(IntPtr typePtr)
+    {
+        var typeHandle = GCHandle.FromIntPtr(typePtr);
+        var type = (Type)typeHandle.Target;
+        return type.IsByRef;
     }
 }

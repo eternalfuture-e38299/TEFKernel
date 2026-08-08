@@ -113,6 +113,12 @@ DEFINE_FUNCTION(int, terraria_texture2d_get_width, patch_handle_t texture2d)
  */
 DEFINE_FUNCTION(int, terraria_texture2d_get_height, patch_handle_t texture2d)
 
+/**
+ * @brief 获取texture2d类句柄
+ * @return 类句柄
+ */
+DEFINE_FUNCTION(patch_handle_t, terraria_texture2d_get_class)
+
 #ifdef __cplusplus
 }
 #endif
