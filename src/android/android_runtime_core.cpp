@@ -142,12 +142,13 @@ static int hook_il2cpp_init(const char* domain_name) {
 
     terraria_main_init(false);
     terraria_texture2d_init(false);
-    terraria_netmanager_init();
     terraria_asset_init();
 
     tefkernel_init();
     tefkernel_load();
     tefkernel_start();
+    terraria_netmanager_init();
+
 
     TEKLOG_INFO("TEFKernel core initialization completed");
 

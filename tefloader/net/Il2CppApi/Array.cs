@@ -28,7 +28,7 @@ public static class Array
 {
     // ==================== 基础 API ====================
 
-    // 模拟 il2cpp_array_new - 创建新数组
+    // 模拟 il2cpp_array_new - 创建新数组（保持不变）
     public static IntPtr il2cpp_array_new(IntPtr elementTypeInfo, int length)
     {
         if (elementTypeInfo == IntPtr.Zero || length <= 0)
@@ -52,7 +52,7 @@ public static class Array
         }
     }
 
-    // 模拟 il2cpp_array_element_size - 获取元素大小
+    // 模拟 il2cpp_array_element_size - 获取元素大小（保持不变）
     public static int il2cpp_array_element_size(IntPtr arrayPtr)
     {
         if (arrayPtr == IntPtr.Zero)
@@ -73,7 +73,7 @@ public static class Array
         }
     }
 
-    // 模拟 il2cpp_array_length - 获取数组长度
+    // 模拟 il2cpp_array_length - 获取数组总长度（保持不变）
     public static int il2cpp_array_length(IntPtr arrayPtr)
     {
         if (arrayPtr == IntPtr.Zero)
@@ -93,9 +93,31 @@ public static class Array
         }
     }
 
+    // ==================== 辅助方法：多维索引转换 ====================
+
+    // 将一维索引转换为多维索引（行主序，C语言风格）
+    private static int[] GetMultiDimensionalIndices(System.Array array, int flatIndex)
+    {
+        if (array.Rank == 1)
+            return [flatIndex];
+
+        var indices = new int[array.Rank];
+        var remaining = flatIndex;
+        
+        // 从最后一维开始计算（行主序）
+        for (int i = array.Rank - 1; i >= 0; i--)
+        {
+            var dimSize = array.GetLength(i);
+            indices[i] = remaining % dimSize;
+            remaining /= dimSize;
+        }
+        
+        return indices;
+    }
+
     // ==================== 元素操作 ====================
 
-    // 额外功能：il2cpp_array_at - 获取数组元素
+    // 额外功能：il2cpp_array_at - 获取数组元素（支持多维数组的一维索引访问）
     public static unsafe bool il2cpp_array_at(IntPtr arrayPtr, int index, void* outValue)
     {
         if (arrayPtr == IntPtr.Zero || outValue == null || index < 0)
@@ -109,7 +131,18 @@ public static class Array
             if (index >= array.Length)
                 return false;
 
-            var value = array.GetValue(index);
+            // 如果是多维数组，将一维索引转换为多维索引
+            object value;
+            if (array.Rank > 1)
+            {
+                var indices = GetMultiDimensionalIndices(array, index);
+                value = array.GetValue(indices);
+            }
+            else
+            {
+                value = array.GetValue(index);
+            }
+
             if (value == null)
                 return false;
 
@@ -136,7 +169,7 @@ public static class Array
         }
     }
 
-    // 额外功能：il2cpp_array_set - 设置数组元素
+    // 额外功能：il2cpp_array_set - 设置数组元素（支持多维数组的一维索引访问）
     public static unsafe bool il2cpp_array_set(IntPtr arrayPtr, int index, void* value)
     {
         if (arrayPtr == IntPtr.Zero || value == null || index < 0)
@@ -168,7 +201,17 @@ public static class Array
                     newValue = Utils.PtrToObject(objPtr);
             }
 
-            array.SetValue(newValue, index);
+            // 如果是多维数组，将一维索引转换为多维索引
+            if (array.Rank > 1)
+            {
+                var indices = GetMultiDimensionalIndices(array, index);
+                array.SetValue(newValue, indices);
+            }
+            else
+            {
+                array.SetValue(newValue, index);
+            }
+
             return true;
         }
         catch (Exception ex)
@@ -178,7 +221,7 @@ public static class Array
         }
     }
 
-    // 额外功能：il2cpp_array_fill - 填充数组
+    // 额外功能：il2cpp_array_fill - 填充数组（支持多维数组）
     public static unsafe bool il2cpp_array_fill(IntPtr arrayPtr, void* value)
     {
         if (arrayPtr == IntPtr.Zero || value == null)
@@ -195,14 +238,36 @@ public static class Array
             {
                 // 值类型：读取一次值，然后填充所有元素
                 var fillValue = Marshal.PtrToStructure((IntPtr)value, elementType);
-                for (var i = 0; i < array.Length; i++) array.SetValue(fillValue, i);
+                for (var i = 0; i < array.Length; i++)
+                {
+                    if (array.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(array, i);
+                        array.SetValue(fillValue, indices);
+                    }
+                    else
+                    {
+                        array.SetValue(fillValue, i);
+                    }
+                }
             }
             else
             {
                 // 引用类型：从 GCHandle 获取对象
                 var objPtr = *(IntPtr*)value;
                 var fillValue = objPtr == IntPtr.Zero ? null : Utils.PtrToObject(objPtr);
-                for (var i = 0; i < array.Length; i++) array.SetValue(fillValue, i);
+                for (var i = 0; i < array.Length; i++)
+                {
+                    if (array.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(array, i);
+                        array.SetValue(fillValue, indices);
+                    }
+                    else
+                    {
+                        array.SetValue(fillValue, i);
+                    }
+                }
             }
 
             return true;
@@ -216,7 +281,7 @@ public static class Array
 
     // ==================== C 数组与托管数组之间的复制 ====================
 
-    // 额外功能：il2cpp_array_copy_from_c - 从 C 数组复制到托管数组
+    // 额外功能：il2cpp_array_copy_from_c - 从 C 数组复制到托管数组（支持多维数组）
     public static unsafe bool il2cpp_array_copy_from_c(IntPtr destArrayPtr, void* src, int count)
     {
         if (destArrayPtr == IntPtr.Zero || src == null || count <= 0)
@@ -239,7 +304,16 @@ public static class Array
                 {
                     var elementPtr = (IntPtr)src + i * elementSize;
                     var value = Marshal.PtrToStructure(elementPtr, elementType);
-                    destArray.SetValue(value, i);
+                    
+                    if (destArray.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(destArray, i);
+                        destArray.SetValue(value, indices);
+                    }
+                    else
+                    {
+                        destArray.SetValue(value, i);
+                    }
                 }
             else
                 // 引用类型：从 GCHandle 数组复制
@@ -247,7 +321,16 @@ public static class Array
                 {
                     var objPtr = *(IntPtr*)((byte*)src + i * IntPtr.Size);
                     var value = objPtr == IntPtr.Zero ? null : Utils.PtrToObject(objPtr);
-                    destArray.SetValue(value, i);
+                    
+                    if (destArray.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(destArray, i);
+                        destArray.SetValue(value, indices);
+                    }
+                    else
+                    {
+                        destArray.SetValue(value, i);
+                    }
                 }
 
             return true;
@@ -259,7 +342,7 @@ public static class Array
         }
     }
 
-    // 额外功能：il2cpp_array_copy_to_c - 从托管数组复制到 C 数组
+    // 额外功能：il2cpp_array_copy_to_c - 从托管数组复制到 C 数组（支持多维数组）
     public static unsafe bool il2cpp_array_copy_to_c(void* dest, IntPtr srcArrayPtr, int count)
     {
         if (dest == null || srcArrayPtr == IntPtr.Zero || count <= 0)
@@ -280,7 +363,17 @@ public static class Array
                 // 值类型：直接复制到内存
                 for (var i = 0; i < count; i++)
                 {
-                    var value = srcArray.GetValue(i);
+                    object value;
+                    if (srcArray.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(srcArray, i);
+                        value = srcArray.GetValue(indices);
+                    }
+                    else
+                    {
+                        value = srcArray.GetValue(i);
+                    }
+                    
                     var elementPtr = (IntPtr)dest + i * elementSize;
                     Marshal.StructureToPtr(value, elementPtr, false);
                 }
@@ -288,7 +381,17 @@ public static class Array
                 // 引用类型：存储 GCHandle 指针
                 for (var i = 0; i < count; i++)
                 {
-                    var value = srcArray.GetValue(i);
+                    object value;
+                    if (srcArray.Rank > 1)
+                    {
+                        var indices = GetMultiDimensionalIndices(srcArray, i);
+                        value = srcArray.GetValue(indices);
+                    }
+                    else
+                    {
+                        value = srcArray.GetValue(i);
+                    }
+                    
                     var destPtr = (IntPtr*)dest + i;
 
                     if (value == null)

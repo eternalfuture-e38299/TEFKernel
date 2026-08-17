@@ -48,7 +48,6 @@ API_EXPORT int init_tefkernel(const char* workdir, bool is_server) {
     tefkernel_crash_handler_init();
 
     terraria_main_init(is_server);
-    terraria_netmanager_init();
     terraria_texture2d_init(is_server);
     terraria_asset_init();
 
@@ -56,6 +55,7 @@ API_EXPORT int init_tefkernel(const char* workdir, bool is_server) {
     tefkernel_load();
     tefkernel_start();
 
+    terraria_netmanager_init();
     // Test();
 
     return 0;

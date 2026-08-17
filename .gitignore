@@ -16,7 +16,7 @@ build
 tefloader/net/bin
 tefloader/net/obj
 tefloader/android-java/build
-docs
+
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

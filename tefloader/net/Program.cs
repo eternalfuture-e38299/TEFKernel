@@ -133,7 +133,9 @@ public abstract class Program
             Console.WriteLine("The kernel library may be incompatible or corrupted.");
             Environment.Exit(1);
         }
-
+        
+        Logger.Initialize(TefKernelLib);
+        
         // 传递参数到启动函数
         Launch([]);
     }

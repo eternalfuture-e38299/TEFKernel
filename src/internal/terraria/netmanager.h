@@ -49,7 +49,7 @@ typedef enum {
 
 extern connection_type_t terraria_netmanager_client_connections[256];
 extern error_type_t terraria_netmanager_client_errors[256];
-extern char terraria_netmanager_error_details[256][512]; // 错误信息
+extern char terraria_netmanager_error_details[256][1024]; // 错误信息
 
 void terraria_netmanager_init();
 

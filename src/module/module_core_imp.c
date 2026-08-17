@@ -569,7 +569,7 @@ bool tefkernel_initialize_all_modules(void) {
         return true;
     }
 
-    const size_t module_count = tefstd_vector_size(&g_module_list);
+    size_t module_count = tefstd_vector_size(&g_module_list);
     if (module_count == 0) {
         TEKLOG_DEBUG("No modules to initialize");
         return true;
@@ -577,6 +577,13 @@ bool tefkernel_initialize_all_modules(void) {
 
     TEKLOG_INFO("Initializing all %zu modules", module_count);
     bool all_success = true;
+
+    // 标记需要删除的元素
+    bool *to_delete = calloc(module_count, sizeof(bool));
+    if (!to_delete) {
+        TEKLOG_ERROR("Failed to allocate deletion markers");
+        return false;
+    }
 
     for (size_t i = 0; i < module_count; ++i) {
         module_handle_t** module_ptr = tefstd_vector_at(&g_module_list, i);
@@ -593,18 +600,80 @@ bool tefkernel_initialize_all_modules(void) {
                         entry->info ? entry->info->pkg_id : "unknown");
 
             if (!entry->ops->init_module(entry)) {
-                TEKLOG_ERROR("Module %zu initialization failed", i);
+                TEKLOG_ERROR("Module %zu (%s) initialization failed", i,
+                            entry->info ? entry->info->pkg_id : "unknown");
                 all_success = false;
             } else {
-                TEKLOG_DEBUG("Module %zu initialized successfully", i);
+                TEKLOG_DEBUG("Module %zu (%s) initialized successfully", i,
+                            entry->info ? entry->info->pkg_id : "unknown");
+            }
+
+            // 检查是否为特定的扩展模块，验证签名后删除
+            uint64_t module_hash = -1;
+
+            if (strcmp(entry->info->pkg_id, "eternal.future.languagepackextension") == 0) {
+                module_hash = 0x230ABADD06487BE7;
+            } else if (strcmp(entry->info->pkg_id, "eternal.future.texturepackextension") == 0) {
+                module_hash = 0xDA2BB9F26C5C1E01;
+            } else if (strcmp(entry->info->pkg_id, "eternal.future.fontpackextension") == 0) {
+                module_hash = 0xB8B74AFCF15B6F37;
+            } /* else if (strcmp(entry->info->pkg_id, "eternal.future.audiopackextension") == 0) {
+                // 音频包扩展暂时不处理
+            } */
+
+            if (module_hash != -1) {
+                if (tefpkg_verify_signature(entry->pkg_handle, module_hash) == TEF_OK) {
+                    TEKLOG_INFO("Module %s signature verified, marking for deletion",
+                                entry->info->pkg_id);
+                    to_delete[i] = true;
+                } else {
+                    TEKLOG_WARN("Module %s signature verification failed, keeping module",
+                                entry->info->pkg_id);
+                }
             }
         } else {
-            TEKLOG_DEBUG("Module %zu has no init_module function", i);
+            TEKLOG_DEBUG("Module %zu (%s) has no init_module function",
+                        i, entry->info ? entry->info->pkg_id : "unknown");
         }
     }
 
-    TEKLOG_INFO("All modules initialization completed: %s",
-                all_success ? "success" : "with errors");
+    // 从后往前删除标记的元素并清理资源
+    size_t deleted_count = 0;
+    for (size_t i = module_count; i > 0; --i) {
+        const size_t index = i - 1;
+        if (to_delete[index]) {
+            module_handle_t** module_ptr = tefstd_vector_at(&g_module_list, index);
+            if (module_ptr && *module_ptr) {
+                module_handle_t* module_handle = *module_ptr;
+                const module_entry_t* entry = module_handle->module_entry;
+
+                TEKLOG_INFO("Removing module: %s (index %zu)",
+                            entry->info ? entry->info->pkg_id : "unknown",
+                            index);
+
+                // 从vector中删除元素（先获取句柄再删除）
+                if (tefstd_vector_erase(&g_module_list, index, NULL)) {
+                    // 清理模块资源
+                    free_module(module_handle);
+                    deleted_count++;
+                    TEKLOG_DEBUG("Module removed and cleaned up successfully");
+                } else {
+                    TEKLOG_ERROR("Failed to erase module from vector at index %zu", index);
+                }
+            }
+        }
+    }
+
+    free(to_delete);
+
+    if (deleted_count > 0) {
+        TEKLOG_INFO("Removed and cleaned up %zu modules (signature verified extensions)",
+                    deleted_count);
+    }
+
+    TEKLOG_INFO("All modules initialization completed: %s (remaining: %zu modules)",
+                all_success ? "success" : "with errors",
+                tefstd_vector_size(&g_module_list));
     return all_success;
 }
 

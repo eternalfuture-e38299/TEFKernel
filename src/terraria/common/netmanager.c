@@ -43,7 +43,7 @@
 // 前向声明
 connection_type_t terraria_netmanager_client_connections[256];
 error_type_t terraria_netmanager_client_errors[256];
-char terraria_netmanager_error_details[256][512];
+char terraria_netmanager_error_details[256][1024];
 
 static patch_handle_t network_text_from_literal = PATCH_NULL;
 #if !defined(__ANDROID__)
@@ -53,13 +53,13 @@ static patch_handle_t read_buffer_max = PATCH_NULL;
 static patch_handle_t who_am_i = PATCH_NULL;
 
 static bool send_data_hook(patch_handle_t instance, void **args,
-                      const patch_method_signature_t *sig_info, void *result);
+                           const patch_method_signature_t *sig_info, void *result);
 
 static bool send_hook(patch_handle_t instance, void **args,
                       const patch_method_signature_t *sig_info, void *result);
 
 static bool get_data_hook(patch_handle_t instance, void **args,
-                      const patch_method_signature_t *sig_info, void *result);
+                          const patch_method_signature_t *sig_info, void *result);
 
 /**
  * @brief 获取所有模块、ModLoader和Mod的ID和版本列表
@@ -80,11 +80,14 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
     // 写入版本号标识 (用于快速检查)
     buffer[offset++] = 0x01; // 协议版本
 
-    // ===== 1. 写入Module列表 =====
+    // ===== 写入Module列表 =====
     const size_t module_count = tefkernel_get_module_count();
 
     // 写入数量 (2字节)
-    if (offset + 2 > buffer_size) { buffer_size += 1024; buffer = realloc(buffer, buffer_size); } // NOLINT(*-suspicious-realloc-usage)
+    if (offset + 2 > buffer_size) {
+        buffer_size += 1024;
+        buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
+    }
     buffer[offset++] = (module_count >> 8) & 0xFF;
     buffer[offset++] = module_count & 0xFF;
 
@@ -101,7 +104,7 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
             buffer_size += id_len + 1024;
             buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
         }
-        buffer[offset++] = (uint8_t)id_len;
+        buffer[offset++] = (uint8_t) id_len;
         memcpy(buffer + offset, info->pkg_id, id_len);
         offset += id_len;
 
@@ -112,9 +115,12 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
         buffer[offset++] = info->version_code & 0xFF;
     }
 
-    // ===== 2. 写入ModLoader列表 =====
+    // ===== 写入ModLoader列表 =====
     const size_t ml_count = tefkernel_get_ml_count();
-    if (offset + 2 > buffer_size) { buffer_size += 1024; buffer = realloc(buffer, buffer_size); } // NOLINT(*-suspicious-realloc-usage)
+    if (offset + 2 > buffer_size) {
+        buffer_size += 1024;
+        buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
+    }
     buffer[offset++] = (ml_count >> 8) & 0xFF;
     buffer[offset++] = ml_count & 0xFF;
 
@@ -130,7 +136,7 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
             buffer_size += id_len + 1024;
             buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
         }
-        buffer[offset++] = (uint8_t)id_len;
+        buffer[offset++] = (uint8_t) id_len;
         memcpy(buffer + offset, info->pkg_id, id_len);
         offset += id_len;
 
@@ -140,9 +146,12 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
         buffer[offset++] = info->version_code & 0xFF;
     }
 
-    // ===== 3. 写入Mod列表 =====
+    // ===== 写入Mod列表 =====
     const size_t mod_count = tefkernel_get_mod_count();
-    if (offset + 2 > buffer_size) { buffer_size += 1024; buffer = realloc(buffer, buffer_size); } // NOLINT(*-suspicious-realloc-usage)
+    if (offset + 2 > buffer_size) {
+        buffer_size += 1024;
+        buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
+    }
     buffer[offset++] = (mod_count >> 8) & 0xFF;
     buffer[offset++] = mod_count & 0xFF;
 
@@ -157,22 +166,22 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
             buffer_size += id_len + 1024;
             buffer = realloc(buffer, buffer_size); // NOLINT(*-suspicious-realloc-usage)
         }
-        buffer[offset++] = (uint8_t)id_len;
+        buffer[offset++] = (uint8_t) id_len;
         memcpy(buffer + offset, mod->mod_id, id_len);
         offset += id_len;
 
         // 写入mod的version_code (从manifest获取)
-        const multiplayer_mod_info_t* mod_info = mod->owner_ml->ml_entry->ops->get_multiplayer_info(mod->manifest);
-        const int version_code =  mod_info->version_code ? mod_info->version_code : 0;
+        const multiplayer_mod_info_t *mod_info = mod->owner_ml->ml_entry->ops->get_multiplayer_info(mod->manifest);
+        const int version_code = mod_info->version_code ? mod_info->version_code : 0;
         buffer[offset++] = (version_code >> 24) & 0xFF;
         buffer[offset++] = (version_code >> 16) & 0xFF;
         buffer[offset++] = (version_code >> 8) & 0xFF;
         buffer[offset++] = version_code & 0xFF;
     }
 
-    // ===== 4. LZ4压缩 =====
+    // ===== LZ4压缩 =====
     // 计算最大压缩大小
-    const int max_compressed_size = LZ4_compressBound((int)offset);
+    const int max_compressed_size = LZ4_compressBound((int) offset);
     uint8_t *compressed = malloc(max_compressed_size + 4); // +4用于存储原始大小
     if (!compressed) {
         free(buffer);
@@ -186,7 +195,8 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
     compressed[3] = offset & 0xFF;
 
     // 压缩
-    const int compressed_size = LZ4_compress_default((char*)buffer, (char*)(compressed + 4), (int)offset, max_compressed_size);
+    const int compressed_size = LZ4_compress_default((char *) buffer, (char *) (compressed + 4), (int) offset,
+                                                     max_compressed_size);
     if (compressed_size <= 0) {
         free(buffer);
         free(compressed);
@@ -203,25 +213,25 @@ static bool terraria_netmanager_get_all_versions(uint8_t **out_data, uint32_t *o
 }
 
 /**
- * @brief 比较本地和远程的模块/ModLoader/Mod列表
+ * @brief 比较本地和远程的模块/ModLoader/Mod列表（严格模式）
  * @param remote_data 远程发送的数据
  * @param remote_size 数据大小
  * @param error_msg 输出的错误消息
  * @param error_msg_size 错误消息缓冲区大小
- * @return 相同返回true，不同返回false
+ * @return 完全相同返回true，任何差异返回false
  */
 static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, const uint32_t remote_size,
-                                                   char *error_msg, const size_t error_msg_size) {
+                                                 char *error_msg, const size_t error_msg_size) {
     if (!remote_data || remote_size < 4) {
-        snprintf(error_msg, error_msg_size, "Invalid data format");
+        snprintf(error_msg, error_msg_size, "Invalid data");
         return false;
     }
 
     // 解压
     const uint32_t original_size = (remote_data[0] << 24) | (remote_data[1] << 16) |
-                             (remote_data[2] << 8) | remote_data[3];
+                                   (remote_data[2] << 8) | remote_data[3];
 
-    if (original_size > 1024 * 1024) { // 限制最大1MB
+    if (original_size > 1024 * 1024) {
         snprintf(error_msg, error_msg_size, "Data too large: %u", original_size);
         return false;
     }
@@ -232,8 +242,8 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
         return false;
     }
 
-    const int decompressed_size = LZ4_decompress_safe((char*)(remote_data + 4), (char*)decompressed,
-                                                  (int)remote_size - 4, (int)original_size);
+    const int decompressed_size = LZ4_decompress_safe((char *) (remote_data + 4), (char *) decompressed,
+                                                      (int) remote_size - 4, (int) original_size);
     if (decompressed_size < 0) {
         free(decompressed);
         snprintf(error_msg, error_msg_size, "Decompression failed");
@@ -241,8 +251,10 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
     }
 
     size_t offset = 0;
-    char mismatch_details[512] = {0};
-    int mismatch_count = 0;
+    char mismatch_details[2048] = {0};
+    bool has_mismatch = false;
+    int total_errors = 0;
+    const int MAX_DISPLAY = 10;
 
     // 检查协议版本
     const uint8_t proto_version = decompressed[offset++];
@@ -252,195 +264,374 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
         return false;
     }
 
-    // ===== 1. 比较Module列表 =====
+    typedef struct {
+        char id[128];
+        int version;
+        bool matched;
+    } version_entry_t;
+
+    // ============================================================
+    // 1. 比较 Module
+    // ============================================================
     const uint16_t remote_module_count = (decompressed[offset] << 8) | decompressed[offset + 1];
     offset += 2;
-
     const size_t local_module_count = tefkernel_get_module_count();
 
-    // 构建本地模块映射 (pkg_id -> version_code)
-    // 使用简单哈希表，这里用数组线性查找
-    typedef struct { char id[128]; int version; } version_entry_t;
-    version_entry_t local_modules[512];
-    size_t local_modules_found = 0;
+    version_entry_t local_modules[512], remote_modules[512];
+    size_t local_modules_found = 0, remote_modules_found = 0;
 
     for (size_t i = 0; i < local_module_count && local_modules_found < 512; i++) {
         module_handle_t *mod = tefkernel_get_module_by_index(i);
         if (!mod) continue;
         const module_info_t *info = tefkernel_get_module_info(mod);
         if (!info) continue;
-
         strncpy(local_modules[local_modules_found].id, info->pkg_id, 127);
         local_modules[local_modules_found].id[127] = '\0';
         local_modules[local_modules_found].version = info->version_code;
+        local_modules[local_modules_found].matched = false;
         local_modules_found++;
     }
-
-    // 解析远程模块并比较
-    version_entry_t remote_modules[512];
-    size_t remote_modules_found = 0;
 
     for (uint16_t i = 0; i < remote_module_count && offset < decompressed_size && remote_modules_found < 512; i++) {
         uint8_t id_len = decompressed[offset++];
         if (offset + id_len + 4 > decompressed_size) break;
-
         char id[128];
         if (id_len >= 128) id_len = 127;
         memcpy(id, decompressed + offset, id_len);
         id[id_len] = '\0';
         offset += id_len;
-
-        const int version = (decompressed[offset] << 24) | (decompressed[offset+1] << 16) |
-                      (decompressed[offset+2] << 8) | decompressed[offset+3];
+        const int version = (decompressed[offset] << 24) | (decompressed[offset + 1] << 16) |
+                            (decompressed[offset + 2] << 8) | decompressed[offset + 3];
         offset += 4;
-
         strncpy(remote_modules[remote_modules_found].id, id, 127);
         remote_modules[remote_modules_found].id[127] = '\0';
         remote_modules[remote_modules_found].version = version;
+        remote_modules[remote_modules_found].matched = false;
         remote_modules_found++;
     }
 
-    // 比较：查找本地有远程没有的，以及版本不同的
-    for (size_t i = 0; i < local_modules_found; i++) {
+    char module_errors[1024] = {0};
+    int module_error_count = 0;
+
+    if (local_modules_found != remote_modules_found) {
+        snprintf(module_errors + strlen(module_errors), sizeof(module_errors) - strlen(module_errors),
+                 "count: %zu vs %zu\n", local_modules_found, remote_modules_found);
+        module_error_count++;
+        total_errors++;
+    }
+
+    for (size_t i = 0; i < local_modules_found && module_error_count < MAX_DISPLAY; i++) {
         bool found = false;
         for (size_t j = 0; j < remote_modules_found; j++) {
             if (strcmp(local_modules[i].id, remote_modules[j].id) == 0) {
                 found = true;
+                remote_modules[j].matched = true;
                 if (local_modules[i].version != remote_modules[j].version) {
-                    if (mismatch_count < 10) {
-                        mismatch_count++;
-                        snprintf(mismatch_details + strlen(mismatch_details),
-                                 sizeof(mismatch_details) - strlen(mismatch_details),
-                                 "Module %s version mismatch: local=%d, remote=%d; ",
-                                 local_modules[i].id, local_modules[i].version, remote_modules[j].version);
-                    }
+                    snprintf(module_errors + strlen(module_errors), sizeof(module_errors) - strlen(module_errors),
+                             "%s : v%d != v%d\n", local_modules[i].id,
+                             local_modules[i].version, remote_modules[j].version);
+                    module_error_count++;
+                    total_errors++;
                 }
                 break;
             }
         }
         if (!found) {
-            if (mismatch_count < 10) {
-                mismatch_count++;
-                snprintf(mismatch_details + strlen(mismatch_details),
-                         sizeof(mismatch_details) - strlen(mismatch_details),
-                         "Missing remote module: %s (local version=%d); ",
-                         local_modules[i].id, local_modules[i].version);
-            }
+            snprintf(module_errors + strlen(module_errors), sizeof(module_errors) - strlen(module_errors),
+                     "%s : missing (v%d)\n", local_modules[i].id, local_modules[i].version);
+            module_error_count++;
+            total_errors++;
         }
     }
 
-    // 查找远程有本地没有的
-    for (size_t i = 0; i < remote_modules_found; i++) {
-        bool found = false;
-        for (size_t j = 0; j < local_modules_found; j++) {
-            if (strcmp(remote_modules[i].id, local_modules[j].id) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            if (mismatch_count < 10) {
-                mismatch_count++;
-                snprintf(mismatch_details + strlen(mismatch_details),
-                         sizeof(mismatch_details) - strlen(mismatch_details),
-                         "Extra remote module: %s (version=%d); ",
-                         remote_modules[i].id, remote_modules[i].version);
-            }
+    for (size_t i = 0; i < remote_modules_found && module_error_count < MAX_DISPLAY; i++) {
+        if (!remote_modules[i].matched) {
+            snprintf(module_errors + strlen(module_errors), sizeof(module_errors) - strlen(module_errors),
+                     "%s : extra (v%d)\n", remote_modules[i].id, remote_modules[i].version);
+            module_error_count++;
+            total_errors++;
         }
     }
 
-    // ===== 2. 比较ModLoader列表 =====
+    // ============================================================
+    // 2. 比较 ModLoader
+    // ============================================================
+    char ml_errors[1024] = {0};
+
     if (offset + 2 <= decompressed_size) {
+        int ml_error_count = 0;
         const uint16_t remote_ml_count = (decompressed[offset] << 8) | decompressed[offset + 1];
         offset += 2;
-
-        // 简化比较：直接比较数量是否一致（实际应更详细）
         const size_t local_ml_count = tefkernel_get_ml_count();
-        if (remote_ml_count != local_ml_count) {
-            if (mismatch_count < 10) {
-                mismatch_count++;
-                snprintf(mismatch_details + strlen(mismatch_details),
-                         sizeof(mismatch_details) - strlen(mismatch_details),
-                         "ModLoader count mismatch: local=%zu, remote=%d; ",
-                         local_ml_count, remote_ml_count);
-            }
+
+        version_entry_t local_mls[128], remote_mls[128];
+        size_t local_ml_found = 0, remote_ml_found = 0;
+
+        for (size_t i = 0; i < local_ml_count && local_ml_found < 128; i++) {
+            ml_handle_t *ml = tefkernel_get_ml_by_index(i);
+            if (!ml) continue;
+            const ml_info_t *info = ml->ml_entry->info;
+            if (!info) continue;
+            strncpy(local_mls[local_ml_found].id, info->pkg_id, 127);
+            local_mls[local_ml_found].id[127] = '\0';
+            local_mls[local_ml_found].version = info->version_code;
+            local_mls[local_ml_found].matched = false;
+            local_ml_found++;
         }
 
-        // 跳过远程ML数据 (实际应该详细比较)
-        for (uint16_t i = 0; i < remote_ml_count && offset < decompressed_size; i++) {
-            if (offset + 1 > decompressed_size) break;
-            const uint8_t id_len = decompressed[offset++];
-            if (offset + id_len + 4 > decompressed_size) break;
-            offset += id_len + 4;
-        }
-    }
-
-    // ===== 3. 比较Mod列表 =====
-    if (offset + 2 <= decompressed_size) {
-        const uint16_t remote_mod_count = (decompressed[offset] << 8) | decompressed[offset + 1];
-        offset += 2;
-
-        const size_t local_mod_count = tefkernel_get_mod_count();
-        if (remote_mod_count != local_mod_count) {
-            if (mismatch_count < 10) {
-                mismatch_count++;
-                snprintf(mismatch_details + strlen(mismatch_details),
-                         sizeof(mismatch_details) - strlen(mismatch_details),
-                         "Mod count mismatch: local=%zu, remote=%d; ",
-                         local_mod_count, remote_mod_count);
-            }
-        }
-
-        // 构建本地Mod映射 (这里简化，实际应详细比较)
-        char local_mod_ids[512][128];
-        size_t local_mod_count_found = 0;
-        for (size_t i = 0; i < local_mod_count && local_mod_count_found < 512; i++) {
-            const mod_handle_t *mod = tefkernel_get_mod_by_index(i);
-            if (mod && mod->mod_id) {
-                strncpy(local_mod_ids[local_mod_count_found], mod->mod_id, 127);
-                local_mod_ids[local_mod_count_found][127] = '\0';
-                local_mod_count_found++;
-            }
-        }
-
-        // 比较远程Mod是否存在
-        for (uint16_t i = 0; i < remote_mod_count && offset < decompressed_size; i++) {
+        for (uint16_t i = 0; i < remote_ml_count && offset < decompressed_size && remote_ml_found < 128; i++) {
             if (offset + 1 > decompressed_size) break;
             uint8_t id_len = decompressed[offset++];
             if (offset + id_len + 4 > decompressed_size) break;
-
             char id[128];
             if (id_len >= 128) id_len = 127;
             memcpy(id, decompressed + offset, id_len);
             id[id_len] = '\0';
-            offset += id_len + 4;
+            offset += id_len;
+            const int version = (decompressed[offset] << 24) | (decompressed[offset + 1] << 16) |
+                                (decompressed[offset + 2] << 8) | decompressed[offset + 3];
+            offset += 4;
+            strncpy(remote_mls[remote_ml_found].id, id, 127);
+            remote_mls[remote_ml_found].id[127] = '\0';
+            remote_mls[remote_ml_found].version = version;
+            remote_mls[remote_ml_found].matched = false;
+            remote_ml_found++;
+        }
 
+        if (local_ml_found != remote_ml_found) {
+            snprintf(ml_errors + strlen(ml_errors), sizeof(ml_errors) - strlen(ml_errors),
+                     "count: %zu vs %zu\n", local_ml_found, remote_ml_found);
+            ml_error_count++;
+            total_errors++;
+        }
+
+        for (size_t i = 0; i < local_ml_found && ml_error_count < MAX_DISPLAY; i++) {
             bool found = false;
-            for (size_t j = 0; j < local_mod_count_found; j++) {
-                if (strcmp(id, local_mod_ids[j]) == 0) {
+            for (size_t j = 0; j < remote_ml_found; j++) {
+                if (strcmp(local_mls[i].id, remote_mls[j].id) == 0) {
                     found = true;
+                    remote_mls[j].matched = true;
+                    if (local_mls[i].version != remote_mls[j].version) {
+                        snprintf(ml_errors + strlen(ml_errors), sizeof(ml_errors) - strlen(ml_errors),
+                                 "%s : v%d != v%d\n", local_mls[i].id,
+                                 local_mls[i].version, remote_mls[j].version);
+                        ml_error_count++;
+                        total_errors++;
+                    }
                     break;
                 }
             }
             if (!found) {
-                if (mismatch_count < 10) {
-                    mismatch_count++;
-                    snprintf(mismatch_details + strlen(mismatch_details),
-                             sizeof(mismatch_details) - strlen(mismatch_details),
-                             "Remote mod not found locally: %s; ", id);
+                snprintf(ml_errors + strlen(ml_errors), sizeof(ml_errors) - strlen(ml_errors),
+                         "%s : missing (v%d)\n", local_mls[i].id, local_mls[i].version);
+                ml_error_count++;
+                total_errors++;
+            }
+        }
+
+        for (size_t i = 0; i < remote_ml_found && ml_error_count < MAX_DISPLAY; i++) {
+            if (!remote_mls[i].matched) {
+                snprintf(ml_errors + strlen(ml_errors), sizeof(ml_errors) - strlen(ml_errors),
+                         "%s : extra (v%d)\n", remote_mls[i].id, remote_mls[i].version);
+                ml_error_count++;
+                total_errors++;
+            }
+        }
+
+        // ============================================================
+        // 3. 比较 Mod（按 ModLoader 分组）
+        // ============================================================
+        if (offset + 2 <= decompressed_size) {
+            const uint16_t remote_mod_count = (decompressed[offset] << 8) | decompressed[offset + 1];
+            offset += 2;
+            const size_t local_mod_count = tefkernel_get_mod_count();
+
+            typedef struct {
+                char id[128];
+                int version;
+                char ml_id[128];
+                bool matched;
+            } mod_entry_t;
+
+            mod_entry_t local_mods[512];
+            size_t local_mod_found = 0;
+
+            for (size_t i = 0; i < local_mod_count && local_mod_found < 512; i++) {
+                const mod_handle_t *mod = tefkernel_get_mod_by_index(i);
+                if (!mod || !mod->mod_id || !mod->owner_ml) continue;
+                strncpy(local_mods[local_mod_found].id, mod->mod_id, 127);
+                local_mods[local_mod_found].id[127] = '\0';
+                const multiplayer_mod_info_t *mod_info = mod->owner_ml->ml_entry->ops->get_multiplayer_info(mod->manifest);
+                local_mods[local_mod_found].version = mod_info ? mod_info->version_code : 0;
+                // 获取 ModLoader ID
+                const ml_info_t *ml_info = mod->owner_ml->ml_entry->info;
+                if (ml_info) {
+                    strncpy(local_mods[local_mod_found].ml_id, ml_info->pkg_id, 127);
+                } else {
+                    strcpy(local_mods[local_mod_found].ml_id, "unknown");
+                }
+                local_mods[local_mod_found].ml_id[127] = '\0';
+                local_mods[local_mod_found].matched = false;
+                local_mod_found++;
+            }
+
+            mod_entry_t remote_mods[512];
+            size_t remote_mod_found = 0;
+
+            for (uint16_t i = 0; i < remote_mod_count && offset < decompressed_size && remote_mod_found < 512; i++) {
+                if (offset + 1 > decompressed_size) break;
+                uint8_t id_len = decompressed[offset++];
+                if (offset + id_len + 4 > decompressed_size) break;
+                char id[128];
+                if (id_len >= 128) id_len = 127;
+                memcpy(id, decompressed + offset, id_len);
+                id[id_len] = '\0';
+                offset += id_len;
+                const int version = (decompressed[offset] << 24) | (decompressed[offset + 1] << 16) |
+                                    (decompressed[offset + 2] << 8) | decompressed[offset + 3];
+                offset += 4;
+                strncpy(remote_mods[remote_mod_found].id, id, 127);
+                remote_mods[remote_mod_found].id[127] = '\0';
+                remote_mods[remote_mod_found].version = version;
+                strcpy(remote_mods[remote_mod_found].ml_id, "?"); // 远程数据没有 ModLoader 信息
+                remote_mods[remote_mod_found].matched = false;
+                remote_mod_found++;
+            }
+
+            // 按 ModLoader 分组收集错误
+            typedef struct {
+                char ml_id[128];
+                char errors[1024];
+                int count;
+            } ml_group_t;
+
+            ml_group_t groups[64];
+            int group_count = 0;
+
+            // 检查本地 Mod（缺失或版本不匹配）
+            for (size_t i = 0; i < local_mod_found; i++) {
+                bool found = false;
+                for (size_t j = 0; j < remote_mod_found; j++) {
+                    if (strcmp(local_mods[i].id, remote_mods[j].id) == 0) {
+                        found = true;
+                        remote_mods[j].matched = true;
+                        if (local_mods[i].version != remote_mods[j].version) {
+                            int gidx = -1;
+                            for (int k = 0; k < group_count; k++) {
+                                if (strcmp(groups[k].ml_id, local_mods[i].ml_id) == 0) {
+                                    gidx = k;
+                                    break;
+                                }
+                            }
+                            if (gidx == -1 && group_count < 64) {
+                                gidx = group_count;
+                                strncpy(groups[gidx].ml_id, local_mods[i].ml_id, 127);
+                                groups[gidx].ml_id[127] = '\0';
+                                groups[gidx].errors[0] = '\0';
+                                groups[gidx].count = 0;
+                                group_count++;
+                            }
+                            if (gidx != -1 && groups[gidx].count < MAX_DISPLAY) {
+                                snprintf(groups[gidx].errors + strlen(groups[gidx].errors),
+                                         sizeof(groups[gidx].errors) - strlen(groups[gidx].errors),
+                                         "%s : v%d != v%d\n", local_mods[i].id,
+                                         local_mods[i].version, remote_mods[j].version);
+                                groups[gidx].count++;
+                                total_errors++;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (!found) {
+                    int gidx = -1;
+                    for (int k = 0; k < group_count; k++) {
+                        if (strcmp(groups[k].ml_id, local_mods[i].ml_id) == 0) {
+                            gidx = k;
+                            break;
+                        }
+                    }
+                    if (gidx == -1 && group_count < 64) {
+                        gidx = group_count;
+                        strncpy(groups[gidx].ml_id, local_mods[i].ml_id, 127);
+                        groups[gidx].ml_id[127] = '\0';
+                        groups[gidx].errors[0] = '\0';
+                        groups[gidx].count = 0;
+                        group_count++;
+                    }
+                    if (gidx != -1 && groups[gidx].count < MAX_DISPLAY) {
+                        snprintf(groups[gidx].errors + strlen(groups[gidx].errors),
+                                 sizeof(groups[gidx].errors) - strlen(groups[gidx].errors),
+                                 "%s : missing (v%d)\n", local_mods[i].id, local_mods[i].version);
+                        groups[gidx].count++;
+                        total_errors++;
+                    }
                 }
             }
+
+            // 检查远程多余的 Mod（放到 "?" 组）
+            for (size_t i = 0; i < remote_mod_found; i++) {
+                if (!remote_mods[i].matched) {
+                    int gidx = -1;
+                    for (int k = 0; k < group_count; k++) {
+                        if (strcmp(groups[k].ml_id, "?") == 0) {
+                            gidx = k;
+                            break;
+                        }
+                    }
+                    if (gidx == -1 && group_count < 64) {
+                        gidx = group_count;
+                        strcpy(groups[gidx].ml_id, "?");
+                        groups[gidx].errors[0] = '\0';
+                        groups[gidx].count = 0;
+                        group_count++;
+                    }
+                    if (gidx != -1 && groups[gidx].count < MAX_DISPLAY) {
+                        snprintf(groups[gidx].errors + strlen(groups[gidx].errors),
+                                 sizeof(groups[gidx].errors) - strlen(groups[gidx].errors),
+                                 "%s : extra (v%d)\n", remote_mods[i].id, remote_mods[i].version);
+                        groups[gidx].count++;
+                        total_errors++;
+                    }
+                }
+            }
+
+            // 构建最终错误信息
+            snprintf(mismatch_details, sizeof(mismatch_details),
+                     "%d error(s)\n", total_errors);
+
+            if (module_error_count > 0) {
+                strncat(mismatch_details, "[Module] ", sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+                strncat(mismatch_details, module_errors, sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+            }
+
+            if (ml_error_count > 0) {
+                strncat(mismatch_details, "[ModLoader] ", sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+                strncat(mismatch_details, ml_errors, sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+            }
+
+            // 按顺序输出每个 ModLoader 的错误
+            for (int i = 0; i < group_count; i++) {
+                if (groups[i].count > 0) {
+                    char header[256];
+                    snprintf(header, sizeof(header), "[%s] ", groups[i].ml_id);
+                    strncat(mismatch_details, header, sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+                    strncat(mismatch_details, groups[i].errors, sizeof(mismatch_details) - strlen(mismatch_details) - 1);
+                }
+            }
+
+            has_mismatch = (total_errors > 0);
         }
     }
 
     free(decompressed);
 
-    if (mismatch_count > 0) {
-        snprintf(error_msg, error_msg_size, "Mismatch found (%d issues): %s", mismatch_count, mismatch_details);
+    if (has_mismatch) {
+        snprintf(error_msg, error_msg_size, "%s", mismatch_details);
         return false;
     }
 
-    snprintf(error_msg, error_msg_size, "All modules/ModLoaders/Mods match");
+    snprintf(error_msg, error_msg_size, "OK");
     return true;
 }
 
@@ -482,25 +673,25 @@ static patch_handle_t terraria_netmanager_create_tefkernel_pack() {
     size_t offset = 0;
 
     // 总长度 (小端序)
-    new_array_c[offset++] = (uint8_t)(total_length & 0xFF);
-    new_array_c[offset++] = (uint8_t)((total_length >> 8) & 0xFF);
+    new_array_c[offset++] = (uint8_t) (total_length & 0xFF);
+    new_array_c[offset++] = (uint8_t) ((total_length >> 8) & 0xFF);
 
     // 包类型
     new_array_c[offset++] = 0x01;
 
     // 魔数字符串
-    new_array_c[offset++] = (uint8_t)str_len;
+    new_array_c[offset++] = (uint8_t) str_len;
     memcpy(&new_array_c[offset], TEFKERNEL_MAGIC_STRING, str_len);
     offset += str_len;
 
     // gameRelease
     for (int i = 0; i < 4; i++) {
-        new_array_c[offset++] = (uint8_t)((game_release >> (i * 8)) & 0xFF);
+        new_array_c[offset++] = (uint8_t) ((game_release >> (i * 8)) & 0xFF);
     }
 
     // versionCode (用于快速检查)
     for (int i = 0; i < 8; i++) {
-        new_array_c[offset++] = (uint8_t)((TEFKERNEL_VERSION_CODE >> (i * 8)) & 0xFF);
+        new_array_c[offset++] = (uint8_t) ((TEFKERNEL_VERSION_CODE >> (i * 8)) & 0xFF);
     }
 
     // 压缩数据
@@ -516,7 +707,7 @@ static patch_handle_t terraria_netmanager_create_tefkernel_pack() {
     return new_array;
 }
 
-static patch_handle_t terraria_netmanager_create_vanilla_connection_packet(int* out_size) {
+static patch_handle_t terraria_netmanager_create_vanilla_connection_packet(int *out_size) {
     patch_handle_t uint8_type = patchlib_get_basic_type(PATCH_UINT8);
     const int game_release = terraria_main_get_cur_release();
 
@@ -542,7 +733,7 @@ static patch_handle_t terraria_netmanager_create_vanilla_connection_packet(int* 
 
     int offset = 0;
     buffer[offset++] = 1;
-    buffer[offset++] = (uint8_t)vanilla_str_len;
+    buffer[offset++] = (uint8_t) vanilla_str_len;
     memcpy(&buffer[offset], vanilla_string, vanilla_str_len);
     offset += vanilla_str_len;
 
@@ -569,8 +760,8 @@ static patch_handle_t terraria_netmanager_create_null_connection_packet() {
     }
 
     int offset = 0;
-    buffer[offset++] = (uint8_t)(total_length & 0xFF);
-    buffer[offset++] = (uint8_t)((total_length >> 8) & 0xFF);
+    buffer[offset++] = (uint8_t) (total_length & 0xFF);
+    buffer[offset++] = (uint8_t) ((total_length >> 8) & 0xFF);
     buffer[offset++] = 1;
     buffer[offset++] = 1;
     buffer[offset++] = 'a';
@@ -582,7 +773,7 @@ static patch_handle_t terraria_netmanager_create_null_connection_packet() {
 }
 
 static connection_type_t terraria_netmanager_parse_tefconnection_packet(const uint8_t *data, const int data_len,
-                                                                 const uint8_t client) {
+                                                                        const uint8_t client) {
     int offset = 1;
     if (offset + 1 >= data_len) {
         terraria_netmanager_client_errors[client] = ERROR_VERSION;
@@ -615,14 +806,14 @@ static connection_type_t terraria_netmanager_parse_tefconnection_packet(const ui
     // 读取versionCode
     uint64_t version = 0;
     for (int i = 0; i < 8; i++) {
-        version |= (uint64_t)data[offset++] << (i * 8);
+        version |= (uint64_t) data[offset++] << (i * 8);
     }
 
     if (version != TEFKERNEL_VERSION_CODE) {
         terraria_netmanager_client_errors[client] = ERROR_VERSION;
         snprintf(terraria_netmanager_error_details[client], sizeof(terraria_netmanager_error_details[client]),
                  "Version mismatch: local=%llu, remote=%llu",
-                 (unsigned long long)TEFKERNEL_VERSION_CODE, (unsigned long long)version);
+                 (unsigned long long) TEFKERNEL_VERSION_CODE, (unsigned long long) version);
         return CONNECTION_TYPE_VERSION_MISMATCH;
     }
 
@@ -656,18 +847,23 @@ static bool terraria_netmanager_is_vanilla_connection_packet(const uint8_t *data
     const uint8_t str_len = data[offset++];
     if (offset + str_len > data_len) return false;
 
-    const char* str = (char*)&data[offset];
-    const char* terraria_prefix = "Terraria";
+    const char *str = (char *) &data[offset];
+    const char *terraria_prefix = "Terraria";
 
     if (str_len < strlen(terraria_prefix)) return false;
     return strncmp(str, terraria_prefix, strlen(terraria_prefix)) == 0;
 }
 
 void terraria_netmanager_init() {
-    // 初始化错误信息
-    for (int i = 0; i < 256; i++) {
-        terraria_netmanager_error_details[i][0] = '\0';
+    if (tefkernel_get_module_count() == 0 && tefkernel_get_ml_count() == 0) {
+        TEKLOG_INFO("No modules or ModLoaders loaded - version isolation disabled, using vanilla networking logic\n"
+                    "TEFKernel version isolation is skipped, all clients can connect without version checking");
+        return;
     }
+
+    // 初始化错误信息
+    for (int i = 0; i < 256; i++)
+        terraria_netmanager_error_details[i][0] = '\0';
 
     patch_handle_t message_buffer_class = patchlib_type_get_type("Terraria", "MessageBuffer");
     patch_handle_t net_message_class = patchlib_type_get_type("Terraria", "NetMessage");
@@ -710,16 +906,16 @@ typedef struct il2cpp_array_t {
 #endif
 
 static bool get_data_hook(patch_handle_t instance, void **args,
-                      const patch_method_signature_t *sig_info, void *result) {
+                          const patch_method_signature_t *sig_info, void *result) {
     uint8_t msg_type = 0;
 #if defined(__ANDROID__)
-    uint8_t* buffer = *(patch_handle_t*)args[0] + sizeof(il2cpp_array_t);
+    uint8_t *buffer = *(patch_handle_t *) args[0] + sizeof(il2cpp_array_t);
     msg_type = buffer[0];
     const int start = 0;
-    const int length = *(int*)args[1];
+    const int length = *(int *) args[1];
 #else
-    const int start = *(int*)args[0];
-    const int length = *(int*)args[1];
+    const int start = *(int *) args[0];
+    const int length = *(int *) args[1];
     int buffer_max_size = -1;
     patch_handle_t read_buffer_array = PATCH_NULL;
     patchlib_field_get_value(read_buffer, instance, &read_buffer_array);
@@ -729,7 +925,7 @@ static bool get_data_hook(patch_handle_t instance, void **args,
 
     if (msg_type == 1) {
 #if !defined(__ANDROID__)
-        uint8_t* buffer = malloc(buffer_max_size);
+        uint8_t *buffer = malloc(buffer_max_size);
         patchlib_array_copy_to_c(buffer, read_buffer_array, buffer_max_size);
 #endif
 
@@ -741,17 +937,29 @@ static bool get_data_hook(patch_handle_t instance, void **args,
         terraria_netmanager_error_details[client][0] = '\0';
 
         terraria_netmanager_client_connections[client] =
-            terraria_netmanager_parse_tefconnection_packet(buffer + start, length, client);
+                terraria_netmanager_parse_tefconnection_packet(buffer + start, length, client);
 
         if (terraria_netmanager_client_connections[client] != CONNECTION_TYPE_NONE) {
             TEKLOG_INFO("GetData: TEFKernel connection packet from client %d, converting to vanilla", client);
-            TEKLOG_INFO("  Error: %s", terraria_netmanager_error_details[client]);
+            if (terraria_netmanager_client_errors[client] != ERROR_NONE) {
+                TEKLOG_WARN("Rejecting client %d: %s", client,
+                             terraria_netmanager_error_details[client]);
+
+                // 清理资源
+                patchlib_free(read_buffer_array);
+                free(buffer);
+
+                // 返回 false 让原始方法继续执行
+                // 这会导致连接包不被识别，客户端收到错误而断开
+                return false;
+            }
+
 #if __ANDROID__
             patch_handle_t vanilla_array = terraria_netmanager_create_vanilla_connection_packet(args[1]);
-            *(patch_handle_t*)args[0] = vanilla_array;
+            *(patch_handle_t *) args[0] = vanilla_array;
 #else
             patch_handle_t vanilla_array = terraria_netmanager_create_vanilla_connection_packet(args[1]);
-            for (int i = 0; i < *(int*)args[1]; ++i) {
+            for (int i = 0; i < *(int *) args[1]; ++i) {
                 uint8_t byte = 0;
                 patchlib_array_at(vanilla_array, i, &byte);
                 patchlib_array_set(read_buffer_array, start + i, &byte);
@@ -773,10 +981,10 @@ static bool get_data_hook(patch_handle_t instance, void **args,
 
             patch_handle_t array_null = terraria_netmanager_create_null_connection_packet();
 #if __ANDROID__
-            *(patch_handle_t*)args[0] = array_null;
-            *(int*)args[1] = 5;
+            *(patch_handle_t *) args[0] = array_null;
+            *(int *) args[1] = 5;
 #else
-            *(int*)args[1] = 5;
+            *(int *) args[1] = 5;
             for (int i = 0; i < 5; ++i) {
                 uint8_t byte = 0;
                 patchlib_array_at(array_null, i, &byte);
@@ -793,12 +1001,12 @@ static bool get_data_hook(patch_handle_t instance, void **args,
 }
 
 static bool send_data_hook(patch_handle_t instance, void **args,
-                      const patch_method_signature_t *sig_info, void *result) {
+                           const patch_method_signature_t *sig_info, void *result) {
     if (!args[3]) return false;
 
-    const int msg_type = *(int*)args[0];
-    const int remote_client = *(int*)args[1];
-    patch_handle_t error_text = *(patch_handle_t*)args[3];
+    const int msg_type = *(int *) args[0];
+    const int remote_client = *(int *) args[1];
+    patch_handle_t error_text = *(patch_handle_t *) args[3];
 
     if (msg_type == 2) {
         TEKLOG_DEBUG("SendData: msgType=2, g_error_message_id=%d, details=%s",
@@ -809,18 +1017,19 @@ static bool send_data_hook(patch_handle_t instance, void **args,
         if (terraria_netmanager_client_errors[remote_client] == ERROR_MOD_REQUIRED ||
             terraria_netmanager_client_errors[remote_client] == ERROR_VERSION) {
             char error_msg[512];
-            const char* error_type = terraria_netmanager_client_errors[remote_client] == ERROR_VERSION ?
-                                      "Version mismatch" : "Mod mismatch";
+            const char *error_type = terraria_netmanager_client_errors[remote_client] == ERROR_VERSION
+                                         ? "Version mismatch"
+                                         : "Mod mismatch";
             snprintf(error_msg, sizeof(error_msg), "[TEFKernel] %s: %s",
                      error_type, terraria_netmanager_error_details[remote_client]);
 
             patch_handle_t error_text_str = patchlib_string_create(error_msg);
-            void* iargs[1] = { &error_text_str };
+            void *iargs[1] = {&error_text_str};
             patchlib_method_invoke_args(network_text_from_literal, PATCH_NULL, &error_text, iargs);
         }
 
         if (error_text) {
-            *(patch_handle_t*)args[3] = error_text;
+            *(patch_handle_t *) args[3] = error_text;
         }
     }
     return false;
