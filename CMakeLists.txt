@@ -10,7 +10,7 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 endif()
 
-set(ANDROID_MODE ON)
+set(ANDROID_MODE OFF)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
