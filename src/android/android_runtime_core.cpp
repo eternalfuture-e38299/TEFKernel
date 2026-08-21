@@ -20,7 +20,6 @@
  * Created: 2025/12/14
  *******************************************************************************/
 
-#include <dlfcn.h>
 #include <cstdio>
 #include <cstring>
 
@@ -30,6 +29,7 @@
 
 #include <thread>
 #include <atomic>
+#include <sys/stat.h>
 
 #include "dobby.h"
 #include "xdl.h"
@@ -123,6 +123,9 @@ void start_test();
 
 static int (*orig_il2cpp_init)(const char*) = nullptr;
 static int hook_il2cpp_init(const char* domain_name) {
+    // ============ 开始记录日志 ============
+    TEKLOG_INFO("========================================");
+    TEKLOG_INFO("TEFKernel loading...");
     TEKLOG_INFO("il2cpp_init hook called, domain: %s", domain_name);
 
     if (orig_il2cpp_init == nullptr) {
@@ -136,8 +139,11 @@ static int hook_il2cpp_init(const char* domain_name) {
 
     TEKLOG_INFO("Starting TEFKernel core initialization");
 
-
-    patchlib_MakeGenericType = patchlib_type_get_method_by_param_count(patchlib_type_get_type("System", "RuntimeType"), "MakeGenericType", 2);
+    // ============ TEFKernel 核心初始化 ============
+    patchlib_MakeGenericType = patchlib_type_get_method_by_param_count(
+        patchlib_type_get_type("System", "RuntimeType"),
+        "MakeGenericType", 2
+    );
     find_and_initialize_make_generic_method_impl();
 
     terraria_main_init(false);
@@ -149,8 +155,8 @@ static int hook_il2cpp_init(const char* domain_name) {
     tefkernel_start();
     terraria_netmanager_init();
 
-
     TEKLOG_INFO("TEFKernel core initialization completed");
+    TEKLOG_INFO("========================================");
 
     return r;
 }
@@ -430,8 +436,6 @@ static void StartIL2CppWatcher() {
 
 __attribute__((constructor))
 static int init_ary() {
-    // 初始化日志系统
-    tefkernel_log_init(nullptr);
     TEKLOG_INFO("TEFKernel initializing");
 
     // 获取JavaVM
@@ -479,6 +483,26 @@ static int init_ary() {
         // 初始化IO hook
         TEKLOG_DEBUG("Initializing IO hooks");
         init_iohook(vm);
+    }
+
+    // ============ 构建日志目录路径 ============
+    char log_dir[512];
+    char log_config_filename[512] = {};
+    snprintf(log_dir, sizeof(log_dir), "%s/logs/tefkernel", tefkernel_working_dir);
+
+    struct stat st{};
+    if (stat(log_dir, &st) == 0 && S_ISDIR(st.st_mode)) {
+        // 目录存在
+        snprintf(log_config_filename, sizeof(log_config_filename),
+                "%s/runtime", log_dir);
+        fprintf(stderr, "[LOG] Log directory found: %s\n", log_dir);
+    }
+
+    // ============ 初始化日志系统 ============
+    if (log_config_filename[0] != '\0') {
+        tefkernel_log_init(log_config_filename);
+    } else {
+        tefkernel_log_init(nullptr);
     }
 
     TEKLOG_DEBUG("Setting up crash signal handlers");

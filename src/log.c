@@ -50,6 +50,7 @@
 #endif
 
 // 日志队列节点
+// ReSharper disable once CppUseInternalLinkage
 typedef struct log_node_t {
     tefkernel_log_level_t level;
     char message[2048];
@@ -129,7 +130,7 @@ static const char* get_level_string(const tefkernel_log_level_t level) {
 }
 
 // 生成带时间戳的文件名
-static int generate_filename(char* buffer, size_t buffer_size, const char* base_name) {
+static int generate_filename(char* buffer, const size_t buffer_size, const char* base_name) {
     char time_buf[64];
     get_current_time_for_filename(time_buf, sizeof(time_buf));
 
@@ -613,9 +614,4 @@ void tefkernel_log_cleanup(void) {
         printf("Log system shutdown complete\n");
 #endif
     }
-}
-
-// 获取当前日志文件名
-const char* tefkernel_log_get_filename(void) {
-    return g_log_ctx.filename[0] != '\0' ? g_log_ctx.filename : NULL;
 }
