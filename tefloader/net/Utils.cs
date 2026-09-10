@@ -172,6 +172,22 @@ public static class Utils
                 return true;
             }
 
+            // 值类型结构体（如 Vector2）：按内存布局读写原始字节。
+            // 注意不能落到下面的"引用类型"分支：那会把 GCHandle 指针
+            // 当作结构体字节写入/读出，导致所有非基础值类型数据损坏。
+            if (type.IsValueType && !type.IsEnum)
+            {
+                try
+                {
+                    Marshal.StructureToPtr(value, target, false);
+                    return true;
+                }
+                catch
+                {
+                    // 非 blittable 结构体 marshaling 失败时回退到旧逻辑
+                }
+            }
+
             // 引用类型：使用 GCHandle
             var ptr = ObjectToPtr(value);
             Marshal.WriteIntPtr(target, ptr);
@@ -259,6 +275,20 @@ public static class Utils
             if (targetType == typeof(IntPtr)) return Marshal.ReadIntPtr(source);
             if (targetType == typeof(UIntPtr)) return (UIntPtr)Marshal.ReadIntPtr(source).ToInt64();
             if (targetType == typeof(char)) return (char)Marshal.ReadInt16(source);
+
+            // 值类型结构体（如 Vector2）：按内存布局从原始字节还原，
+            // 不能按 GCHandle 指针解引用（见 SetNativeValue 中的说明）
+            if (targetType.IsValueType && !targetType.IsEnum)
+            {
+                try
+                {
+                    return Marshal.PtrToStructure(source, targetType);
+                }
+                catch
+                {
+                    // marshaling 失败时回退到旧逻辑
+                }
+            }
 
             // PATCH_OBJECT: 从指针读取 GCHandle
             var ptr = Marshal.ReadIntPtr(source);
