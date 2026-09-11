@@ -272,15 +272,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     ffi_abi abi = FFI_DEFAULT_ABI;
-#if defined(__aarch64__)
-    abi = FFI_SYSV;
-    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM64");
-#elif defined(__arm__)
-    abi = FFI_SYSV;
-    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM32");
-#else
-    TEKLOG_DEBUG("Using FFI_DEFAULT_ABI");
-#endif
+    TEKLOG_DEBUG("Using FFI default ABI");
 
     TEKLOG_DEBUG("Preparing FFI CIF: abi=%d, nargs=%d", abi, total_arg_count);
 
