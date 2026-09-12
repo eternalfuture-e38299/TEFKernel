@@ -242,11 +242,17 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
         return false;
     }
 
-    const int decompressed_size = LZ4_decompress_safe((char *) (remote_data + 4), (char *) decompressed,
-                                                      (int) remote_size - 4, (int) original_size);
+    // 注：data_len 所指的"消息长度"与实际负载数组之间可能存在 2 字节的长度前缀偏差，
+    // 沿用 LZ4_decompress_safe 会因尾部垃圾字节报错。这里使用 partial 版本，
+    // 解到 orig_size 即停止，对收包端的长度语义差异保持宽容。
+    const int decompressed_size = LZ4_decompress_safe_partial((char *) (remote_data + 4), (char *) decompressed,
+                                                              (int) remote_size - 4, (int) original_size,
+                                                              (int) original_size);
     if (decompressed_size < 0) {
         free(decompressed);
-        snprintf(error_msg, error_msg_size, "Decompression failed");
+        snprintf(error_msg, error_msg_size, "LZ4 failed: ret=%d orig_size=%u remote_size=%u (payload=%u)",
+                 decompressed_size, original_size, remote_size, remote_size - 4);
+        TEKLOG_WARN("compare_versions: %s", error_msg);
         return false;
     }
 
@@ -256,6 +262,30 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
     int total_errors = 0;
     const int MAX_DISPLAY = 10;
 
+    typedef struct {
+        char id[128];
+        int version;
+        bool matched;
+    } version_entry_t;
+
+    typedef struct {
+        char id[128];
+        int version;
+        char ml_id[128];
+        bool matched;
+    } mod_entry_t;
+
+    typedef struct {
+        char ml_id[128];
+        char errors[1024];
+        int count;
+    } ml_group_t;
+
+    version_entry_t *local_modules = NULL, *remote_modules = NULL;
+    version_entry_t *local_mls = NULL, *remote_mls = NULL;
+    mod_entry_t *local_mods = NULL, *remote_mods = NULL;
+    ml_group_t *groups = NULL;
+
     // 检查协议版本
     const uint8_t proto_version = decompressed[offset++];
     if (proto_version != 0x01) {
@@ -264,12 +294,6 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
         return false;
     }
 
-    typedef struct {
-        char id[128];
-        int version;
-        bool matched;
-    } version_entry_t;
-
     // ============================================================
     // 1. 比较 Module
     // ============================================================
@@ -277,7 +301,15 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
     offset += 2;
     const size_t local_module_count = tefkernel_get_module_count();
 
-    version_entry_t local_modules[512], remote_modules[512];
+    local_modules = calloc(512, sizeof(version_entry_t));
+    remote_modules = calloc(512, sizeof(version_entry_t));
+    if (!local_modules || !remote_modules) {
+        free(local_modules);
+        free(remote_modules);
+        free(decompressed);
+        snprintf(error_msg, error_msg_size, "Memory allocation failed");
+        return false;
+    }
     size_t local_modules_found = 0, remote_modules_found = 0;
 
     for (size_t i = 0; i < local_module_count && local_modules_found < 512; i++) {
@@ -364,7 +396,8 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
         offset += 2;
         const size_t local_ml_count = tefkernel_get_ml_count();
 
-        version_entry_t local_mls[128], remote_mls[128];
+        local_mls = calloc(128, sizeof(version_entry_t));
+        remote_mls = calloc(128, sizeof(version_entry_t));
         size_t local_ml_found = 0, remote_ml_found = 0;
 
         for (size_t i = 0; i < local_ml_count && local_ml_found < 128; i++) {
@@ -446,14 +479,7 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
             offset += 2;
             const size_t local_mod_count = tefkernel_get_mod_count();
 
-            typedef struct {
-                char id[128];
-                int version;
-                char ml_id[128];
-                bool matched;
-            } mod_entry_t;
-
-            mod_entry_t local_mods[512];
+            local_mods = calloc(512, sizeof(mod_entry_t));
             size_t local_mod_found = 0;
 
             for (size_t i = 0; i < local_mod_count && local_mod_found < 512; i++) {
@@ -475,7 +501,7 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
                 local_mod_found++;
             }
 
-            mod_entry_t remote_mods[512];
+            remote_mods = calloc(512, sizeof(mod_entry_t));
             size_t remote_mod_found = 0;
 
             for (uint16_t i = 0; i < remote_mod_count && offset < decompressed_size && remote_mod_found < 512; i++) {
@@ -499,14 +525,27 @@ static bool terraria_netmanager_compare_versions(const uint8_t *remote_data, con
             }
 
             // 按 ModLoader 分组收集错误
-            typedef struct {
-                char ml_id[128];
-                char errors[1024];
-                int count;
-            } ml_group_t;
-
-            ml_group_t groups[64];
+            groups = calloc(64, sizeof(ml_group_t));
             int group_count = 0;
+            if (!local_mls || !remote_mls || !local_mods || !remote_mods || !groups) {
+                free(local_modules);
+                free(remote_modules);
+                free(local_mls);
+                free(remote_mls);
+                free(local_mods);
+                free(remote_mods);
+                free(groups);
+    free(local_modules);
+    free(remote_modules);
+    free(local_mls);
+    free(remote_mls);
+    free(local_mods);
+    free(remote_mods);
+    free(groups);
+    free(decompressed);
+                snprintf(error_msg, error_msg_size, "Memory allocation failed");
+                return false;
+            }
 
             // 检查本地 Mod（缺失或版本不匹配）
             for (size_t i = 0; i < local_mod_found; i++) {
@@ -924,6 +963,15 @@ static bool get_data_hook(patch_handle_t instance, void **args,
 #endif
 
     if (msg_type == 1) {
+#if defined(__ANDROID__)
+        {
+            char hex[1024] = {0};
+            const int n = length;
+            for (int i = 0; i < n && (i + 1) * 3 < (int) sizeof(hex); ++i)
+                snprintf(hex + i * 3, 4, "%02x ", buffer[start + i]);
+            TEKLOG_INFO("ConnectPacket hex (full %d bytes): %s", n, hex);
+        }
+#endif
 #if !defined(__ANDROID__)
         uint8_t *buffer = malloc(buffer_max_size);
         patchlib_array_copy_to_c(buffer, read_buffer_array, buffer_max_size);
@@ -932,12 +980,16 @@ static bool get_data_hook(patch_handle_t instance, void **args,
         int client = -1;
         patchlib_field_get_value(who_am_i, instance, &client);
 
+        if (client < 0 || client >= 256) return true;
+
         terraria_netmanager_client_connections[client] = CONNECTION_TYPE_NONE;
         terraria_netmanager_client_errors[client] = ERROR_NONE;
         terraria_netmanager_error_details[client][0] = '\0';
 
         terraria_netmanager_client_connections[client] =
                 terraria_netmanager_parse_tefconnection_packet(buffer + start, length, client);
+        TEKLOG_INFO("GetData msg=1: client=%d start=%d length=%d type=%d", client, start, length,
+                    terraria_netmanager_client_connections[client]);
 
         if (terraria_netmanager_client_connections[client] != CONNECTION_TYPE_NONE) {
             TEKLOG_INFO("GetData: TEFKernel connection packet from client %d, converting to vanilla", client);
@@ -947,7 +999,10 @@ static bool get_data_hook(patch_handle_t instance, void **args,
 
                 // 清理资源
                 patchlib_free(read_buffer_array);
+#if !defined(__ANDROID__)
+                // buffer 仅在桌面端为 malloc 内存；Android 上指向 il2cpp GC 数组内部，不可 free
                 free(buffer);
+#endif
 
                 // 返回 false 让原始方法继续执行
                 // 这会导致连接包不被识别，客户端收到错误而断开
@@ -966,7 +1021,9 @@ static bool get_data_hook(patch_handle_t instance, void **args,
             }
             patchlib_free(vanilla_array);
             patchlib_free(read_buffer_array);
+#if !defined(__ANDROID__)
             free(buffer);
+#endif
 #endif
             return false;
         }
@@ -992,7 +1049,9 @@ static bool get_data_hook(patch_handle_t instance, void **args,
             }
             patchlib_free(array_null);
             patchlib_free(read_buffer_array);
+#if !defined(__ANDROID__)
             free(buffer);
+#endif
 #endif
             return false;
         }
@@ -1008,7 +1067,7 @@ static bool send_data_hook(patch_handle_t instance, void **args,
     const int remote_client = *(int *) args[1];
     patch_handle_t error_text = *(patch_handle_t *) args[3];
 
-    if (msg_type == 2) {
+    if (msg_type == 2 && remote_client >= 0 && remote_client < 256) {
         TEKLOG_DEBUG("SendData: msgType=2, g_error_message_id=%d, details=%s",
                      terraria_netmanager_client_errors[remote_client],
                      terraria_netmanager_error_details[remote_client]);
