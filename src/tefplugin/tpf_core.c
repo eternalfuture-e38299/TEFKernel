@@ -977,6 +977,9 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_method_is_static);
     TPF_KERNEL_SYMBOL(patchlib_method_make_generic_instance);
     TPF_KERNEL_SYMBOL(patchlib_method_invoke_args);
+#if __ANDROID__
+    TPF_KERNEL_SYMBOL(patchlib_method_invoke_value_args);
+#endif
     TPF_KERNEL_SYMBOL(patchlib_constructor_invoke);
     TPF_KERNEL_SYMBOL(patchlib_method_get_token);
     TPF_KERNEL_SYMBOL(patchlib_method_get_signature);

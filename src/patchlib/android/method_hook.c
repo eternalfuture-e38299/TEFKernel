@@ -313,8 +313,16 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     if (il2cpp_method_is_generic(handle->method)) arg_types[arg_index++] = &ffi_type_pointer;
 
 
-    ffi_abi abi = FFI_DEFAULT_ABI;
-    TEKLOG_DEBUG("Using FFI default ABI");
+        ffi_abi abi = FFI_DEFAULT_ABI;
+#if defined(__aarch64__)
+        abi = FFI_SYSV;
+        TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM64");
+#elif defined(__arm__)
+        abi = FFI_SYSV;
+        TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM32");
+#else
+        TEKLOG_DEBUG("Using FFI_DEFAULT_ABI");
+#endif
 
     ffi_status status = ffi_prep_cif(&handle->cif, abi, total_args, re_type, arg_types);
     if (status != FFI_OK) {

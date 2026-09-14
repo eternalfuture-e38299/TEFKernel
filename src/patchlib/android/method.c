@@ -23,6 +23,7 @@
 #include "patchlib/method.h"
 
 #include <ffi.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -272,7 +273,15 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     ffi_abi abi = FFI_DEFAULT_ABI;
-    TEKLOG_DEBUG("Using FFI default ABI");
+#if defined(__aarch64__)
+    abi = FFI_SYSV;
+    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM64");
+#elif defined(__arm__)
+    abi = FFI_SYSV;
+    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM32");
+#else
+    TEKLOG_DEBUG("Using FFI_DEFAULT_ABI");
+#endif
 
     TEKLOG_DEBUG("Preparing FFI CIF: abi=%d, nargs=%d", abi, total_arg_count);
 
@@ -297,6 +306,161 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     if (arg_types) free(arg_types);
     patchlib_method_signature_free(&signature);
     return true;
+}
+
+static bool patchlib_value_arg_is_valid(const patchlib_value_arg_t *value_arg) {
+    if (!value_arg || !value_arg->data || !value_arg->field_types ||
+        value_arg->field_count == 0 || value_arg->field_count > 16 ||
+        value_arg->data_size == 0 || value_arg->data_size > 64) {
+        return false;
+    }
+
+    size_t expected_size = 0;
+    for (size_t i = 0; i < value_arg->field_count; ++i) {
+        const patch_type_t type = value_arg->field_types[i];
+        if (!patchlib_is_primitive_type(type) || type == PATCH_BOOL ||
+            type == PATCH_CHAR) {
+            return false;
+        }
+        expected_size += get_size_from_patch_type(type);
+    }
+    return expected_size == value_arg->data_size;
+}
+
+bool patchlib_method_invoke_value_args(patch_handle_t method, patch_handle_t instance,
+                                       void *return_value, void **args,
+                                       const patchlib_value_arg_t *value_args) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("Invalid method handle for value invocation");
+        return false;
+    }
+
+    patch_method_signature_t signature;
+    if (!patchlib_method_get_signature(method, &signature)) {
+        TEKLOG_ERROR("Failed to get method signature for value invocation");
+        return false;
+    }
+
+    const size_t explicit_arg_count = tefstd_vector_size(&signature.arg_types);
+    if (signature.is_instance && !patchlib_is_valid(instance)) {
+        patchlib_method_signature_free(&signature);
+        return false;
+    }
+
+    void *method_ptr = patchlib_method_get_pointer(method);
+    const int total_arg_count = (int)explicit_arg_count +
+                                (signature.is_instance ? 1 : 0);
+    if (!method_ptr || total_arg_count < 0 || total_arg_count > 64) {
+        patchlib_method_signature_free(&signature);
+        return false;
+    }
+
+    ffi_type **arg_types = calloc((size_t)total_arg_count, sizeof(*arg_types));
+    void **arg_values = calloc((size_t)total_arg_count, sizeof(*arg_values));
+    ffi_type **owned_struct_types = calloc(explicit_arg_count,
+                                           sizeof(*owned_struct_types));
+    ffi_type ***owned_elements = calloc(explicit_arg_count,
+                                        sizeof(*owned_elements));
+    if ((total_arg_count > 0 && (!arg_types || !arg_values)) ||
+        (explicit_arg_count > 0 && (!owned_struct_types || !owned_elements))) {
+        free(arg_types);
+        free(arg_values);
+        free(owned_struct_types);
+        free(owned_elements);
+        patchlib_method_signature_free(&signature);
+        return false;
+    }
+
+    int arg_index = 0;
+    if (signature.is_instance) {
+        arg_types[arg_index] = &ffi_type_pointer;
+        arg_values[arg_index++] = &instance;
+    }
+
+    bool ok = true;
+    for (size_t i = 0; i < explicit_arg_count; ++i, ++arg_index) {
+        const patch_type_t *arg_type = tefstd_vector_at(&signature.arg_types, i);
+        if (!arg_type) {
+            ok = false;
+            break;
+        }
+
+        const patchlib_value_arg_t *value_arg = value_args ? &value_args[i] : NULL;
+        if (value_arg && value_arg->field_count > 0) {
+            if (*arg_type != PATCH_POINTER ||
+                !patchlib_value_arg_is_valid(value_arg)) {
+                ok = false;
+                break;
+            }
+
+            ffi_type **elements = calloc(value_arg->field_count + 1,
+                                         sizeof(*elements));
+            ffi_type *struct_type = calloc(1, sizeof(*struct_type));
+            if (!elements || !struct_type) {
+                free(elements);
+                free(struct_type);
+                ok = false;
+                break;
+            }
+            for (size_t field = 0; field < value_arg->field_count; ++field) {
+                elements[field] = patch_type_to_ffi_type(
+                    value_arg->field_types[field]);
+            }
+            elements[value_arg->field_count] = NULL;
+            struct_type->type = FFI_TYPE_STRUCT;
+            struct_type->elements = elements;
+            owned_struct_types[i] = struct_type;
+            owned_elements[i] = elements;
+            arg_types[arg_index] = struct_type;
+            arg_values[arg_index] = (void *)value_arg->data;
+        } else {
+            arg_types[arg_index] = patch_type_to_ffi_type(*arg_type);
+            arg_values[arg_index] = args ? args[i] : NULL;
+        }
+    }
+
+    ffi_type *return_ffi_type = patch_type_to_ffi_type(signature.return_type);
+    ffi_cif cif;
+    if (ok && return_ffi_type) {
+        ffi_abi abi = FFI_DEFAULT_ABI;
+#if defined(__aarch64__) || defined(__arm__)
+        abi = FFI_SYSV;
+#endif
+        if (ffi_prep_cif(&cif, abi, (unsigned int)total_arg_count,
+                         return_ffi_type, arg_types) != FFI_OK) {
+            ok = false;
+        }
+    } else {
+        ok = false;
+    }
+
+    /* ffi_prep_cif computes the final size/alignment of each struct. Verify
+     * it before the call so a wrong Color/Vector2 layout remains SAFE-OFF. */
+    if (ok) {
+        for (size_t i = 0; i < explicit_arg_count; ++i) {
+            if (value_args && value_args[i].field_count > 0 &&
+                (!owned_struct_types[i] ||
+                 owned_struct_types[i]->size != value_args[i].data_size)) {
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    if (ok) {
+        ffi_call(&cif, FFI_FN(method_ptr), return_value, arg_values);
+    }
+
+    for (size_t i = 0; i < explicit_arg_count; ++i) {
+        free(owned_elements[i]);
+        free(owned_struct_types[i]);
+    }
+    free(owned_elements);
+    free(owned_struct_types);
+    free(arg_values);
+    free(arg_types);
+    patchlib_method_signature_free(&signature);
+    return ok;
 }
 
 bool patchlib_constructor_invoke(patch_handle_t constructor,
