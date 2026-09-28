@@ -32,29 +32,21 @@
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/type.h"
+#include "tefstd/vector.h"
 #include "terraria/asset.h"
+#include "terraria/recipe_manager.h"
 #include "terraria/texture2d.h"
 
-void start_test() {
-    patch_handle_t type = terraria_asset_get_generic_class(terraria_texture2d_get_class());
-    if (!type) {
-        TEKLOG_ERROR("Failed to get FMOD::System type");
-        return;
+void add_r(void) {
+    for (int item_id = 1; item_id < 6196; item_id++) {
+        terraria_recipe_set_result(item_id,
+                                   9999);
+        terraria_recipe_set_material(
+            (int[2])
+            {9, 1},
+            1);
+        terraria_recipe_add();
     }
-
-    tefstd_vector_t vec;
-    patchlib_type_get_fields(type, false, &vec);
-
-    const size_t count = tefstd_vector_size(&vec);
-    TEKLOG_INFO("Searching %zu field for Asset<Texture2d>...", count);
-
-    for (size_t i = 0; i < count; ++i) {
-        auto e = static_cast<patch_handle_t*>(tefstd_vector_at(&vec, i));
-        if (!e) continue;
-
-        const char* name = patchlib_field_get_name(*e);
-        TEKLOG_INFO("Found: %s", name);
-    }
-
-    
 }
+
+void start_test(void) { /*terraria_recipe_manager_register_callback(add_r);*/ }

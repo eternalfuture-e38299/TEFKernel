@@ -21,12 +21,10 @@
  *******************************************************************************/
 
 #include "patchlib/field.h"
-#include "terraria/main.h"
 #include "internal/terraria/main.h"
 
 #include "internal/log.h"
 #include "patchlib/method.h"
-#include "patchlib/property.h"
 
 #include "internal/terraria/item_manager.h"
 
@@ -45,28 +43,22 @@ static bool initialize_prefix(patch_handle_t this, void **args,
         terraria_item_manager_assign_ids(base_count);
         TEKLOG_INFO("Assigned IDs and resized arrays");
     }
-
-    return false;
-}
-
-static void initialize_postfix(patch_handle_t this, void **args, void *result,
-                               const patch_method_signature_t *sig_info) {
-    TEKLOG_INFO("Main.Initialize postfix: initializing textures and static data");
-
-    terraria_item_manager_resize();
-
+    
     const size_t count = tefstd_vector_size(&g_terraria_item_registry);
     int initialized = 0;
     for (size_t i = 0; i < count; ++i) {
         terraria_item_handle_t** item_handle = tefstd_vector_at(&g_terraria_item_registry, i);
-        if (*item_handle && (*item_handle)->item_ops.init_static) {
-            (*item_handle)->item_ops.init_static(*item_handle);
+        if (*item_handle && (*item_handle)->item_ops.early_init) {
+            (*item_handle)->item_ops.early_init(*item_handle);
             initialized++;
         }
     }
 
     TEKLOG_INFO("Initialized %d custom items", initialized);
+
+    return false;
 }
+
 
 static void initialize_almost_everything_postfix(patch_handle_t this, void **args, void *result,
                                  const patch_method_signature_t *sig_info) {
@@ -78,6 +70,8 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
         terraria_item_manager_resize();
         terraria_item_manager_init_texture2d();
         TEKLOG_INFO("Arrays resized and textures initialized");
+        
+        terraria_item_manager_init_localized_text();
     }
 
     // 初始化静态数据
@@ -90,6 +84,7 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
             initialized++;
         }
     }
+    
 
     TEKLOG_INFO("Initialized %d custom items", initialized);
 }
@@ -146,7 +141,7 @@ void terraria_main_init(const bool is_server) {
         TEKLOG_ERROR("Failed to get Initialize method");
     } else {
         TEKLOG_DEBUG("Got Initialize method: %p, installing hook", initialize_method);
-        patch_hook_id_t hook_id = patchlib_install_prepost_hook(initialize_method, initialize_prefix, initialize_postfix);
+        patch_hook_id_t hook_id = patchlib_install_prepost_hook(initialize_method, initialize_prefix, NULL);
         if (hook_id != PATCH_HOOK_INVALID_ID) {
             TEKLOG_INFO("Initialize hook installed successfully, ID: %d", hook_id);
         } else {

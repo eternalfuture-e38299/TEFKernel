@@ -10,7 +10,17 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 endif()
 
-set(ANDROID_MODE OFF)
+# 全局强制 PIC，所有子目录都生效
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+
+# 如果还有汇编文件也需要 PIC
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -DPIC")
+set(CMAKE_ASM_FLAGS "-x assembler-with-cpp")
+
+
+set(ANDROID_MODE ON)
 if (${ANDROID_MODE})
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
@@ -79,7 +89,8 @@ set(TERRARIA_SRC
         src/terraria/common/main.c
         src/terraria/common/asset.c
         src/terraria/common/item_manager.c
-        src/terraria/common/set_factory.c
+        src/terraria/common/recipe_manager.c
+        src/terraria/common/language_manager.c
 )
 
 set(TEFPACKAGE_SRC
@@ -184,6 +195,7 @@ if (${ANDROID})
             dobby_static
             xdl
     )
+    target_link_options(tefkernel PRIVATE -static-libstdc++)
 endif ()
 
 target_include_directories(tefkernel

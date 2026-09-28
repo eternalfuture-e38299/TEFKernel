@@ -72,11 +72,14 @@ patch_handle_t patchlib_dictionary_create(patch_handle_t key_type, patch_handle_
     if (!ctor) {
         TEKLOG_ERROR("Failed to find dictionary constructor");
         tefstd_vector_destroy(&v);
+        patchlib_free(generic_type);
         return PATCH_NULL;
     }
     TEKLOG_DEBUG("Dictionary constructor found: %p", ctor);
 
-    patch_handle_t instance = patchlib_type_new_instance(generic_type);
+    patch_handle_t instance = PATCH_NULL;
+    void* args[] = { &capacity };
+    patchlib_constructor_invoke(ctor, &instance, args);
     if (!instance) {
         TEKLOG_ERROR("Failed to create dictionary instance");
         tefstd_vector_destroy(&v);
@@ -84,13 +87,10 @@ patch_handle_t patchlib_dictionary_create(patch_handle_t key_type, patch_handle_
     }
     TEKLOG_DEBUG("Dictionary instance created: %p", instance);
 
-    // 调用构造函数
-    void* args[] = { &capacity };
-    TEKLOG_DEBUG("Calling dictionary constructor with capacity: %d", (int)capacity);
-    patchlib_method_invoke_args(ctor, instance, NULL, args);
-    TEKLOG_INFO("Dictionary created successfully: %p (capacity: %zu)", instance, capacity);
-
     tefstd_vector_destroy(&v);
+    patchlib_free(generic_type);
+    patchlib_free(ctor);
+
     return instance;
 }
 
@@ -115,6 +115,9 @@ bool patchlib_dictionary_add(patch_handle_t dictionary, void* key, void* value) 
     void* args[2] = {key, value};
     bool result = patchlib_method_invoke_args(method_add, dictionary, NULL, args);
     TEKLOG_DEBUG("Dictionary add operation %s", result ? "succeeded" : "failed");
+
+    patchlib_free(method_add);
+
     return result;
 }
 
@@ -139,6 +142,9 @@ bool patchlib_dictionary_get_value(patch_handle_t dictionary, void* key, void* o
     void* args[1] = {key};
     bool result = patchlib_method_invoke_args(method_get_item, dictionary, out_value, args);
     TEKLOG_DEBUG("Dictionary get_value operation %s", result ? "succeeded" : "failed");
+
+    patchlib_free(method_get_item);
+
     return result;
 }
 
@@ -163,6 +169,9 @@ bool patchlib_dictionary_set_value(patch_handle_t dictionary, void* key, void* v
     void* args[2] = {key, value};
     const bool result = patchlib_method_invoke_args(method_set_item, dictionary, NULL, args);
     TEKLOG_DEBUG("Dictionary set_value operation %s", result ? "succeeded" : "failed");
+
+    patchlib_free(method_set_item);
+
     return result;
 }
 

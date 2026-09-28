@@ -48,7 +48,8 @@
 #include "internal/terraria/main.h"
 #include "internal/terraria/texture2d.h"
 #include "internal/terraria/item_manager.h"
-#include "internal/terraria/set_factory.h"
+#include "internal/terraria/recipe_manager.h"
+#include "internal/terraria/language_manager.h"
 
 static patch_handle_t find_and_initialize_make_generic_method_impl() {
     // If already initialized, return immediately
@@ -154,14 +155,15 @@ static int hook_il2cpp_init(const char* domain_name) {
 
     terraria_asset_init();
     terraria_item_manager_init();
-    // terraria_set_factory_init();
+    terraria_recipe_manager_init();
+    terraria_language_manager_init();
 
     tefkernel_init();
     tefkernel_load();
     tefkernel_start();
     terraria_netmanager_init();
 
-    // start_test();
+    start_test();
 
     TEKLOG_INFO("TEFKernel core initialization completed");
     TEKLOG_INFO("========================================");

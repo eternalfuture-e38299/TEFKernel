@@ -91,6 +91,35 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_method_make_generic_instance, patch_han
 DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
 #endif
 
+
+#if __ANDROID__
+/**
+ * @brief 描述一个按值传递的托管值类型参数。
+ *
+ * PatchLib 的普通参数枚举无法表达 Vector2、Color 等托管结构体。
+ * Android 实现会按 field_types 构造 libffi 的 ffi_type_struct，并将
+ * data 作为结构体本体按值传入；不会把结构体误当成指针。
+ *
+ * field_types 只允许基础标量类型，字段按托管结构体的自然顺序排列。
+ * data_size 必须等于结构体的本体大小。
+ */
+typedef struct patchlib_value_arg_t {
+    const void *data;
+    size_t data_size;
+    const patch_type_t *field_types;
+    size_t field_count;
+} patchlib_value_arg_t;
+
+/**
+ * @brief 使用显式值类型描述调用方法（Android）。
+ * @param value_args 参数描述数组，长度必须等于方法显式参数数量；
+ *        非结构体参数位置填 NULL，结构体参数位置填描述对象。
+ */
+DEFINE_FUNCTION(bool, patchlib_method_invoke_value_args, patch_handle_t method,
+                patch_handle_t instance, void *return_value, void **args,
+                const patchlib_value_arg_t *value_args)
+#endif
+
 /**
  * @brief 调用函数（使用参数数组）
  * @param method 函数句柄
