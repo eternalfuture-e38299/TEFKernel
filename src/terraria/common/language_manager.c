@@ -167,8 +167,10 @@ patch_handle_t terraria_language_manager_get_localized_text(const char *key) {
 #else
   patch_handle_t nkey = patchlib_string_create(key);
   patch_handle_t localized_text = PATCH_NULL;
-  void *args[1] = {&nkey} patchlib_method_invoke_args(language_get_text, NULL,
-                                                      &LocalizedText, args);
+  void *args[1] = {&nkey};
+
+patchlib_method_invoke_args(language_get_text, NULL,
+                                                      &localized_text, args);
   patchlib_free(nkey);
   return localized_text;
 #endif

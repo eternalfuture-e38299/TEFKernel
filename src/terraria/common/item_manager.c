@@ -25,6 +25,7 @@
 #include "terraria/recipe_manager.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -170,7 +171,7 @@ static terraria_item_handle_t unknown_item = {
     .internal_name = "unknown",
     .has_tooltip = false,
     .runtime_id = -1,
-    .item_ops = {.early_init = unknown_item_early_init,
+    .item_ops = {.early_init = NULL /*unknown_item_early_init*/,
                  .init_static = NULL,
                  .set_defaults = unknown_item_set_defaults,
                  .can_use = NULL,
@@ -1005,6 +1006,14 @@ int terraria_item_manager_get_count() {
          terraria_item_id_get_count();
 }
 
+terraria_item_handle_t* terraria_item_manager_get_item(int runtime_id) {
+  terraria_item_handle_t** r = tefstd_vector_at(&g_terraria_item_registry, runtime_id - terraria_item_id_get_count());
+  if (r && *r)
+    return *r;
+
+  return NULL;
+}
+
 tefstd_vector_t *terraria_item_manager_get_items() {
   return &g_terraria_item_registry;
 }
@@ -1091,5 +1100,4 @@ void terraria_item_manager_init_localized_text() {
   patchlib_free(array_item_tooltip_cache);
   patchlib_free(array_item_name_cache);
   patchlib_free(f_item_name_cache);
-  patchlib_free(lang_cls);
 }
