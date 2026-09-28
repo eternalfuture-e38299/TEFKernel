@@ -163,7 +163,7 @@ static int hook_il2cpp_init(const char* domain_name) {
     tefkernel_start();
     terraria_netmanager_init();
 
-    start_test();
+    // start_test();
 
     TEKLOG_INFO("TEFKernel core initialization completed");
     TEKLOG_INFO("========================================");

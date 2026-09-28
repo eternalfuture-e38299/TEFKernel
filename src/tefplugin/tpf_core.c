@@ -808,6 +808,9 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/main.h"
 #include "terraria/texture2d.h"
 #include "terraria/asset.h"
+#include "terraria/recipe_manager.h"
+#include "terraria/language_manager.h"
+#include "terraria/item_manager.h"
 
 void tpf_init_libtefkernel() {
     TEKLOG_INFO("Initializing libtefkernel - creating TPF instance");
@@ -1062,6 +1065,25 @@ void tpf_init_libtefkernel() {
 
     // asset
     TPF_KERNEL_SYMBOL(terraria_asset_create);
+
+    // recipe_manager
+    TPF_KERNEL_SYMBOL(terraria_recipe_manager_get_current_recipe);
+    TPF_KERNEL_SYMBOL(terraria_recipe_set_result);
+    TPF_KERNEL_SYMBOL(terraria_recipe_set_material);
+    TPF_KERNEL_SYMBOL(terraria_recipe_set_station);
+    TPF_KERNEL_SYMBOL(terraria_recipe_add);
+    TPF_KERNEL_SYMBOL(terraria_recipe_manager_register_callback);
+
+    // language_manager
+    TPF_KERNEL_SYMBOL(terraria_language_manager_create_localized_text);
+    TPF_KERNEL_SYMBOL(terraria_language_manager_get_localized_text);
+    TPF_KERNEL_SYMBOL(terraria_language_manager_register_callback);
+
+    // item_manager
+    TPF_KERNEL_SYMBOL(terraria_item_manager_register_item);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_unregister_item_by_id);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_get_item);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_get_items);
 
 
     // 将内核插件添加到全局列表

@@ -51,3 +51,6 @@
 #include "terraria/main.h"
 #include "terraria/asset.h"
 #include "terraria/texture2d.h"
+#include "terraria/item_manager.h"
+#include "terraria/recipe_manager.h"
+#include "terraria/language_manager.h"
