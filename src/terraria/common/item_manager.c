@@ -353,6 +353,62 @@ static void load_textures_postfix(patch_handle_t this, void **args,
 // 索引这些集合（ItemIconPulse、TrapSigned、TextureCopyLoad 等），
 // 任何一个没扩容都会导致绘制自定义物品时
 // IndexOutOfRangeException（表现为图标"透明"或崩溃）。
+// 扩容后把新槽位填成“该集合的默认值”。
+// SetFactory 生成的集合大多有非 0 默认值（ToolTipDamageMultiplier=1、
+// BonusMeleeSpeedMultiplier=1、SortingPriority*=-1 等），而 array_resize 只把
+// 新槽清零，会导致自定义物品“伤害显示 0 / 攻击速度 0 / 不能排序”。
+// 这里用原数组里出现次数最多的元素作为默认值填充（对 bool/int/float 集合即 factory 默认值）。
+static void fill_new_slots_with_modal(patch_handle_t old_array,
+                                      patch_handle_t new_array,
+                                      const size_t old_len,
+                                      const size_t new_len) {
+  enum { MAX_UNIQ = 64, EBUF = 256 };
+  if (!patchlib_is_valid(old_array) || !patchlib_is_valid(new_array) ||
+      old_len == 0 || new_len <= old_len)
+    return;
+
+  uint64_t keys[MAX_UNIQ];
+  int counts[MAX_UNIQ];
+  uint8_t vals[MAX_UNIQ][EBUF];
+  int nu = 0;
+  uint8_t buf[EBUF];
+
+  for (size_t i = 0; i < old_len; ++i) {
+    memset(buf, 0, EBUF);
+    if (!patchlib_array_at(old_array, i, buf))
+      continue;
+    uint64_t key = 0;
+    memcpy(&key, buf, sizeof(key));
+    int found = -1;
+    for (int j = 0; j < nu; ++j) {
+      if (keys[j] == key) {
+        found = j;
+        break;
+      }
+    }
+    if (found >= 0) {
+      counts[found]++;
+    } else if (nu < MAX_UNIQ) {
+      keys[nu] = key;
+      memcpy(vals[nu], buf, EBUF);
+      counts[nu] = 1;
+      nu++;
+    }
+  }
+  if (nu == 0)
+    return;
+
+  int best = 0;
+  for (int j = 1; j < nu; ++j) {
+    if (counts[j] > counts[best])
+      best = j;
+  }
+  for (size_t i = old_len; i < new_len; ++i) {
+    if (!patchlib_array_set(new_array, i, vals[best]))
+      break; // 某些结构/引用元素无法写入，保持默认(0/null)即可
+  }
+}
+
 static void resize_all_class_sets(const char *ns, const char *cls,
                                   const char *inner, const int base_count,
                                   const int new_size) {
@@ -381,7 +437,12 @@ static void resize_all_class_sets(const char *ns, const char *cls,
     return;
   }
 
-  // ⭐ 需要排除的字段名称（非数组、多维数组、引用类型数组、List等）
+  // ⭐ 需要排除的字段名称（非数组、List、长度不等于 ItemID.Count 的数组等）
+  //
+  // 注意：FoodParticleColors / DrinkParticleColors（Color[][]）以及若干可空数组
+  // （NetUseSoundSync 等）也按 type 索引、长度等于 ItemID.Count，**必须一起扩容**；
+  // 否则游戏用自定义 id 索引时会抛 IndexOutOfRangeException，被
+  // Main.ignoreErrors 静默吞掉，导致 ItemCheck 半途中断（近战命中、射击等失效）。
   const char *EXCLUDED_FIELDS[] = {
       // 非数组
       "Factory", "DD2BannerEffect", "DefaultKillsForBannerNeeded", "Count",
@@ -389,21 +450,8 @@ static void resize_all_class_sets(const char *ns, const char *cls,
       // List<T> 类型
       "ItemsThatAreProcessedAfterNormalContentSample", "NonColorfulDyeItems",
 
-      // 多维数组 (Color[][])
-      "FoodParticleColors", "DrinkParticleColors",
-
-      /*
-      // 引用类型数组 (FlowerPacketInfo[], BannerEffect[], PlacementDetails[],
-      UniqueTagEffect[]) "DerivedPlacementDetails", "flowerPacketInfo",
-      "BannerStrength",
-      "UniqueTagEffects",
-      "ColorfulDyeValues",*/
-
-      // 其他特殊类型
-      "ItemsForStuffCannon", "Workbenches", "CanBeQuickusedOnGamepad",
-      "ForcesBreaksSleeping", "NetUseSoundSync", "ForceConsumption",
-      "OnlyNeedOneInInventoryOverride", "CanPassivelyStackInWorldOverride",
-      "LockOnAimCompensation"};
+      // 长度不等于 ItemID.Count 的数组
+      "ItemsForStuffCannon", "Workbenches"};
 
   int resized = 0;
   int skipped = 0;
@@ -463,6 +511,8 @@ static void resize_all_class_sets(const char *ns, const char *cls,
     patch_handle_t new_array = patchlib_array_resize(array, new_size, NULL);
 
     if (patchlib_is_valid(new_array)) {
+      // 新槽按该集合默认值（原数组众数）填充，而不是 0
+      fill_new_slots_with_modal(array, new_array, len, (size_t)new_size);
       patchlib_field_set_value(field, NULL, &new_array);
       TEKLOG_DEBUG(
           "resize_all_itemid_sets: ✅ resized ItemID.Sets.%s (%zu -> %d)",
@@ -1025,7 +1075,15 @@ bool terraria_item_manager_register_item(terraria_item_handle_t *item_handle) {
                item_handle->parent_modloader_id) == 0 &&
         strcmp((*existing)->parent_id, item_handle->parent_id) == 0 &&
         strcmp((*existing)->internal_name, item_handle->internal_name) == 0) {
-      return false; /* 重复注册 */
+      // 热重载：同一 Mod 再次注册同名物品。用新句柄替换旧句柄，并保留
+      // 已分配的 runtime_id。
+      item_handle->runtime_id = (*existing)->runtime_id;
+      *existing = item_handle;
+      TEKLOG_INFO("item re-registered (hot reload): %s.%s id=%d",
+                  item_handle->parent_id ? item_handle->parent_id : "?",
+                  item_handle->internal_name ? item_handle->internal_name : "?",
+                  item_handle->runtime_id);
+      return true;
     }
   }
 
