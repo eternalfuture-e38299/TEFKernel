@@ -219,6 +219,8 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
     return; // 非原版物品不打印日志
   }
 
+  TEKLOG_INFO("set_defaults_postfix: custom nid=%d, applying defaults", nid);
+
   // ⭐ 关键：强制恢复 type（SetDefaults 内部可能把它清空了）
   patchlib_field_set_value(f_type, this, args[0]);
 
@@ -236,7 +238,8 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
     }
   }
 
-  patchlib_method_invoke_args(m_rebuild_tooltip, this, PATCH_NULL, NULL);
+  if (patchlib_is_valid(m_rebuild_tooltip))
+    patchlib_method_invoke_args(m_rebuild_tooltip, this, PATCH_NULL, NULL);
 }
 
 /*
@@ -947,6 +950,7 @@ void terraria_item_manager_init() {
   f_type = patchlib_type_get_field(item_class, "type");
   f_stack = patchlib_type_get_field(item_class, "stack");
   m_rebuild_tooltip = patchlib_type_get_method_by_param_count(item_class, "RebuildTooltip", 0);
+  TEKLOG_INFO("item: RebuildTooltip method=%p", m_rebuild_tooltip);
   m_reset_stats =
       patchlib_type_get_method_by_param_count(item_class, "ResetStats", 1);
   patch_handle_t set_defaults =
