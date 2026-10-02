@@ -46,6 +46,31 @@ void terraria_item_manager_init_localized_text();
  */
 int terraria_item_id_get_count();
 
+/**
+ * @brief 自定义物品常用的 Item 字段/方法句柄（供存档等模块使用）
+ */
+typedef struct {
+  patch_handle_t f_type;         // Item.type (int)
+  patch_handle_t f_stack;        // Item.stack (int)
+  patch_handle_t f_item_prefix;  // Item.prefix (byte)
+  patch_handle_t m_net_defaults; // Item.netDefaults(int)
+  patch_handle_t m_prefix;       // Item.Prefix(int)
+} terraria_item_handles_t;
+
+void terraria_item_manager_get_item_ops(terraria_item_handles_t *out);
+
+/**
+ * @brief 按稳定字符串键 (loader/mod/internal_name) 查找自定义物品
+ */
+terraria_item_handle_t *terraria_item_manager_find_item(const char *loader,
+                                                        const char *mod,
+                                                        const char *name);
+
+/**
+ * @brief 获取内核预留的“未知物品”占位句柄
+ */
+terraria_item_handle_t *terraria_item_manager_unknown_item();
+
 void terraria_item_manager_init_texture2d();
 
 // 扩容游戏中的数组以支持物品

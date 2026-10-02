@@ -48,6 +48,7 @@
 #include "internal/terraria/main.h"
 #include "internal/terraria/texture2d.h"
 #include "internal/terraria/item_manager.h"
+#include "internal/terraria/item_save.h"
 #include "internal/terraria/recipe_manager.h"
 #include "internal/terraria/language_manager.h"
 
@@ -155,6 +156,7 @@ static int hook_il2cpp_init(const char* domain_name) {
 
     terraria_asset_init();
     terraria_item_manager_init();
+    terraria_item_save_init();
     terraria_recipe_manager_init();
     terraria_language_manager_init();
 
