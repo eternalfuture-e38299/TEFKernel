@@ -617,9 +617,9 @@ bool tefkernel_initialize_all_modules(void) {
                 module_hash = 0xDA2BB9F26C5C1E01;
             } else if (strcmp(entry->info->pkg_id, "eternal.future.fontpackextension") == 0) {
                 module_hash = 0xB8B74AFCF15B6F37;
-            } /* else if (strcmp(entry->info->pkg_id, "eternal.future.audiopackextension") == 0) {
-                // 音频包扩展暂时不处理
-            } */
+            } else if (strcmp(entry->info->pkg_id, "eternal.future.audiopackextension") == 0) {
+                module_hash = 0x8D5A0F2C4E6B1A93;
+            }
 
             if (module_hash != -1) {
                 if (tefpkg_verify_signature(entry->pkg_handle, module_hash) == TEF_OK) {
