@@ -390,6 +390,7 @@ static void load_all_plugins(void) {
 
             if (result == TEF_OK && dylib && dylib_size > 0) {
                 void* dylib_handle = memdl_open(dylib, dylib_size, MEMDL_LAZY);
+                free(dylib);
                 if (dylib_handle) {
                     if (tpf_load_plugin(dylib_handle, NULL)) {
                         loaded++;
@@ -433,7 +434,7 @@ static void load_all_modloaders(void) {
 
             if (result == TEF_OK && dylib && dylib_size > 0) {
                 void* dylib_handle = memdl_open(dylib, dylib_size, MEMDL_LAZY);
-
+                free(dylib);
                 if (dylib_handle) {
                     if (tefkernel_load_ml(dylib_handle, entry.pkg, NULL)) {
                         loaded++;

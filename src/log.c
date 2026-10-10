@@ -141,7 +141,7 @@ static int generate_filename(char* buffer, const size_t buffer_size, const char*
 static void log_queue_init(log_queue_t* queue) {
     queue->head = queue->tail = NULL;
     queue->count = 0;
-    queue->capacity = 100000;  // 增大队列容量
+    queue->capacity = 8192;  // 上限约 16MB（节点含 2KB 消息缓冲），防止日志堆积时内存无限增长
 
 #if POSIX_THREADS
     pthread_mutex_init(&queue->mutex, NULL);
@@ -505,8 +505,9 @@ void tefkernel_log_write(const tefkernel_log_level_t level, const char* fmt, ...
     char message[2048];
     va_list args;
     va_start(args, fmt);
-    const int len = vsnprintf(message, sizeof(message) - 1, fmt, args);
-    message[len] = '\0';
+    // vsnprintf 总是在缓冲区范围内写入结尾 '\0'；
+    // 不再按“本应写入长度”做 message[len] = '\0'，避免超长消息越界写栈。
+    vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
     if (!g_log_ctx.running) {
@@ -552,8 +553,8 @@ void tefkernel_log_write_ex(const tefkernel_log_level_t level, const char *file,
 
     // 格式化消息内容
     char formatted_message[2048];
-    const int len = vsnprintf(formatted_message, sizeof(formatted_message) - 1, fmt, args);
-    formatted_message[len] = '\0';
+    // 同理，vsnprintf 已保证在缓冲区内写入 '\0'，不做越界的 formatted_message[len] = '\0'。
+    vsnprintf(formatted_message, sizeof(formatted_message), fmt, args);
     va_end(args);
 
     // 组合完整消息

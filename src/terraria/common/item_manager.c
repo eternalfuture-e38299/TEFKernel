@@ -214,7 +214,9 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
     return; // 非原版物品不打印日志
   }
 
-  TEKLOG_INFO("set_defaults_postfix: custom nid=%d, applying defaults", nid);
+  // 热路径（SetDefaults 每秒调用极频繁），日志降为 DEBUG，发布版自动剔除，
+  // 避免刷爆异步日志队列并拖慢日志线程。
+  TEKLOG_DEBUG("set_defaults_postfix: custom nid=%d, applying defaults", nid);
 
   // ⭐ 关键：强制恢复 type（SetDefaults 内部可能把它清空了）
   patchlib_field_set_value(f_type, this, args[0]);

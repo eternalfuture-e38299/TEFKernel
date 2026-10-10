@@ -143,12 +143,10 @@ static void free_modloader(ml_handle_t* ml_handle) {
     }
 
     // 关闭包句柄
-    // ReSharper disable once CppDFANullDereference
-    if (ml_handle->ml_entry->pkg_handle) {
+    // 注意：ml_entry 已在上面释放并置空，此处必须先判空再解引用。
+    if (ml_handle->ml_entry && ml_handle->ml_entry->pkg_handle) {
         TEKLOG_DEBUG("Closing package handle");
-        // ReSharper disable once CppDFANullDereference
         tefpkg_close(ml_handle->ml_entry->pkg_handle);
-        // ReSharper disable once CppDFANullDereference
         ml_handle->ml_entry->pkg_handle = NULL;
     }
 

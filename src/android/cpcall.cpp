@@ -99,7 +99,9 @@ static jobject getContentResolver(JNIEnv* env) {
 static jobject createBundle(JNIEnv* env) {
     jclass bundleClass = env->FindClass("android/os/Bundle");
     jmethodID constructor = env->GetMethodID(bundleClass, "<init>", "()V");
-    return env->NewObject(bundleClass, constructor);
+    jobject bundle = env->NewObject(bundleClass, constructor);
+    env->DeleteLocalRef(bundleClass);
+    return bundle;
 }
 
 static void putString(JNIEnv* env, jobject bundle, const char* key, const char* value) {
@@ -111,6 +113,7 @@ static void putString(JNIEnv* env, jobject bundle, const char* key, const char* 
     env->CallVoidMethod(bundle, putString, jKey, jValue);
     env->DeleteLocalRef(jKey);
     env->DeleteLocalRef(jValue);
+    env->DeleteLocalRef(bundleClass);
 }
 
 static void putInt(JNIEnv* env, jobject bundle, const char* key, jint value) {
@@ -119,6 +122,7 @@ static void putInt(JNIEnv* env, jobject bundle, const char* key, jint value) {
     jstring jKey = env->NewStringUTF(key);
     env->CallVoidMethod(bundle, putInt, jKey, value);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
 }
 
 static void putLong(JNIEnv* env, jobject bundle, const char* key, jlong value) {
@@ -127,6 +131,7 @@ static void putLong(JNIEnv* env, jobject bundle, const char* key, jlong value) {
     jstring jKey = env->NewStringUTF(key);
     env->CallVoidMethod(bundle, putLong, jKey, value);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
 }
 
 static bool getBoolean(JNIEnv* env, jobject bundle, const char* key) {
@@ -135,6 +140,7 @@ static bool getBoolean(JNIEnv* env, jobject bundle, const char* key) {
     jstring jKey = env->NewStringUTF(key);
     jboolean result = env->CallBooleanMethod(bundle, getBoolean, jKey);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
     return result;
 }
 
@@ -144,6 +150,7 @@ static int getInt(JNIEnv* env, jobject bundle, const char* key) {
     jstring jKey = env->NewStringUTF(key);
     jint result = env->CallIntMethod(bundle, getInt, jKey);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
     return result;
 }
 
@@ -153,6 +160,7 @@ static int64_t getLong(JNIEnv* env, jobject bundle, const char* key) {
     jstring jKey = env->NewStringUTF(key);
     jlong result = env->CallLongMethod(bundle, getLong, jKey);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
     return (int64_t)result;
 }
 
@@ -163,12 +171,16 @@ static std::string getString(JNIEnv* env, jobject bundle, const char* key) {
     auto jResult = (jstring)env->CallObjectMethod(bundle, getString, jKey);
     env->DeleteLocalRef(jKey);
 
-    if (!jResult) return "";
+    if (!jResult) {
+        env->DeleteLocalRef(bundleClass);
+        return "";
+    }
 
     const char* cstr = env->GetStringUTFChars(jResult, nullptr);
     std::string result(cstr);
     env->ReleaseStringUTFChars(jResult, cstr);
     env->DeleteLocalRef(jResult);
+    env->DeleteLocalRef(bundleClass);
 
     return result;
 }
@@ -180,6 +192,7 @@ static char* getStringAndAllocate(JNIEnv* env, jobject bundle, const char* key) 
     jstring jKey = env->NewStringUTF(key);
     auto jResult = (jstring)env->CallObjectMethod(bundle, getString, jKey);
     env->DeleteLocalRef(jKey);
+    env->DeleteLocalRef(bundleClass);
 
     if (!jResult) {
         ALOGE("No string value for key: %s", key);
