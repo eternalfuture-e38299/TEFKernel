@@ -40,7 +40,6 @@ typedef struct patchlib_hook_handle_t {
     ffi_cif cif; ///< FFI调用接口（直接存储，不动态分配）
     ffi_closure* closure;
     void *trampoline_func; ///< 跳板函数
-    ffi_type** arg_types; ///< ffi_prep_cif 引用的参数类型数组（需与 hook 生命周期一致，卸载时释放）
     patch_method_signature_t method_signature; ///< 函数签名
     tefstd_vector_t prefixes; ///< 前置补丁函数(void*)
     tefstd_vector_t postfixes; ///< 后置补丁函数(void*)
@@ -110,7 +109,6 @@ static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
 
     handle->method = method;
     handle->is_hooked = false;
-    handle->arg_types = NULL;
 
 
     // 初始化向量
@@ -352,9 +350,6 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
         return false;
     }
 
-    // ffi_prep_cif 只保存 arg_types 的指针，数组必须随 hook 一起常驻，卸载时释放。
-    handle->arg_types = arg_types;
-
     TEKLOG_DEBUG("Successfully created closure for method: %p", handle->method);
     return true;
 }
@@ -372,17 +367,9 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
 
 
     patchlib_hook_handle_t* handle = find_or_create_hook_handle(method);
-    if (!handle) {
-        TEKLOG_ERROR("Failed to create hook handle for method: %p", method);
-        return PATCH_HOOK_INVALID_ID;
-    }
-
     if (!handle->is_hooked) {
-        // 签名已在 find_or_create_hook_handle 内获取，这里不再重复获取，避免覆盖并泄漏旧 vector
-        if (!create_closure_from_signature(handle)) {
-            TEKLOG_ERROR("Failed to create closure for method: %p", method);
-            return PATCH_HOOK_INVALID_ID;
-        }
+        patchlib_method_get_signature(method, &handle->method_signature);
+        create_closure_from_signature(handle);
         DobbyHook(patchlib_method_get_pointer(method), handle->trampoline_func,  &handle->original);
         handle->is_hooked = true;
     }
@@ -470,11 +457,6 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
             TEKLOG_DEBUG("Freeing executable closure");
             free_executable_memory(handle->closure, sizeof(ffi_closure));
             handle->closure = NULL;
-        }
-        if (handle->arg_types) {
-            TEKLOG_DEBUG("Freeing ffi argument types");
-            free(handle->arg_types);
-            handle->arg_types = NULL;
         }
 
         handle->is_hooked = false;
