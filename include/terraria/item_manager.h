@@ -31,7 +31,6 @@
 #ifndef TEFKERNEL_ITEM_MANAGER_H
 #define TEFKERNEL_ITEM_MANAGER_H
 
-#if IS_TEFKERNEL_BUILD
 
 #include <stdbool.h>
 
@@ -99,9 +98,13 @@ typedef struct terraria_item_handle_t {
  * @brief 注册物品
  * @param item_handle 物品句柄
  * @return 注册结果
- * @warning 内核只会分配runtime_id以及初始化材质资源但不会管理，你需要手动实现注销逻辑
+ * @warning 句柄及字符串由调用者持有，释放前必须注销；新物品须在 Main.Initialize 前注册
  */
 DEFINE_FUNCTION(bool, terraria_item_manager_register_item, terraria_item_handle_t* item_handle)
+
+// Version 1: pointer-based removal preserves runtime IDs and detaches callbacks.
+DEFINE_FUNCTION(int, terraria_item_manager_get_api_version)
+DEFINE_FUNCTION(bool, terraria_item_manager_unregister_item, terraria_item_handle_t* item_handle)
 
 /**
  * @brief 通过运行时 ID 注销物品
@@ -126,6 +129,5 @@ DEFINE_FUNCTION(tefstd_vector_t*, terraria_item_manager_get_items)
 
 #ifdef __cplusplus
 }
-#endif
 #endif
 #endif //TEFKERNEL_ITEM_MANAGER_H

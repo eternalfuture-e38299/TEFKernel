@@ -1078,6 +1078,8 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_language_manager_register_callback);
 
     // item_manager
+    TPF_KERNEL_SYMBOL(terraria_item_manager_get_api_version);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_unregister_item);
     TPF_KERNEL_SYMBOL(terraria_item_manager_register_item);
     TPF_KERNEL_SYMBOL(terraria_item_manager_unregister_item_by_id);
     TPF_KERNEL_SYMBOL(terraria_item_manager_get_item);

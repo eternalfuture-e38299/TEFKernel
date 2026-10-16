@@ -21,6 +21,7 @@
  *******************************************************************************/
 
 #include "internal/terraria/language_manager.h"
+#include "internal/terraria/item_manager.h"
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/struct/string.h"
@@ -72,7 +73,7 @@ static void load_language_postfix(patch_handle_t instance, void **args,
 #else
     if (callback_text) {
       patch_handle_t content =
-          patchlib_string_create(callback((language_culture_t)legacy_id));
+          patchlib_string_create(callback_text);
       bool can_create_categories = true;
       void *iargs[2] = {&content, &can_create_categories};
       patchlib_method_invoke_args(load_text_json, instance, NULL, iargs);
@@ -89,6 +90,7 @@ static void load_language_postfix(patch_handle_t instance, void **args,
   patchlib_method_invoke_args(process_copy_commands_in_texts, instance, NULL,
                               NULL);
 #endif
+  terraria_item_manager_init_localized_text();
 }
 
 void terraria_language_manager_init() {

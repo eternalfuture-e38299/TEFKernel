@@ -44,6 +44,7 @@ static bool initialize_prefix(patch_handle_t this, void **args,
     if (custom_count > 0) {
         terraria_item_manager_assign_ids(base_count);
         terraria_item_manager_resize();
+        terraria_item_manager_init_localized_text();
         TEKLOG_INFO("Assigned IDs and resized arrays");
     }
     
@@ -87,7 +88,7 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
         terraria_item_manager_init_texture2d();
         TEKLOG_INFO("Arrays resized and textures initialized");
         
-        // terraria_item_manager_init_localized_text();
+        terraria_item_manager_init_localized_text();
     }
 
     // 初始化静态数据

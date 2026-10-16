@@ -185,6 +185,7 @@ static terraria_item_handle_t unknown_item = {
 
 static patch_handle_t f_type = PATCH_NULL;
 static patch_handle_t f_stack = PATCH_NULL;
+static patch_handle_t f_net_id = PATCH_NULL;
 static patch_handle_t m_reset_stats = PATCH_NULL;
 static patch_handle_t m_rebuild_tooltip = PATCH_NULL; // void RebuildTooltip()
 
@@ -218,7 +219,6 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
         return; // 非原版物品不打印日志
     }
 
-    TEKLOG_INFO("set_defaults_postfix: custom nid=%d, applying defaults", nid);
 
     // ⭐ 关键：强制恢复 type（SetDefaults 内部可能把它清空了）
     patchlib_field_set_value(f_type, this, args[0]);
@@ -237,53 +237,28 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
         }
     }
 
+    // A defaults callback may clone a vanilla item; retain the custom identity.
+    patchlib_field_set_value(f_type, this, args[0]);
+    if (patchlib_is_valid(f_net_id)) patchlib_field_set_value(f_net_id, this, args[0]);
     if (patchlib_is_valid(m_rebuild_tooltip))
         patchlib_method_invoke_args(m_rebuild_tooltip, this, PATCH_NULL, NULL);
 }
 
-/*
-static bool
-item_check_check_can_use_inner_prefix(patch_handle_t this, void **args,
-                                      const patch_method_signature_t *sig_info,
-                                      void *result) {
-
-  if (!args || !args[0] || !this) {
-    return false; // 非原版物品不打印日志
-  }
-
-  bool ignore_cursed = false;
-  if (args[1]) {
-    ignore_cursed = *(bool *)args[1];
-  }
-
-  patch_handle_t args_item = *(patch_handle_t *)args[0];
-  int current_item_type = 0;
-  patchlib_field_get_value(f_type, args_item, &current_item_type);
-
-  const int base_count = terraria_item_id_get_count();
-  const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
-
-  // 只处理自定义物品（超出原版范围的 ID）
-  const int nid = current_item_type - base_count;
-  if (nid < 0 || nid >= (int)custom_count) {
-    return false; // 非原版物品不打印日志
-  }
-
-  // 调用自定义物品的 can_use
-  terraria_item_handle_t **item_handle_ptr =
-      tefstd_vector_at(&g_terraria_item_registry, nid);
-  if (item_handle_ptr && *item_handle_ptr) {
-    terraria_item_handle_t *item_handle = *item_handle_ptr;
-    if (item_handle->item_ops.can_use) {
-      *(bool *)result = item_handle->item_ops.can_use(item_handle, this,
-                                                      args_item, ignore_cursed);
-      return true;
+static void item_can_use_postfix(patch_handle_t player, void **args,
+                                  void *result,
+                                  const patch_method_signature_t *sig_info) {
+    if (!player || !args || !args[0] || !result || !*(bool *)result)
+        return;
+    patch_handle_t item = *(patch_handle_t *)args[0];
+    if (!item) return;
+    int type = 0;
+    patchlib_field_get_value(f_type, item, &type);
+    terraria_item_handle_t *current = terraria_item_manager_get_item(type);
+    if (current && current->item_ops.can_use) {
+        bool ignore_cursed = args[1] && *(bool *)args[1];
+        *(bool *)result = current->item_ops.can_use(current, player, item, ignore_cursed);
     }
-  }
-
-  return false;
 }
-*/
 
 static void get_item_name_postfix(patch_handle_t this, void **args,
                                   void *result,
@@ -790,7 +765,7 @@ static void resize_lang_caches(const int base_count, const int new_size) {
     if (patchlib_is_valid(f_none))
         patchlib_field_get_value(f_none, NULL, &none);
     resize_array("Terraria", "Lang", "_itemTooltipCache", tooltip_class,
-                 new_size, NULL);
+                 new_size, patchlib_is_valid(none) ? &none : NULL);
 
     if (patchlib_is_valid(none))
         patchlib_free(none);
@@ -903,6 +878,7 @@ void terraria_item_manager_init() {
     patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
     f_type = patchlib_type_get_field(item_class, "type");
     f_stack = patchlib_type_get_field(item_class, "stack");
+    f_net_id = patchlib_type_get_field(item_class, "netID");
     m_rebuild_tooltip = patchlib_type_get_method_by_param_count(item_class, "RebuildTooltip", 0);
     TEKLOG_INFO("item: RebuildTooltip method=%p", m_rebuild_tooltip);
     m_reset_stats =
@@ -911,6 +887,15 @@ void terraria_item_manager_init() {
             patchlib_type_get_method_by_param_count(item_class, "SetDefaults", 2);
 
     patchlib_install_prepost_hook(set_defaults, NULL, set_defaults_postfix);
+
+    patch_handle_t player_class = patchlib_type_get_type("Terraria", "Player");
+    patch_handle_t can_use = patchlib_type_get_method_by_param_count(
+            player_class, "ItemCheck_CheckCanUse_Inner", 2);
+    if (!patchlib_is_valid(can_use) ||
+        patchlib_install_prepost_hook(can_use, NULL, item_can_use_postfix) == PATCH_HOOK_INVALID_ID)
+        TEKLOG_WARN("item: can_use hook unavailable on this game version");
+    patchlib_free(can_use);
+    patchlib_free(player_class);
 
     patch_handle_t texture_asset_class =
             patchlib_type_get_type("Terraria.GameContent", "TextureAssets");
@@ -972,9 +957,34 @@ void terraria_item_manager_init() {
 #endif
 }
 
+typedef struct retired_item_t {
+    terraria_item_handle_t item;
+    struct retired_item_t *next;
+} retired_item_t;
+static retired_item_t *retired_items = NULL;
+
+static void release_retired_item(terraria_item_handle_t *item) {
+    retired_item_t **link = &retired_items;
+    while (*link) {
+        retired_item_t *node = *link;
+        if (&node->item == item) {
+            *link = node->next;
+            free((void *)node->item.parent_modloader_id);
+            free((void *)node->item.parent_id);
+            free((void *)node->item.internal_name);
+            free(node);
+            return;
+        }
+        link = &node->next;
+    }
+}
+
+int terraria_item_manager_get_api_version() { return 1; }
+
 void terraria_item_manager_destroy() {
     // 注意：只释放 vector，不释放 item 本身（由调用者管理）
     tefstd_vector_destroy(&g_terraria_item_registry);
+    while (retired_items) release_retired_item(&retired_items->item);
     g_ids_assigned = false;
 }
 
@@ -995,10 +1005,13 @@ bool terraria_item_manager_register_item(terraria_item_handle_t *item_handle) {
                    item_handle->parent_modloader_id) == 0 &&
             strcmp((*existing)->parent_id, item_handle->parent_id) == 0 &&
             strcmp((*existing)->internal_name, item_handle->internal_name) == 0) {
+            if (*existing == item_handle) return true;
             // 热重载：同一 Mod 再次注册同名物品。用新句柄替换旧句柄，并保留
             // 已分配的 runtime_id。
             item_handle->runtime_id = (*existing)->runtime_id;
+            terraria_item_handle_t *old = *existing;
             *existing = item_handle;
+            release_retired_item(old);
             TEKLOG_INFO("item re-registered (hot reload): %s.%s id=%d",
                         item_handle->parent_id ? item_handle->parent_id : "?",
                         item_handle->internal_name ? item_handle->internal_name : "?",
@@ -1007,17 +1020,47 @@ bool terraria_item_manager_register_item(terraria_item_handle_t *item_handle) {
         }
     }
 
+    if (g_ids_assigned) return false;
+    item_handle->runtime_id = -1;
     /* 加入 registry */
     return tefstd_vector_push_back(&g_terraria_item_registry, &item_handle);
 }
 
-bool terraria_item_manager_unregister_item_by_id(const int runtime_id) {
-    if (runtime_id == 0)
-        return false;
+bool terraria_item_manager_unregister_item(terraria_item_handle_t *item) {
+    if (!item || item == &unknown_item) return false;
+    for (size_t i = 0; i < tefstd_vector_size(&g_terraria_item_registry); ++i) {
+        terraria_item_handle_t **slot = tefstd_vector_at(&g_terraria_item_registry, i);
+        if (!slot || *slot != item) continue;
+        retired_item_t *node = calloc(1, sizeof(*node));
+        if (!node) return false;
+        node->item = unknown_item;
+        node->item.parent_modloader_id = strdup(item->parent_modloader_id);
+        node->item.parent_id = strdup(item->parent_id);
+        node->item.internal_name = strdup(item->internal_name);
+        if (!node->item.parent_modloader_id || !node->item.parent_id || !node->item.internal_name) {
+            free((void *)node->item.parent_modloader_id);
+            free((void *)node->item.parent_id);
+            free((void *)node->item.internal_name);
+            free(node);
+            return false;
+        }
+        node->item.runtime_id = item->runtime_id;
+        node->item.item_ops.early_init = NULL;
+        node->next = retired_items;
+        retired_items = node;
+        *slot = &node->item;
+        release_retired_item(item);
+        return true;
+    }
+    return false;
+}
 
-    const size_t count = tefstd_vector_size(&g_terraria_item_registry);
-    for (size_t i = 0; i < count; i++) {
-        return tefstd_vector_erase(&g_terraria_item_registry, runtime_id, NULL);
+bool terraria_item_manager_unregister_item_by_id(const int runtime_id) {
+    if (runtime_id < 0) return false;
+    for (size_t i = 0; i < tefstd_vector_size(&g_terraria_item_registry); ++i) {
+        terraria_item_handle_t **slot = tefstd_vector_at(&g_terraria_item_registry, i);
+        if (slot && *slot && (*slot)->runtime_id == runtime_id)
+            return terraria_item_manager_unregister_item(*slot);
     }
     return false;
 }
@@ -1455,12 +1498,21 @@ static char *generate_key(size_t key_size, const char *prefix, terraria_item_han
 }
 
 void terraria_item_manager_init_localized_text() {
+    if (!g_ids_assigned || !patchlib_is_valid(f_item_name_cache) ||
+        !patchlib_is_valid(f_item_tooltip_cache)) return;
     patch_handle_t array_item_name_cache = PATCH_NULL;
     patch_handle_t array_item_tooltip_cache = PATCH_NULL;
     patchlib_field_get_value(f_item_name_cache, PATCH_NULL, &array_item_name_cache);
     patchlib_field_get_value(f_item_tooltip_cache, PATCH_NULL, &array_item_tooltip_cache);
 
     const int org_count = terraria_item_id_get_count();
+    if (!patchlib_is_valid(array_item_name_cache) || !patchlib_is_valid(array_item_tooltip_cache) ||
+        patchlib_array_length(array_item_name_cache) < (size_t)terraria_item_manager_get_count() ||
+        patchlib_array_length(array_item_tooltip_cache) < (size_t)terraria_item_manager_get_count()) {
+        patchlib_free(array_item_name_cache);
+        patchlib_free(array_item_tooltip_cache);
+        return;
+    }
 
     for (int i = 0; i < tefstd_vector_size(&g_terraria_item_registry); ++i) {
         // vector 存的是 terraria_item_handle_t*，所以先取指针，再解引用
@@ -1487,15 +1539,16 @@ void terraria_item_manager_init_localized_text() {
         if (current->has_tooltip) {
             char *item_tooltip_key_buffer = generate_key(15, "item_tooltip", current);
             patch_handle_t item_tooltip_key =
-                    terraria_language_manager_get_localized_text(item_tooltip_key_buffer);
+                    patchlib_string_create(item_tooltip_key_buffer);
 
 #if __ANDROID__
             patch_handle_t item_tooltip = ((void*(*)(short, void *)) patchlib_method_get_pointer(m_from_language_key))(
                 (short) target_index, item_tooltip_key);
 #else
-            void *args[2] = {&target_index, &item_tooltip_key};
+            short tooltip_id = (short)target_index;
+            void *args[2] = {&tooltip_id, &item_tooltip_key};
             patch_handle_t item_tooltip = PATCH_NULL;
-            patchlib_method_invoke_args(m_from_language_key, NULL, args, &item_tooltip);
+            patchlib_method_invoke_args(m_from_language_key, NULL, &item_tooltip, args);
 # endif
 
             patchlib_array_set(array_item_tooltip_cache, target_index, &item_tooltip);
@@ -1508,5 +1561,4 @@ void terraria_item_manager_init_localized_text() {
 
     patchlib_free(array_item_tooltip_cache);
     patchlib_free(array_item_name_cache);
-    patchlib_free(f_item_name_cache);
 }
