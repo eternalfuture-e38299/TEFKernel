@@ -179,11 +179,36 @@ jobs:
       - name: Build
         run: cmake --build --preset ci-android-arm64-${{ matrix.build_type }}
         
-      - name: Upload artifacts
+      - name: Prepare Android arm64 kernel package
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import shutil
+          import struct
+          from pathlib import Path
+
+          library = Path("build/ci-android-arm64-${{ matrix.build_type }}/libtefkernel.android.arm64-v8a.so")
+          header = library.read_bytes()[:20]
+          if len(header) != 20 or header[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", header, 18)[0] != 183:
+              raise SystemExit("Expected an Android ARM64 ELF shared library")
+          metadata = json.loads(Path("info.json").read_text())
+          if not metadata.get("version") or not isinstance(metadata.get("versionCode"), int):
+              raise SystemExit("Invalid kernel info.json")
+          stage = Path("dist/android-arm64-${{ matrix.build_type }}")
+          if stage.exists():
+              shutil.rmtree(stage)
+          stage.mkdir(parents=True)
+          shutil.copy2("info.json", stage / "info.json")
+          shutil.copy2(library, stage / library.name)
+          PYTHON
+
+      - name: Upload installable kernel package
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm64-${{ matrix.build_type }}
-          path: build/ci-android-arm64-${{ matrix.build_type }}/
+          name: tefkernel-android-arm64-${{ matrix.build_type }}
+          path: dist/android-arm64-${{ matrix.build_type }}/*
+          if-no-files-found: error
 
   android-arm32:
     runs-on: ubuntu-latest
