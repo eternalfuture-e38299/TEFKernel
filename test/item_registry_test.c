@@ -9,6 +9,8 @@
 #include "terraria/recipe_manager.h"
 #include "terraria/language_manager.h"
 
+static int recipe_callback_count, language_callback_count;
+
 // Game-facing calls are not executed by registry tests.
 void tefkernel_log_write_ex(tefkernel_log_level_t level, const char *file, int line,
                            const char *func, const char *fmt, ...) {}
@@ -26,10 +28,12 @@ patch_handle_t terraria_asset_create(patch_handle_t type, patch_handle_t value) 
 void terraria_recipe_set_result(int id, int stack) { assert(0); }
 void terraria_recipe_set_material(int *mats, int count) { assert(0); }
 void terraria_recipe_add(void) { assert(0); }
-void terraria_recipe_manager_register_callback(terraria_recipe_manager_addrecipes_t cb) { assert(0); }
-void terraria_language_manager_register_callback(terraria_languager_manager_get_localized_text_t cb) { assert(0); }
+void terraria_recipe_manager_register_callback(terraria_recipe_manager_addrecipes_t cb) { ++recipe_callback_count; }
+void terraria_language_manager_register_callback(terraria_languager_manager_get_localized_text_t cb) { ++language_callback_count; }
 
 int main(void) {
+    terraria_item_manager_unknown_item()->item_ops.early_init(terraria_item_manager_unknown_item());
+    assert(recipe_callback_count == 0 && language_callback_count == 1);
     assert(tefstd_vector_init(&g_terraria_item_registry, sizeof(terraria_item_handle_t *)));
     terraria_item_handle_t a = {.parent_modloader_id="lua",.parent_id="test",.internal_name="A"};
     terraria_item_handle_t b = {.parent_modloader_id="lua",.parent_id="test",.internal_name="B"};

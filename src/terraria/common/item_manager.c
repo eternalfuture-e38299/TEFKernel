@@ -44,33 +44,13 @@ static bool g_ids_assigned = false;
 static patch_handle_t item_id_count;
 static terraria_item_handle_t unknown_item;
 
-static const char *unknown_item_text(language_culture_t l) {
-    if (l == LANGUAGE_ENGLISH)
-        return "{"
-                "\"item_name_tefkernel_tefkernel\": {"
-                "\"unknown\": \"英文\""
-                "}"
-                "}";
-
-
-    return "{"
-            "\"item_name_tefkernel_tefkernel\": {"
-            "\"unknown\": \"不知道什么语言所以UNKNOWN\""
-            "},"
-            "item_tooltip_tefkernel_tefkernel: {"
-            "\"unknown\": \"傻逼泰拉代码\""
-            "}"
-            "}";
-}
-
-static void unknown_item_recipe() {
-    terraria_recipe_set_result(unknown_item.runtime_id, 9999);
-    terraria_recipe_set_material((int[2]){9, 1}, 1);
-    terraria_recipe_add();
+static const char *unknown_item_text(language_culture_t language) {
+    return language == LANGUAGE_ENGLISH
+        ? "{\"item_name_tefkernel_tefkernel\":{\"unknown\":\"Unknown item\"}}"
+        : "{\"item_name_tefkernel_tefkernel\":{\"unknown\":\"未知物品\"}}";
 }
 
 static void unknown_item_early_init(terraria_item_handle_t *current) {
-    terraria_recipe_manager_register_callback(unknown_item_recipe);
     terraria_language_manager_register_callback(unknown_item_text);
 }
 
@@ -81,16 +61,12 @@ static void unknown_item_set_defaults(terraria_item_handle_t *current,
     if (patchlib_is_valid(item_class)) {
         patch_handle_t f_name_override =
                 patchlib_type_get_field(item_class, "_nameOverride");
-        patch_handle_t f_bestiary_notes =
-                patchlib_type_get_field(item_class, "BestiaryNotes");
         if (patchlib_is_valid(f_name_override)) {
-            patch_handle_t name = patchlib_string_create("UNKNOWN");
+            patch_handle_t name = patchlib_string_create("未知物品");
             patchlib_field_set_value(f_name_override, instance, &name);
-            patchlib_field_set_value(f_bestiary_notes, instance, &name);
 
             patchlib_free(name);
             patchlib_free(f_name_override);
-            patchlib_free(f_bestiary_notes);
         }
         patchlib_free(item_class);
     }
@@ -175,7 +151,7 @@ static terraria_item_handle_t unknown_item = {
     .has_tooltip = false,
     .runtime_id = -1,
     .item_ops = {
-        .early_init = unknown_item_early_init /*unknown_item_early_init*/,
+        .early_init = unknown_item_early_init,
         .init_static = NULL,
         .set_defaults = unknown_item_set_defaults,
         .can_use = NULL,
