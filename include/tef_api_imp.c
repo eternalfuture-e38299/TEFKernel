@@ -53,4 +53,7 @@
 #include "terraria/texture2d.h"
 #include "terraria/item_manager.h"
 #include "terraria/recipe_manager.h"
-#include "terraria/language_manager.h"
+#include "terraria/buff_manager.h"
+#include "terraria/npc_manager.h"
+#include "terraria/projectile_manager.h"
+#include "terraria/gui.h"
