@@ -92,9 +92,12 @@ set(TERRARIA_SRC
         src/terraria/common/npc_manager.c
         src/terraria/common/buff_manager.c
         src/terraria/common/gui.c
-        src/terraria/common/item_save.c
         src/terraria/common/recipe_manager.c
         src/terraria/common/language_manager.c
+        src/terraria/common/save/tef_save_format.c
+        src/terraria/common/save/tef_save_game_handles.c
+        src/terraria/common/save/tef_player_save.c
+        src/terraria/common/save/tef_world_save.c
 )
 
 set(TEFPACKAGE_SRC

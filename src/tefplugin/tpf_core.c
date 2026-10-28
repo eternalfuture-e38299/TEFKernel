@@ -72,7 +72,7 @@ void tpf_add_plugin_ref(const char* pkg_id) {
         entry->ref_count++;
         TEKLOG_DEBUG("Plugin %s ref count increased to %d", pkg_id, entry->ref_count);
     } else {
-        plugin_ref_entry_t new_entry = {
+        const plugin_ref_entry_t new_entry = {
             .pkg_id = pkg_id,
             .ref_count = 1
         };
@@ -112,7 +112,7 @@ void tpf_remove_plugin_ref(const char* pkg_id) {
 int tpf_get_plugin_ref_count(const char* pkg_id) {
     if (!pkg_id || !g_plugin_refs_initialized) return 0;
 
-    plugin_ref_entry_t* entry = tefstd_hashmap_get(&g_plugin_refs, &pkg_id);
+    const plugin_ref_entry_t* entry = tefstd_hashmap_get(&g_plugin_refs, &pkg_id);
     return entry ? entry->ref_count : 0;
 }
 
@@ -1074,6 +1074,8 @@ void tpf_init_libtefkernel() {
 
     // asset
     TPF_KERNEL_SYMBOL(terraria_asset_create);
+    TPF_KERNEL_SYMBOL(terraria_asset_get_generic_class);
+    TPF_KERNEL_SYMBOL(terraria_asset_get_value);
 
     // recipe_manager
     TPF_KERNEL_SYMBOL(terraria_recipe_manager_get_current_recipe);
@@ -1096,6 +1098,7 @@ void tpf_init_libtefkernel() {
     /* 可重铸类别（Mod 主动声明；不声明即不可重铸） */
     TPF_KERNEL_SYMBOL(terraria_item_manager_set_prefix_class);
     TPF_KERNEL_SYMBOL(terraria_item_manager_apply_prefix_classes);
+
     // projectile_manager
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_register_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_unregister_projectile_by_id);
@@ -1103,6 +1106,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_get_projectiles);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_find_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_id_get_count);
+
     // npc_manager
     TPF_KERNEL_SYMBOL(terraria_npc_manager_register_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_unregister_npc_by_id);
@@ -1112,6 +1116,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_npc_id_get_count);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_spawn);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_drop_item);
+
     // buff_manager
     TPF_KERNEL_SYMBOL(terraria_buff_manager_register_buff);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_unregister_buff_by_id);
@@ -1122,6 +1127,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_buff_manager_add);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_time);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_remove);
+
     // gui
     TPF_KERNEL_SYMBOL(terraria_buff_manager_refresh_display_text);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);

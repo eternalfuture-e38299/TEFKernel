@@ -37,7 +37,6 @@
 #include "patchlib/struct/array.h"
 #include "patchlib/type.h"
 #include "terraria/gui.h"
-#include "terraria/texture2d.h"
 
 #define BUFF_ACTIVE_MAX 32
 
@@ -89,8 +88,7 @@ typedef struct {
 /* 桌面版每次从这里拿到的对象句柄都不同，所以一律用 whoAmI 判断“同一个玩家”。 */
 static int player_who(patch_handle_t player) {
     if (player == PATCH_NULL || f_player_who_am_i == PATCH_NULL) return -1;
-    unsigned char buf[64];
-    memset(buf, 0, sizeof(buf));
+    unsigned char buf[64] = {0};
     patchlib_field_get_value(f_player_who_am_i, player, buf);
     int who = -1;
     memcpy(&who, buf, sizeof(who));
@@ -180,8 +178,8 @@ static void clear_active_of(const int runtime_id) {
     }
 }
 
-void terraria_buff_manager_refresh_display_text(terraria_buff_handle_t *h) {
-    capture_display_text(h);
+void terraria_buff_manager_refresh_display_text(terraria_buff_handle_t *buff_handle) {
+    capture_display_text(buff_handle);
 }
 
 bool terraria_buff_manager_unregister_buff_by_id(const int runtime_id) {
@@ -277,24 +275,24 @@ static active_buff_t *find_active(patch_handle_t player, const int runtime_id) {
     return NULL;
 }
 
-int terraria_buff_manager_add(terraria_buff_handle_t *h, patch_handle_t player, int time) {
-    if (!h || h->runtime_id < 0 || player == PATCH_NULL || time <= 0)
+int terraria_buff_manager_add(terraria_buff_handle_t *buff_handle, patch_handle_t player, const int time) {
+    if (!buff_handle || buff_handle->runtime_id < 0 || player == PATCH_NULL || time <= 0)
         return -1;
 
-    active_buff_t *a = find_active(player, h->runtime_id);
+    active_buff_t *a = find_active(player, buff_handle->runtime_id);
     if (!a) {
         if (g_active_count >= BUFF_ACTIVE_MAX) {
-            TEKLOG_WARN("buff: active 列表已满 (%d)", BUFF_ACTIVE_MAX);
+            TEKLOG_WARN("buff: active list is full (%d)", BUFF_ACTIVE_MAX);
             return -1;
         }
         a = &g_active[g_active_count++];
         a->player = PATCH_NULL;   /* 桌面版句柄是临时的，身份只用 who */
         a->who = player_who(player);
-        a->buff_id = h->runtime_id;
+        a->buff_id = buff_handle->runtime_id;
         a->time = 0;
     }
     if (time > a->time) a->time = time;
-    if (h->buff_ops.apply) h->buff_ops.apply(h, player, a->time);
+    if (buff_handle->buff_ops.apply) buff_handle->buff_ops.apply(buff_handle, player, a->time);
     return a->time;
 }
 
@@ -310,7 +308,7 @@ void terraria_buff_manager_clear_debuffs(patch_handle_t player) {
         const int h_id = g_active[i].buff_id;
         terraria_buff_handle_t *h = find_by_runtime_id(h_id);
         if (g_active[i].who == who && h && h->debuff) {
-            TEKLOG_DEBUG("buff: 护士治疗清除减益 %s", h->internal_name);
+            TEKLOG_DEBUG("buff: nurse heal removed debuff %s", h->internal_name);
             g_active[i] = g_active[g_active_count - 1];
             g_active_count--;
         } else {
@@ -330,7 +328,7 @@ static void nurse_service_postfix(patch_handle_t this, void **args, void *result
 }
 
 void terraria_buff_manager_visit_active(patch_handle_t player,
-                                        terraria_buff_active_visitor_t visitor,
+                                        const terraria_buff_active_visitor_t visitor,
                                         void *user) {
     if (!visitor || player == PATCH_NULL) return;
     const int who = player_who(player);
@@ -341,16 +339,16 @@ void terraria_buff_manager_visit_active(patch_handle_t player,
     }
 }
 
-int terraria_buff_manager_time(terraria_buff_handle_t *h, patch_handle_t player) {
-    if (!h || player == PATCH_NULL) return 0;
-    active_buff_t *a = find_active(player, h->runtime_id);
+int terraria_buff_manager_time(terraria_buff_handle_t *buff_handle, patch_handle_t player) {
+    if (!buff_handle || player == PATCH_NULL) return 0;
+    active_buff_t *a = find_active(player, buff_handle->runtime_id);
     return a ? a->time : 0;
 }
 
-void terraria_buff_manager_remove(terraria_buff_handle_t *h, patch_handle_t player) {
-    if (!h || player == PATCH_NULL) return;
+void terraria_buff_manager_remove(terraria_buff_handle_t *buff_handle, patch_handle_t player) {
+    if (!buff_handle || player == PATCH_NULL) return;
     for (int i = 0; i < g_active_count;) {
-        if (g_active[i].who == player_who(player) && g_active[i].buff_id == h->runtime_id) {
+        if (g_active[i].who == player_who(player) && g_active[i].buff_id == buff_handle->runtime_id) {
             g_active[i] = g_active[g_active_count - 1];
             g_active_count--;
         } else {
@@ -447,8 +445,7 @@ static unsigned g_bar_mask_epoch = 0;  /* 已画掩码所属帧 */
 static unsigned long long g_bar_mask = 0;
 
 static int main_my_player(void) {
-    unsigned char buf[64];
-    memset(buf, 0, sizeof(buf));
+    unsigned char buf[64] = {0};
     if (m_get_my_player != PATCH_NULL) {
         patchlib_method_invoke_args(m_get_my_player, NULL, buf, NULL);
         int my = 0;
@@ -466,8 +463,7 @@ static int main_my_player(void) {
 
 static bool read_int_handle(patch_handle_t field, patch_handle_t getter, int *out) {
     if (!out) return false;
-    unsigned char buf[64];
-    memset(buf, 0, sizeof(buf));
+    unsigned char buf[64] = {0};
     if (getter != PATCH_NULL) {
         patchlib_method_invoke_args(getter, NULL, buf, NULL);
     } else if (field != PATCH_NULL) {
@@ -484,8 +480,7 @@ static bool read_mouse_y(int *y) { return read_int_handle(f_main_mouse_y, m_get_
 
 static bool read_bool_handle(patch_handle_t field, patch_handle_t getter, bool *out) {
     if (!out) return false;
-    unsigned char buf[64];
-    memset(buf, 0, sizeof(buf));
+    unsigned char buf[64] = {0};
     if (getter != PATCH_NULL) {
         patchlib_method_invoke_args(getter, NULL, buf, NULL);
     } else if (field != PATCH_NULL) {
@@ -527,8 +522,7 @@ static patch_handle_t local_player_obj(void) {
 
 static void *main_sprite_batch(void) {
     if (f_sprite_batch == PATCH_NULL) return NULL;
-    unsigned char sbbuf[64];
-    memset(sbbuf, 0, sizeof(sbbuf));
+    unsigned char sbbuf[64] = {0};
     patchlib_field_get_value(f_sprite_batch, NULL, sbbuf);
     void *sb = NULL;
     memcpy(&sb, sbbuf, sizeof(sb));
@@ -746,7 +740,7 @@ static bool item_grid_draw_prefix(patch_handle_t this, void **args,
     }
     const int extra = local_custom_count();
     if (extra <= 0) return false;
-    int *count = (int *) args[4];
+    int *count = args[4];
     g_bar_base = *count;
     *count += extra;
     TEKLOG_DEBUG("buff bar: extend %d -> %d", g_bar_base, *count);
@@ -774,12 +768,12 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
         g_bar_mask |= bit;
     }
 
-    active_buff_t *a = local_nth_custom(slot);
-    if (!a) return true;
-    terraria_buff_handle_t *h = find_by_runtime_id(a->buff_id);
+    active_buff_t *abuff = local_nth_custom(slot);
+    if (!abuff) return true;
+    terraria_buff_handle_t *h = find_by_runtime_id(abuff->buff_id);
     if (!h) return true;
 
-    const float *pos = (const float *) args[2];
+    const float *pos = args[2];
     /* 原版：scale = Buffs_Layout.ItemScale（未选中时），贴图 32x32 按它缩放 */
     float item_scale = 1.0f;
     /* 原版: Lerp(NormalColour, SelectedColour, buffAlpha)；激活态 buffAlpha 高，
@@ -793,15 +787,13 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
     {
         patch_handle_t inst_t = PATCH_NULL;
         if (m_layout_instance != PATCH_NULL) {
-            unsigned char ibuf_t[64];
-            memset(ibuf_t, 0, sizeof(ibuf_t));
+            unsigned char ibuf_t[64] = {0};
             patchlib_method_invoke_args(m_layout_instance, NULL, ibuf_t, NULL);
             memcpy(&inst_t, ibuf_t, sizeof(inst_t));
         }
         if (inst_t != PATCH_NULL) {
             if (f_layout_normal_colour != PATCH_NULL) {
-                unsigned char cbuf_t[64];
-                memset(cbuf_t, 0, sizeof(cbuf_t));
+                unsigned char cbuf_t[64] = {0};
                 patchlib_field_get_value(f_layout_normal_colour, inst_t, cbuf_t);
                 unsigned char a = cbuf_t[3];
                 if (a > 0) tint = ((unsigned) a << 24) | 0x00FFFFFFu;
@@ -811,14 +803,12 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
     }
     if (m_layout_instance != PATCH_NULL) {
         patch_handle_t inst = PATCH_NULL;
-        unsigned char ibuf[64];
-        memset(ibuf, 0, sizeof(ibuf));
+        unsigned char ibuf[64] = {0};
         patchlib_method_invoke_args(m_layout_instance, NULL, ibuf, NULL);
         memcpy(&inst, ibuf, sizeof(inst));
         if (inst != PATCH_NULL) {
             if (f_layout_item_scale != PATCH_NULL) {
-                unsigned char fbuf[64];
-                memset(fbuf, 0, sizeof(fbuf));
+                unsigned char fbuf[64] = {0};
                 patchlib_field_get_value(f_layout_item_scale, inst, fbuf);
                 memcpy(&item_scale, fbuf, sizeof(item_scale));
             }
@@ -829,13 +819,11 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
     float selected_scale = item_scale;
     if (m_layout_instance != PATCH_NULL && f_layout_selected_scale != PATCH_NULL) {
         patch_handle_t inst_s = PATCH_NULL;
-        unsigned char sb[64];
-        memset(sb, 0, sizeof(sb));
+        unsigned char sb[64] = {0};
         patchlib_method_invoke_args(m_layout_instance, NULL, sb, NULL);
         memcpy(&inst_s, sb, sizeof(inst_s));
         if (inst_s != PATCH_NULL) {
-            unsigned char vb[64];
-            memset(vb, 0, sizeof(vb));
+            unsigned char vb[64] = {0};
             patchlib_field_get_value(f_layout_selected_scale, inst_s, vb);
             float v = 0.0f;
             memcpy(&v, vb, sizeof(v));
@@ -845,7 +833,7 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
     }
 
     /* 悬停高亮：复刻 Main.buffAlpha（0.4 起步，悬停 +0.1/帧，离开 -0.05/帧） */
-    const int alpha_slot = (a->buff_id & 31);
+    const int alpha_slot = (abuff->buff_id & 31);
     float hover_t = g_buff_alpha[alpha_slot];
     if (hover_t <= 0.0f) hover_t = 0.4f;
     const bool hovered = g_mx >= (int) pos[0] && g_mx < (int) pos[0] + 34 &&
@@ -862,7 +850,7 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
 
     /* 双击/右键取消 */
     if (hovered && g_left_tap && !h->debuff) {
-        if (g_last_tap_buff == a->buff_id && g_frame_no - g_last_tap_frame <= 20) {
+        if (g_last_tap_buff == abuff->buff_id && g_frame_no - g_last_tap_frame <= 20) {
             patch_handle_t pl = local_player_obj();
             if (pl != PATCH_NULL) {
                 terraria_buff_manager_remove(h, pl);
@@ -872,14 +860,13 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
             terraria_gui_end_external();
             return true;
         }
-        g_last_tap_buff = a->buff_id;
+        g_last_tap_buff = abuff->buff_id;
         g_last_tap_frame = g_frame_no;
     }
 
     void *sb = NULL;
     if (f_sprite_batch != PATCH_NULL) {
-        unsigned char sbbuf[64];
-        memset(sbbuf, 0, sizeof(sbbuf));
+        unsigned char sbbuf[64] = {0};
         patchlib_field_get_value(f_sprite_batch, NULL, sbbuf);
         memcpy(&sb, sbbuf, sizeof(sb));
     }
@@ -898,14 +885,14 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
         /* 与原版 GUIBuffs.ItemDraw 一致：<60s 用秒，<60min 用分，再往上用小时，
          * 数字四舍五入；带单位后缀。 */
         char label[24];
-        if (a->time < 3600) {
-            int v = (a->time + 30) / 60;
+        if (abuff->time < 3600) {
+            int v = (abuff->time + 30) / 60;
             if (v < 1) v = 1;
             snprintf(label, sizeof(label), "%d s", v);
-        } else if (a->time < 216000) {
-            snprintf(label, sizeof(label), "%d m", (a->time + 1800) / 3600);
+        } else if (abuff->time < 216000) {
+            snprintf(label, sizeof(label), "%d m", (abuff->time + 1800) / 3600);
         } else {
-            snprintf(label, sizeof(label), "%d h", (a->time + 108000) / 216000);
+            snprintf(label, sizeof(label), "%d h", (abuff->time + 108000) / 216000);
         }
         /* 原版：位置 = 图标位置 + TextOffset * ItemScale，
          *       字号 = ItemScale * TextScale，
@@ -914,23 +901,20 @@ static bool buff_item_draw_prefix(patch_handle_t this, void **args,
         float off_x = size * 0.15f, off_y = size * 0.95f;
         patch_handle_t inst2 = PATCH_NULL;
         if (m_layout_instance != PATCH_NULL) {
-            unsigned char ibuf2[64];
-            memset(ibuf2, 0, sizeof(ibuf2));
+            unsigned char ibuf2[64] = {0};
             patchlib_method_invoke_args(m_layout_instance, NULL, ibuf2, NULL);
             memcpy(&inst2, ibuf2, sizeof(inst2));
         }
         if (inst2 != PATCH_NULL) {
             if (f_layout_text_scale != PATCH_NULL) {
-                unsigned char tbuf[64];
-                memset(tbuf, 0, sizeof(tbuf));
+                unsigned char tbuf[64] = {0};
                 patchlib_field_get_value(f_layout_text_scale, inst2, tbuf);
                 float v = 0.0f;
                 memcpy(&v, tbuf, sizeof(v));
                 if (v > 0.0f) text_scale = v;
             }
             if (f_layout_text_offset != PATCH_NULL) {
-                unsigned char obuf[64];
-                memset(obuf, 0, sizeof(obuf));
+                unsigned char obuf[64] = {0};
                 patchlib_field_get_value(f_layout_text_offset, inst2, obuf);
                 float ox = 0.0f, oy = 0.0f;
                 memcpy(&ox, obuf, sizeof(ox));
@@ -1033,16 +1017,15 @@ static void pc_buffs_draw_postfix(patch_handle_t this, void **args, void *result
     void *sb = main_sprite_batch();
     if (!sb) return;
     terraria_gui_begin_external(sb);
-    const unsigned tint = 0x66FFFFFFu;   /* 0.4：原版 buffAlpha 静止值 */
     bool removed = false;
     for (int i = 0; i < g_active_count; ++i) {
         active_buff_t *a = &g_active[i];
         if (a->who != local_who || a->time <= 0) continue;
         terraria_buff_handle_t *h = find_by_runtime_id(a->buff_id);
         if (!h) continue;
-        const float x = (float) (base_x + (n % 11) * step);
-        const float y = (float) (base_y + (n / 11) * 50);
-        const int aslot = (a->buff_id & 31);
+        const float x = (float) (base_x + n % 11 * step);
+        const float y = (float) (base_y + n / 11 * 50); // NOLINT(*-integer-division)
+        const int aslot = a->buff_id & 31;
         float hover_t = g_buff_alpha[aslot];
         if (hover_t <= 0.0f) hover_t = 0.4f;
         const bool hovered = g_mx >= (int) x && g_mx < (int) x + 34 &&
@@ -1067,6 +1050,7 @@ static void pc_buffs_draw_postfix(patch_handle_t this, void **args, void *result
             removed = true;
         }
         if (!h->no_time_display) {
+            const unsigned tint = 0x66FFFFFFu;
             char label[24];
             if (a->time < 3600) {
                 int v = (a->time + 30) / 60;
@@ -1121,23 +1105,24 @@ void terraria_buff_manager_init(void) {
         /* PC 没有 GUIBuffs/GUIItemGrid，Buff 栏由 DrawInterface_Resources_Buffs 画 */
         {
             patch_handle_t d = patchlib_type_get_method_by_param_count(
-                    main_cls, "DrawInterface_Resources_Buffs", 0);
+        main_cls, "DrawInterface_Resources_Buffs", 0);
             if (patchlib_is_valid(d)) {
                 h_buff_bar = patchlib_install_prepost_hook(d, pc_buffs_draw_prefix,
                                                            pc_buffs_draw_postfix);
                 TEKLOG_INFO("buff: hooked Main.DrawInterface_Resources_Buffs (%d)",
                             (int) h_buff_bar);
             } else {
-                TEKLOG_WARN("buff: 未找到 Main.DrawInterface_Resources_Buffs（PC 图标不会显示）");
+                TEKLOG_WARN("buff: Main.DrawInterface_Resources_Buffs not found (PC icons will not be displayed)");
             }
+
             /* 记录原版图标坐标（静态方法 4 参：drawBuffText, slot, x, y） */
             patch_handle_t icon = patchlib_type_get_method_by_param_count(
                     main_cls, "DrawBuffIcon", 4);
             if (patchlib_is_valid(icon)) {
                 patchlib_install_prepost_hook(icon, pc_draw_buff_icon_prefix, NULL);
-                TEKLOG_INFO("buff: hooked Main.DrawBuffIcon (基准坐标)");
+                TEKLOG_INFO("buff: hooked Main.DrawBuffIcon (reference coordinates)");
             } else {
-                TEKLOG_WARN("buff: 未找到 Main.DrawBuffIcon（图标位置退回常量）");
+                TEKLOG_WARN("buff: Main.DrawBuffIcon not found (icon position will fall back to constants)");
             }
         }
 #endif
@@ -1184,7 +1169,7 @@ void terraria_buff_manager_init(void) {
                         patchlib_install_prepost_hook(m_service, NULL, nurse_service_postfix);
                 TEKLOG_INFO("buff: hooked AchievementsHelper.HandleNurseService id=%d", (int) hid);
             } else {
-                TEKLOG_WARN("buff: 未找到 AchievementsHelper.HandleNurseService");
+                TEKLOG_WARN("buff: AchievementsHelper.HandleNurseService not found");
             }
             patchlib_free(t_helper);
         }
@@ -1219,8 +1204,8 @@ void terraria_buff_manager_init(void) {
             patchlib_free(grid);
         }
     }
-    TEKLOG_INFO("buff: init done (custom=%zu, 不占用原版 BuffID)",
-                tefstd_vector_size(&g_terraria_buff_registry));
+TEKLOG_INFO("buff: init done (custom=%zu, does not occupy vanilla BuffID)",
+    tefstd_vector_size(&g_terraria_buff_registry));
 }
 
 void terraria_buff_manager_destroy(void) {

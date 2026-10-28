@@ -78,7 +78,7 @@ DEFINE_FUNCTION(void, terraria_recipe_set_result, int item_id, int stack)
  *          每种材料的stack不能超过物品最大堆叠数
  *          数组长度必须等于 count * 2
  */
-DEFINE_FUNCTION(void, terraria_recipe_set_material, int* materials, int count)
+DEFINE_FUNCTION(void, terraria_recipe_set_material, const int* materials, int count)
 
 /**
  * @brief 设置合成所需的合成站（工作台、熔炉等）

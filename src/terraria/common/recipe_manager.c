@@ -88,8 +88,8 @@ static void find_recipes_postfix(patch_handle_t this, void **args, void *result,
 static void ensure_recipe_capacity(void);
 
 #if !defined(__ANDROID__)
-static void resize_crafting_ui_recipe_y(const int new_size);
-static void resize_new_crafting_ui_lookup(const int new_size);
+static void resize_crafting_ui_recipe_y(int new_size);
+static void resize_new_crafting_ui_lookup(int new_size);
 #endif
 
 static bool recipe_add_prefix(patch_handle_t this, void **args,
@@ -424,7 +424,7 @@ void terraria_recipe_set_result(int item_id, int stack) {
     patchlib_free(create_item);
 }
 
-void terraria_recipe_set_material(int *materials, const int count) {
+void terraria_recipe_set_material(const int *materials, const int count) {
     patch_handle_t current_recipe = terraria_recipe_manager_get_current_recipe();
     patch_handle_t int_type = patchlib_get_basic_type(PATCH_INT32);
 
@@ -687,10 +687,8 @@ static bool recipe_add_prefix(patch_handle_t this, void **args,
 }
 
 void terraria_recipe_add() {
-
     /* 兜底：直接走 invoke 时也保证容量（如果 hook 没被触发） */
     ensure_recipe_capacity();
-
 #if __ANDROID__
     ((void (*)()) patchlib_method_get_pointer(add_recipe))();
 #else

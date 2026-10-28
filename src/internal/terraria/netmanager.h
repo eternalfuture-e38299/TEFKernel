@@ -49,7 +49,7 @@ typedef enum {
 } error_type_t;
 
 #define TEFKERNEL_MAGIC_STRING "Terraria With TEFKernel"
-#define TEFKERNEL_VERSION_CODE 2026080800ULL
+#define TEFKERNEL_VERSION_CODE 2026102800ULL
 
 extern connection_type_t terraria_netmanager_client_connections[256];
 extern error_type_t terraria_netmanager_client_errors[256];

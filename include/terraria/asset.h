@@ -53,6 +53,13 @@ DEFINE_FUNCTION(patch_handle_t, terraria_asset_create, patch_handle_t type, patc
  */
 DEFINE_FUNCTION(patch_handle_t, terraria_asset_get_generic_class, patch_handle_t element_type)
 
+/**
+ * @brief 获取资源值
+ * @param asset 资源句柄
+ * @return 资源句柄
+ */
+DEFINE_FUNCTION(patch_handle_t, terraria_asset_get_value, patch_handle_t asset)
+
 #ifdef __cplusplus
 }
 #endif

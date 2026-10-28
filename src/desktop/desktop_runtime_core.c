@@ -36,7 +36,9 @@
 #include "internal/terraria/npc_manager.h"
 #include "internal/terraria/buff_manager.h"
 #include "internal/terraria/gui.h"
-#include "internal/terraria/item_save.h"
+#include "internal/terraria/save/tef_save_game_handles.h"
+#include "internal/terraria/save/tef_player_save.h"
+#include "internal/terraria/save/tef_world_save.h"
 #include "internal/terraria/language_manager.h"
 #include "internal/terraria/main.h"
 #include "internal/terraria/netmanager.h"
@@ -128,7 +130,9 @@ API_EXPORT int init_tefkernel(const char *workdir, bool is_server) {
   terraria_npc_manager_init();
   terraria_buff_manager_init();
   terraria_gui_init();
-  terraria_item_save_init();
+  tef_save_game_handles_init();
+  tef_player_save_init();
+  tef_world_save_init();
   terraria_recipe_manager_init();
   terraria_language_manager_init();
 

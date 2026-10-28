@@ -25,6 +25,7 @@
 
 #include "internal/log.h"
 #include "patchlib/field.h"
+#include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
 #include "patchlib/struct/string.h"
 
@@ -110,4 +111,18 @@ patch_handle_t terraria_asset_create(patch_handle_t type, patch_handle_t value) 
     patchlib_free(null_str);
 
     return asset;
+}
+
+patch_handle_t terraria_asset_get_value(patch_handle_t asset) {
+    patch_handle_t asset_generic_class = il2cpp_object_get_class(asset);
+    patch_handle_t asset_value = patchlib_type_get_field(asset_generic_class, "<Value>k__BackingField");
+
+    patch_handle_t result = PATCH_NULL;
+
+    patchlib_field_get_value(asset_value, asset, &result);
+
+    patchlib_free(asset_generic_class);
+    patchlib_free(asset_value);
+
+    return result;
 }

@@ -68,22 +68,22 @@ static const char *unknown_item_text(language_culture_t l) {
 }
 
 // UNKNOWN 占位物不再加合成配方（会出现在合成表里，还可以用 1 个木材刷 9999 个）
-// static void unknown_item_recipe() {
-//     terraria_recipe_set_result(unknown_item.runtime_id, 9999);
-//     terraria_recipe_set_material((int[2]){9, 1}, 1);
-//     terraria_recipe_add();
-// }
+static void unknown_item_recipe() {
+     terraria_recipe_set_result(unknown_item.runtime_id, 9999);
+     terraria_recipe_set_material((int[2]){9, 1}, 1);
+     terraria_recipe_add();
+}
 
 static void unknown_item_early_init(terraria_item_handle_t *current) {
     (void) current;
-    // terraria_recipe_manager_register_callback(unknown_item_recipe);
+    terraria_recipe_manager_register_callback(unknown_item_recipe);
     terraria_language_manager_register_callback(unknown_item_text);
 }
 
 // 未知物品的属性设置
 static void unknown_item_set_defaults(terraria_item_handle_t *current,
                                       patch_handle_t instance) {
-    patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
+    /*patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
     if (patchlib_is_valid(item_class)) {
         patch_handle_t f_name_override =
                 patchlib_type_get_field(item_class, "_nameOverride");
@@ -99,7 +99,7 @@ static void unknown_item_set_defaults(terraria_item_handle_t *current,
             patchlib_free(f_bestiary_notes);
         }
         patchlib_free(item_class);
-    }
+    }*/
 }
 
 // 生成未知物品纹理
@@ -180,6 +180,7 @@ static terraria_item_handle_t unknown_item = {
     .internal_name = "unknown",
     .has_tooltip = false,
     .runtime_id = -1,
+    .sacrifice_count = 9999,
     .item_ops = {
         .early_init = unknown_item_early_init /*unknown_item_early_init*/,
         .init_static = NULL,
@@ -285,7 +286,7 @@ static void prefix_set_by_class(const int cls, const int type, const char *name)
 }
 
 void terraria_item_manager_set_prefix_class(terraria_item_handle_t *item_handle,
-                                            int prefix_class) {
+                                            const int prefix_class) {
   if (!item_handle || prefix_class < 0 || prefix_class > 7)
     return;
   for (int i = 0; i < g_prefix_decl_count; ++i) {
@@ -490,8 +491,8 @@ static void register_item_animation(terraria_item_handle_t *ih, int type) {
     patch_handle_t ctor =
             patchlib_type_get_method_by_param_count(anim_cls, ".ctor", 3);
     if (patchlib_is_valid(ctor)) {
-        const int ticks = ih->anim_ticks > 0 ? ih->anim_ticks : 8;
-        const int frames = ih->anim_frames;
+        int ticks = ih->anim_ticks > 0 ? ih->anim_ticks : 8;
+        int frames = ih->anim_frames;
         unsigned char pingpong = 0;
         void *ca[3] = {&ticks, &frames, &pingpong};
         patch_handle_t anim = PATCH_NULL;
@@ -1057,7 +1058,7 @@ static int compare_item(const void *a, const void *b) {
 
 static void resize_array(const char *ns, const char *cls, const char *fid,
                          patch_handle_t type, int nsize, void *dvalue,
-                         const bool allow_create);
+                         bool allow_create);
 
 static void install_instance_item_array_hooks(void);
 
@@ -1178,27 +1179,6 @@ static void resize_all_class_sets(const char *ns, const char *cls,
     // （NetUseSoundSync 等）也按 type 索引、长度等于 ItemID.Count，**必须一起扩容**；
     // 否则游戏用自定义 id 索引时会抛 IndexOutOfRangeException，被
     // Main.ignoreErrors 静默吞掉，导致 ItemCheck 半途中断（近战命中、射击等失效）。
-    const char *EXCLUDED_FIELDS[] = {
-        // 非数组
-        "Factory", "DD2BannerEffect", "DefaultKillsForBannerNeeded", "Count",
-
-        // List<T> 类型
-        "ItemsThatAreProcessedAfterNormalContentSample", "NonColorfulDyeItems",
-
-        // Dictionary<int, Dictionary<int, int>>（AmmoID.Sets）：不是数组，
-        // 也不按物品 type 索引（键是弹药 type，值是发射器 -> 弹幕的映射）。
-        // 若被当成数组做 array_length/array_resize，移动端会按对象内存布局
-        // 读出一个假的 "长度"，最坏情况把字典字段替换成数组。
-        "SpecificLauncherAmmoProjectileMatches",
-
-        // 按「染料 shader id」索引，不是物品 type：
-        // DyeInitializer.Load 把它重建为 new bool[shaderId+1]，
-        // Player.IsColorfulDye(int dye) 传入的是 Player.dye 槽里的 shader id。
-        "ColorfulDyeValues",
-
-        // 长度不等于 ItemID.Count 的数组
-        "ItemsForStuffCannon", "Workbenches"
-    };
 
     int resized = 0;
     int skipped = 0;
@@ -1208,6 +1188,27 @@ static void resize_all_class_sets(const char *ns, const char *cls,
     skip_sample[0] = 0;
 
     for (size_t i = 0; i < fields.size; i++) {
+        const char *EXCLUDED_FIELDS[] = {
+            // 非数组
+            "Factory", "DD2BannerEffect", "DefaultKillsForBannerNeeded", "Count",
+
+            // List<T> 类型
+            "ItemsThatAreProcessedAfterNormalContentSample", "NonColorfulDyeItems",
+
+            // Dictionary<int, Dictionary<int, int>>（AmmoID.Sets）：不是数组，
+            // 也不按物品 type 索引（键是弹药 type，值是发射器 -> 弹幕的映射）。
+            // 若被当成数组做 array_length/array_resize，移动端会按对象内存布局
+            // 读出一个假的 "长度"，最坏情况把字典字段替换成数组。
+            "SpecificLauncherAmmoProjectileMatches",
+
+            // 按「染料 shader id」索引，不是物品 type：
+            // DyeInitializer.Load 把它重建为 new bool[shaderId+1]，
+            // Player.IsColorfulDye(int dye) 传入的是 Player.dye 槽里的 shader id。
+            "ColorfulDyeValues",
+
+            // 长度不等于 ItemID.Count 的数组
+            "ItemsForStuffCannon", "Workbenches"
+        };
         patch_handle_t field = *(patch_handle_t *) tefstd_vector_at(&fields, i);
         if (!patchlib_is_valid(field)) {
             error++;
@@ -1566,7 +1567,7 @@ static void inject_sorting_whitelists() {
                             tefstd_vector_at(&g_terraria_item_registry, i);
                     if (!pp || !*pp || (*pp)->runtime_id < 0)
                         continue;
-                    const int id = (*pp)->runtime_id;
+                    int id = (*pp)->runtime_id;
                     void *aargs[1] = {&id};
                     patchlib_method_invoke_args(m_add, list, PATCH_NULL, aargs);
                 }
@@ -2618,7 +2619,7 @@ terraria_item_handle_t *terraria_item_manager_unknown_item() {
     return &unknown_item;
 }
 
-static char *generate_key(size_t key_size, const char *prefix, terraria_item_handle_t *current) {
+static char *generate_key(size_t key_size, const char *prefix, const terraria_item_handle_t *current) {
     // 计算所需缓冲区大小
     if (current->parent_modloader_id)
         key_size += strlen(current->parent_modloader_id);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * tefkernel - item_save
+ * tefkernel - tef_world_save
  * Copyright (C) 2026 eternalfuture-e38299
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,24 +17,22 @@
  *
  * Author: eternalfuture-e38299
  * GitHub: https://github.com/eternalfuture-e38299
- * Created: 2026/10/2
+ * Created: 2026/10/28
  *******************************************************************************/
 
-#ifndef TEFKERNEL_INTERNAL_ITEM_SAVE_H
-#define TEFKERNEL_INTERNAL_ITEM_SAVE_H
+#ifndef TEFKERNEL_TEF_WORLD_SAVE_H
+#define TEFKERNEL_TEF_WORLD_SAVE_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @brief 初始化自定义物品存档（解析 Player 字段并挂载 SavePlayer/LoadPlayer）
- * @note 需在 terraria_item_manager_init() 之后调用
- */
-void terraria_item_save_init();
+/* 安装 SaveChests / LoadChests 钩子（幂等） */
+void tef_world_save_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // TEFKERNEL_INTERNAL_ITEM_SAVE_H
+
+#endif //TEFKERNEL_TEF_WORLD_SAVE_H

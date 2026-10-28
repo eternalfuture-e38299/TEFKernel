@@ -165,7 +165,7 @@ patch_handle_t patchlib_type_find_method(
 
 bool patchlib_is_valid(patch_handle_t h) {
     if (h == PATCH_NULL) {
-        TEKLOG_WARN("patch_handle is null");
+        TEKLOG_TRACE("patch_handle is null");
         return false;
     }
     return true;
@@ -447,7 +447,7 @@ patch_handle_t patchlib_type_get_inner_type(patch_handle_t parent, const char *n
 
             if (nested_name && strcmp(nested_name, name) == 0) {
                 result = *type;
-                TEKLOG_INFO("Found inner type: %s at " PATCH_HANDLE_FMT, name, result);
+                TEKLOG_DEBUG("Found inner type: %s at " PATCH_HANDLE_FMT, name, result);
                 break;
             }
         }
