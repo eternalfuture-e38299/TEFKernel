@@ -98,6 +98,7 @@ set(TERRARIA_SRC
         src/terraria/common/save/tef_save_game_handles.c
         src/terraria/common/save/tef_player_save.c
         src/terraria/common/save/tef_world_save.c
+        src/terraria/common/content/audio_manager.c
 )
 
 set(TEFPACKAGE_SRC
@@ -130,7 +131,29 @@ else ()
     )
 endif ()
 
+
+# miniaudio_config
+add_library(miniaudio_config INTERFACE)
+
+target_include_directories(miniaudio_config INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniaudio
+)
+
+# 你之前确定的极简宏：禁用解码、编码、高级引擎、资源管理器、生成器
+# 注意：不要定义 MA_NO_THREADING，ma_device 回调依赖线程
+target_compile_definitions(miniaudio_config INTERFACE
+        MA_NO_DECODING
+        MA_NO_ENCODING
+        MA_NO_ENGINE
+        MA_NO_RESOURCE_MANAGER
+        MA_NO_GENERATION
+)
+
 add_library(tefkernel SHARED
+        #miniaudio 实现文件
+        libs/miniaudio/miniaudio.c
+
+        # 内核代码
         ${PATCHLIB_SRC}
         ${INTERNAL_SRC}
         ${TEFSTD_SRC}
@@ -141,6 +164,18 @@ add_library(tefkernel SHARED
         ${TEFPACKAGE_SRC}
         ${TERRARIA_SRC}
 )
+
+target_link_libraries(tefkernel PRIVATE miniaudio_config)
+
+if(ANDROID)
+    target_link_libraries(tefkernel PRIVATE OpenSLES)
+    # AAudio 在 NDK 中通常由 libaaudio 提供，较新 NDK 可显式链接
+    # target_link_libraries(tefkernel PRIVATE aaudio)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(tefkernel PRIVATE dl m pthread)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(tefkernel PRIVATE "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox")
+endif()
 
 # Windows 动态库：强制导出所有符号
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)

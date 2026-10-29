@@ -20,42 +20,4 @@
  * Created: 2025/12/28
  *******************************************************************************/
 
-#include <cerrno>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <sstream>
-
-#include "internal/kernel_state.h"
-#include "internal/log.h"
-#include "patchlib/field.h"
-#include "patchlib/method.h"
-#include "patchlib/type.h"
-#include "tefstd/vector.h"
-#include "terraria/asset.h"
-#include "terraria/recipe_manager.h"
-#include "terraria/texture2d.h"
-
-void add_r(void) {
-    for (int item_id = 1; item_id < 6196; item_id++) {
-        terraria_recipe_set_result(item_id,
-                                   9999);
-        terraria_recipe_set_material(
-            (int[2])
-            {9, 1},
-            1);
-        terraria_recipe_add();
-    }
-
-
-    terraria_recipe_set_result(9,
-                                   9999);
-    terraria_recipe_set_material(
-        (int[2])
-        {3384, 1},
-        1);
-    terraria_recipe_add();
-}
-
-void start_test(void) { /*terraria_recipe_manager_register_callback(add_r);*/ }
+void start_test(void) {}

@@ -57,4 +57,5 @@
 #include "terraria/content/buff_manager.h"
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/projectile_manager.h"
+#include "terraria/content/audio_manager.h"
 #include "terraria/gui.h"

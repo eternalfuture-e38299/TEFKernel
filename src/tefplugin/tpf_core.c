@@ -811,10 +811,11 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/asset.h"
 #include "terraria/recipe_manager.h"
 #include "terraria/language_manager.h"
-#include "../../include/terraria/content/item_manager.h"
-#include "../../include/terraria/content/projectile_manager.h"
-#include "../../include/terraria/content/npc_manager.h"
-#include "../../include/terraria/content/buff_manager.h"
+#include "terraria/content/item_manager.h"
+#include "terraria/content/projectile_manager.h"
+#include "terraria/content/npc_manager.h"
+#include "terraria/content/buff_manager.h"
+#include "terraria/content/audio_manager.h"
 #include "terraria/gui.h"
 
 void tpf_init_libtefkernel() {
@@ -1136,6 +1137,18 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_gui_rect);
     TPF_KERNEL_SYMBOL(terraria_gui_text);
     TPF_KERNEL_SYMBOL(terraria_gui_image);
+
+    // audio_manager
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_register);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_unregister);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_play);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_pause);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_resume);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_stop);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_set_volume);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_is_playing);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_stop_all);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_set_master_volume);
 
 
     // 将内核插件添加到全局列表

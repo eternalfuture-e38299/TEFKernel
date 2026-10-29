@@ -23,7 +23,6 @@
 #include "internal/terraria/content/item_manager.h"
 #include "internal/terraria/content/npc_manager.h"
 #include "terraria/language_manager.h"
-#include "terraria/recipe_manager.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -48,6 +47,7 @@ static bool g_ids_assigned = false;
 static patch_handle_t item_id_count;
 static terraria_item_handle_t unknown_item;
 
+/*
 static const char *unknown_item_text(language_culture_t l) {
     if (l == LANGUAGE_ENGLISH)
         return "{"
@@ -66,24 +66,27 @@ static const char *unknown_item_text(language_culture_t l) {
             "}"
             "}";
 }
+*/
 
 // UNKNOWN 占位物不再加合成配方（会出现在合成表里，还可以用 1 个木材刷 9999 个）
-static void unknown_item_recipe() {
+/*static void unknown_item_recipe() {
      terraria_recipe_set_result(unknown_item.runtime_id, 9999);
      terraria_recipe_set_material((int[2]){9, 1}, 1);
      terraria_recipe_add();
-}
+}*/
 
+/*
 static void unknown_item_early_init(terraria_item_handle_t *current) {
     (void) current;
-    terraria_recipe_manager_register_callback(unknown_item_recipe);
-    terraria_language_manager_register_callback(unknown_item_text);
+    // terraria_recipe_manager_register_callback(unknown_item_recipe);
+    // terraria_language_manager_register_callback(unknown_item_text);
 }
+*/
 
 // 未知物品的属性设置
 static void unknown_item_set_defaults(terraria_item_handle_t *current,
                                       patch_handle_t instance) {
-    /*patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
+    patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
     if (patchlib_is_valid(item_class)) {
         patch_handle_t f_name_override =
                 patchlib_type_get_field(item_class, "_nameOverride");
@@ -99,7 +102,7 @@ static void unknown_item_set_defaults(terraria_item_handle_t *current,
             patchlib_free(f_bestiary_notes);
         }
         patchlib_free(item_class);
-    }*/
+    }
 }
 
 // 生成未知物品纹理
@@ -182,7 +185,7 @@ static terraria_item_handle_t unknown_item = {
     .runtime_id = -1,
     .sacrifice_count = 9999,
     .item_ops = {
-        .early_init = unknown_item_early_init /*unknown_item_early_init*/,
+        .early_init = NULL /*unknown_item_early_init*/,
         .init_static = NULL,
         .set_defaults = unknown_item_set_defaults,
         .can_use = NULL,
