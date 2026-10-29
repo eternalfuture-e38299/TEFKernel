@@ -20,7 +20,7 @@
  *     自定义 buff 从不进入这些索引，因此无需扩容。
  *******************************************************************************/
 
-#include "internal/terraria/buff_manager.h"
+#include "internal/terraria/content/buff_manager.h"
 
 #include <stdbool.h>
 #include <stdint.h>

@@ -25,7 +25,7 @@
 #include <stdio.h>
 
 #include "internal/log.h"
-#include "internal/terraria/item_manager.h"
+#include "internal/terraria/content/item_manager.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
 #include "internal/terraria/save/tef_save_format.h"
 #include "patchlib/field.h"

@@ -4,7 +4,7 @@
 #ifndef TEFKERNEL_INTERNAL_BUFF_MANAGER_H
 #define TEFKERNEL_INTERNAL_BUFF_MANAGER_H
 
-#include "terraria/buff_manager.h"
+#include "terraria/content/buff_manager.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -87,10 +87,10 @@ set(TERRARIA_SRC
         src/terraria/common/netmanager.c
         src/terraria/common/main.c
         src/terraria/common/asset.c
-        src/terraria/common/item_manager.c
-        src/terraria/common/projectile_manager.c
-        src/terraria/common/npc_manager.c
-        src/terraria/common/buff_manager.c
+        src/terraria/common/content/item_manager.c
+        src/terraria/common/content/projectile_manager.c
+        src/terraria/common/content/npc_manager.c
+        src/terraria/common/content/buff_manager.c
         src/terraria/common/gui.c
         src/terraria/common/recipe_manager.c
         src/terraria/common/language_manager.c

@@ -27,7 +27,7 @@
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
-#include "terraria/item_manager.h"
+#include "terraria/content/item_manager.h"
 
 static tefstd_vector_t g_recipe_callback;
 

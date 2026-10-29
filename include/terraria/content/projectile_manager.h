@@ -7,9 +7,9 @@
 #ifndef TEFFKERNEL_TERRARIA_PROJECTILE_MANAGER_H
 #define TEFFKERNEL_TERRARIA_PROJECTILE_MANAGER_H
 
-#include "../tef_api.h"
-#include "../patchlib/type.h"
-#include "../tefstd/vector.h"
+#include "../../tef_api.h"
+#include "../../patchlib/type.h"
+#include "../../tefstd/vector.h"
 
 #ifdef __cplusplus
 extern "C" {

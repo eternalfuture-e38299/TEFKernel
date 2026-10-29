@@ -23,17 +23,13 @@
 #include "internal/terraria/save/tef_player_save.h"
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <dirent.h>
 
 #include "internal/log.h"
-#include "internal/terraria/item_manager.h"
+#include "internal/terraria/content/item_manager.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
 #include "internal/terraria/save/tef_save_format.h"
 #include "patchlib/field.h"
-#include "terraria/buff_manager.h"
+#include "terraria/content/buff_manager.h"
 #include "patchlib/method.h"
 #include "patchlib/struct/array.h"
 

@@ -33,8 +33,8 @@
 
 #include <stdbool.h>
 
-#include "../tef_api.h"
-#include "../patchlib/type.h"
+#include "../../tef_api.h"
+#include "../../patchlib/type.h"
 
 #ifdef __cplusplus
 extern "C" {

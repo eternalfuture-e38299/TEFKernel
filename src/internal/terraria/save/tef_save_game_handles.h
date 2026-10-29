@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "internal/terraria/item_manager.h"
+#include "internal/terraria/content/item_manager.h"
 
 #ifdef __cplusplus
 extern "C" {

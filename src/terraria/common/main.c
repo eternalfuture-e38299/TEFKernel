@@ -26,10 +26,10 @@
 #include "internal/log.h"
 #include "patchlib/method.h"
 
-#include "internal/terraria/item_manager.h"
-#include "internal/terraria/projectile_manager.h"
-#include "internal/terraria/buff_manager.h"
-#include "internal/terraria/npc_manager.h"
+#include "internal/terraria/content/item_manager.h"
+#include "internal/terraria/content/projectile_manager.h"
+#include "internal/terraria/content/buff_manager.h"
+#include "internal/terraria/content/npc_manager.h"
 #include "patchlib/property.h"
 
 static patch_handle_t get_graphics_device = PATCH_NULL;

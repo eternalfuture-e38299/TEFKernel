@@ -17,7 +17,7 @@
  *     返回 true 跳过原版 AI；其余类型立即返回 false 走原版。
  *******************************************************************************/
 
-#include "internal/terraria/projectile_manager.h"
+#include "internal/terraria/content/projectile_manager.h"
 
 #include "internal/log.h"
 #include "patchlib/field.h"

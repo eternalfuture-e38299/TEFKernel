@@ -20,8 +20,8 @@
  * Created: 2026/8/26
  *******************************************************************************/
 
-#include "internal/terraria/item_manager.h"
-#include "internal/terraria/npc_manager.h"
+#include "internal/terraria/content/item_manager.h"
+#include "internal/terraria/content/npc_manager.h"
 #include "terraria/language_manager.h"
 #include "terraria/recipe_manager.h"
 

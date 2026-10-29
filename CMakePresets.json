@@ -37,7 +37,8 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "OFF"
+        "ANDROID_MODE": "OFF",
+        "CMAKE_C_FLAGS": "-D_XOPEN_SOURCE=700"
       }
     },
     {

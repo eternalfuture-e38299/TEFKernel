@@ -4,7 +4,7 @@
 #ifndef TEFKERNEL_INTERNAL_NPC_MANAGER_H
 #define TEFKERNEL_INTERNAL_NPC_MANAGER_H
 
-#include "terraria/npc_manager.h"
+#include "terraria/content/npc_manager.h"
 
 #ifdef __cplusplus
 extern "C" {

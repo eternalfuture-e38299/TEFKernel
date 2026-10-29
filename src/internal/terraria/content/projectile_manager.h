@@ -4,7 +4,7 @@
 #ifndef TEFKERNEL_INTERNAL_PROJECTILE_MANAGER_H
 #define TEFKERNEL_INTERNAL_PROJECTILE_MANAGER_H
 
-#include "terraria/projectile_manager.h"
+#include "terraria/content/projectile_manager.h"
 
 #ifdef __cplusplus
 extern "C" {

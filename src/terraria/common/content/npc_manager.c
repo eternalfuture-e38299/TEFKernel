@@ -6,7 +6,7 @@
  * 结构与 projectile_manager 同构。
  *******************************************************************************/
 
-#include "internal/terraria/npc_manager.h"
+#include "internal/terraria/content/npc_manager.h"
 #include "internal/log.h"
 
 #include "patchlib/field.h"

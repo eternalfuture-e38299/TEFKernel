@@ -811,10 +811,10 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/asset.h"
 #include "terraria/recipe_manager.h"
 #include "terraria/language_manager.h"
-#include "terraria/item_manager.h"
-#include "terraria/projectile_manager.h"
-#include "terraria/npc_manager.h"
-#include "terraria/buff_manager.h"
+#include "../../include/terraria/content/item_manager.h"
+#include "../../include/terraria/content/projectile_manager.h"
+#include "../../include/terraria/content/npc_manager.h"
+#include "../../include/terraria/content/buff_manager.h"
 #include "terraria/gui.h"
 
 void tpf_init_libtefkernel() {
