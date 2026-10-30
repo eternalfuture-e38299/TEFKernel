@@ -62,6 +62,7 @@ set(TEFSTD_SRC
         src/tefstd/vector.c
         src/tefstd/hashmap.c
         src/tefstd/skipmap.c
+        src/tefstd/log.c
 )
 
 set(TEFPLUGIN_SRC
@@ -99,6 +100,7 @@ set(TERRARIA_SRC
         src/terraria/common/save/tef_player_save.c
         src/terraria/common/save/tef_world_save.c
         src/terraria/common/content/audio_manager.c
+        src/terraria/common/content/prefix_manager.c
 )
 
 set(TEFPACKAGE_SRC

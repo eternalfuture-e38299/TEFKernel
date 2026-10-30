@@ -26,6 +26,7 @@
 
 #include "internal/log.h"
 #include "internal/terraria/content/item_manager.h"
+#include "internal/terraria/content/prefix_manager.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
 #include "internal/terraria/save/tef_save_format.h"
 #include "patchlib/field.h"
@@ -46,7 +47,6 @@ static void write_items_seg(tef_save_wbuf_t *seg, patch_handle_t player) {
 
   tef_save_game_handles_t *h = tef_save_game_handles();
   const int base = terraria_item_id_get_count();
-  const size_t custom = tefstd_vector_size(&g_terraria_item_registry);
 
   for (int ci = 0; ci < 9; ++ci) {
     bool is_chest = false;
@@ -61,24 +61,68 @@ static void write_items_seg(tef_save_wbuf_t *seg, patch_handle_t player) {
       int type = 0, stack = 0;
       patchlib_field_get_value(h->ops.f_type,  item, &type);
       patchlib_field_get_value(h->ops.f_stack, item, &stack);
-      const int nid = type - base;
-      if (stack <= 0 || nid < 0 || nid >= (int)custom) { patchlib_free(item); continue; }
-
-      terraria_item_handle_t **pp = tefstd_vector_at(&g_terraria_item_registry, nid);
-      if (!pp || !*pp) { patchlib_free(item); continue; }
+      if (stack <= 0 || type <= 0) { patchlib_free(item); continue; }   /* 空槽跳过 */
 
       unsigned char prefix = 0;
       if (patchlib_is_valid(h->ops.f_item_prefix))
         patchlib_field_get_value(h->ops.f_item_prefix, item, &prefix);
 
+      /* 过滤：
+       *   - 自定义物品（type >= base）：无论有无前缀都存；
+       *   - 原版物品（type < base）：只有带自定义前缀（prefix >= PrefixID.Count）才存；
+       *   - 原版物品 + 原版前缀 / 无前缀：跳过（原版存档已覆盖）。 */
+      const bool is_custom_item = (type >= base);
+      const bool has_custom_prefix = ((int) prefix >= terraria_prefix_id_get_count());
+      if (!is_custom_item && !has_custom_prefix) { patchlib_free(item); continue; }
+      
+      /* 自定义物品（type >= base）：用 registry 的 (loader, mod, name) 作为稳定身份；
+       * 原版物品（type < base）：三个字符串写空串。 */
+      const char *loader = "";
+      const char *mod    = "";
+      const char *name   = "";
+      if (type >= base) {
+        const int nid = type - base;
+        const size_t custom = tefstd_vector_size(&g_terraria_item_registry);
+        if (nid >= 0 && nid < (int)custom) {
+          terraria_item_handle_t **pp = tefstd_vector_at(&g_terraria_item_registry, nid);
+          if (pp && *pp) {
+            loader = (*pp)->parent_modloader_id ? (*pp)->parent_modloader_id : "";
+            mod    = (*pp)->parent_id           ? (*pp)->parent_id           : "";
+            name   = (*pp)->internal_name       ? (*pp)->internal_name       : "";
+          }
+        } else {
+          TEKLOG_WARN("tef_save_player_save: custom item id=%d out of registry, store as-is", type);
+        }
+      }
+
+      /* 自定义前缀身份：prefix >= PrefixID.Count 时填 (loader, mod, name)。 */
+      const char *p_loader = "";
+      const char *p_mod    = "";
+      const char *p_name   = "";
+      if ((int) prefix >= terraria_prefix_id_get_count()) {
+        const terraria_prefix_handle_t *ph = terraria_prefix_manager_get_prefix(prefix);
+        if (ph) {
+          p_loader = ph->parent_modloader_id ? ph->parent_modloader_id : "";
+          p_mod    = ph->parent_id           ? ph->parent_id           : "";
+          p_name   = ph->internal_name       ? ph->internal_name       : "";
+        } else {
+          TEKLOG_WARN("tef_save_player_save: unknown custom prefix id=%d, store empty",
+                      (int) prefix);
+        }
+      }
+
       size_t e = tef_save_wb_begin_elem(seg);
       tef_save_wb_tlv_u8 (seg, TEF_SAVE_ITEM_CONTAINER, conts[ci]);
       tef_save_wb_tlv_u32(seg, TEF_SAVE_ITEM_SLOT,      (uint32_t)i);
-      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_LOADER,    (*pp)->parent_modloader_id ? (*pp)->parent_modloader_id : "?");
-      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_MOD,       (*pp)->parent_id ? (*pp)->parent_id : "?");
-      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_NAME,      (*pp)->internal_name ? (*pp)->internal_name : "?");
+      tef_save_wb_tlv_u32(seg, TEF_SAVE_ITEM_ORIGINAL_ID, (uint32_t)type);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_LOADER,    loader);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_MOD,       mod);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_NAME,      name);
       tef_save_wb_tlv_u32(seg, TEF_SAVE_ITEM_STACK,     (uint32_t)stack);
       tef_save_wb_tlv_u8 (seg, TEF_SAVE_ITEM_PREFIX,    prefix);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_PREFIX_LOADER, p_loader);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_PREFIX_MOD,    p_mod);
+      tef_save_wb_tlv_str(seg, TEF_SAVE_ITEM_PREFIX_NAME,   p_name);
       tef_save_wb_end(seg, e);
 
       patchlib_free(item);
@@ -139,23 +183,70 @@ static void save_player_items(patch_handle_t player, patch_handle_t pfd) {
 /* ================================================================
  * 读取
  * ================================================================ */
+/* 解析自定义前缀身份：prefix >= base 时按 (loader, mod, name) 查找并覆盖，否则原样返回。 */
+static int resolve_prefix(const uint8_t prefix,
+                          const char *p_loader, const char *p_mod, const char *p_name) {
+  int final_prefix = (int) prefix;
+  const int base = terraria_prefix_id_get_count();
+  if ((int) prefix >= base) {
+    const terraria_prefix_handle_t *ph = NULL;
+    if (p_loader && p_loader[0] && p_mod && p_mod[0] && p_name && p_name[0])
+      ph = terraria_prefix_manager_find_prefix(p_loader, p_mod, p_name);
+    if (ph && ph->runtime_id >= 0) {
+      final_prefix = ph->runtime_id;
+    } else {
+      TEKLOG_WARN("tef_save_player_save: prefix %s.%s.%s not found, drop",
+                  p_loader ? p_loader : "?", p_mod ? p_mod : "?", p_name ? p_name : "?");
+      final_prefix = 0;
+    }
+  }
+  return final_prefix;
+}
+
+/* 解析物品身份：
+ *   1) original_id >= base 且 registry 里有对应自定义物品 → 直接用该 runtime_id；
+ *   2) 否则按 (loader, mod, name) 查找自定义物品；
+ *   3) 否则按 original_id（原版 id）走原版 netDefaults；
+ *   4) 都不行 → unknown 占位。 */
+static int resolve_item_type(const uint32_t original_id,
+                             const char *loader, const char *mod, const char *name) {
+  const int base = terraria_item_id_get_count();
+
+  if ((int) original_id >= base) {
+    const terraria_item_handle_t *h = terraria_item_manager_get_item((int) original_id);
+    if (h && h->runtime_id == (int) original_id)
+      return (int) original_id;
+  }
+
+  if (loader && loader[0] && mod && mod[0] && name && name[0]) {
+    const terraria_item_handle_t *h = terraria_item_manager_find_item(loader, mod, name);
+    if (h && h->runtime_id >= 0)
+      return h->runtime_id;
+  }
+
+  if ((int) original_id > 0 && (int) original_id < base)
+    return (int) original_id;
+
+  const terraria_item_handle_t *unk = terraria_item_manager_unknown_item();
+  return unk ? unk->runtime_id : -1;
+}
+
 static void apply_item(patch_handle_t player,
                        const uint8_t cont, const uint32_t slot,
+                       const uint32_t original_id,
                        const char *loader, const char *mod, const char *name,
-                       const uint32_t stack, const uint8_t prefix) {
+                       const uint32_t stack, const uint8_t prefix,
+                       const char *p_loader, const char *p_mod, const char *p_name) {
   bool is_chest = false;
   patch_handle_t arr = tef_save_container_array(player, cont, &is_chest);
   if (!patchlib_is_valid(arr)) return;
-
-  terraria_item_handle_t *h = terraria_item_manager_find_item(loader, mod, name);
-  if (!h || h->runtime_id < 0) {
-    TEKLOG_WARN("tef_save_player_save: item %s.%s.%s not found, placeholder", loader, mod, name);
-    h = terraria_item_manager_unknown_item();
-  }
-  if (!h || h->runtime_id < 0) { patchlib_free(arr); return; }
   if (slot >= patchlib_array_length(arr)) { patchlib_free(arr); return; }
 
-  tef_save_container_set_custom(arr, slot, is_chest, h->runtime_id, (int)stack, (int)prefix);
+  const int type = resolve_item_type(original_id, loader, mod, name);
+  if (type <= 0) { patchlib_free(arr); return; }
+
+  const int final_prefix = resolve_prefix(prefix, p_loader, p_mod, p_name);
+  tef_save_container_set_custom(arr, slot, is_chest, type, (int) stack, final_prefix);
   patchlib_free(arr);
 }
 
@@ -173,24 +264,30 @@ static void load_items_seg(tef_save_rd_t *seg, patch_handle_t player) {
 
       tef_save_rd_t os; tef_save_rd_enter(&obj, &os);
       uint8_t cont = 0, prefix = 0;
-      uint32_t slot = 0, stack = 0;
+      uint32_t slot = 0, stack = 0, original_id = 0;
       const char *loader = NULL, *mod = NULL, *name = NULL;
+      const char *p_loader = NULL, *p_mod = NULL, *p_name = NULL;
 
       tef_save_tlv_t f;
       while (tef_save_rd_next(&os, &f)) {
         switch (f.tag) {
-          case TEF_SAVE_ITEM_CONTAINER: cont   = tef_save_rd_u8(&f);  break;
-          case TEF_SAVE_ITEM_SLOT:      slot   = tef_save_rd_u32(&f); break;
-          case TEF_SAVE_ITEM_LOADER:    loader = tef_save_rd_str(&f); break;
-          case TEF_SAVE_ITEM_MOD:       mod    = tef_save_rd_str(&f); break;
-          case TEF_SAVE_ITEM_NAME:      name   = tef_save_rd_str(&f); break;
-          case TEF_SAVE_ITEM_STACK:     stack  = tef_save_rd_u32(&f); break;
-          case TEF_SAVE_ITEM_PREFIX:    prefix = tef_save_rd_u8(&f);  break;
+          case TEF_SAVE_ITEM_CONTAINER:       cont        = tef_save_rd_u8(&f);  break;
+          case TEF_SAVE_ITEM_SLOT:            slot        = tef_save_rd_u32(&f); break;
+          case TEF_SAVE_ITEM_ORIGINAL_ID:     original_id = tef_save_rd_u32(&f); break;
+          case TEF_SAVE_ITEM_LOADER:          loader      = tef_save_rd_str(&f); break;
+          case TEF_SAVE_ITEM_MOD:             mod         = tef_save_rd_str(&f); break;
+          case TEF_SAVE_ITEM_NAME:            name        = tef_save_rd_str(&f); break;
+          case TEF_SAVE_ITEM_STACK:           stack       = tef_save_rd_u32(&f); break;
+          case TEF_SAVE_ITEM_PREFIX:          prefix      = tef_save_rd_u8(&f);  break;
+          case TEF_SAVE_ITEM_PREFIX_LOADER:   p_loader    = tef_save_rd_str(&f); break;
+          case TEF_SAVE_ITEM_PREFIX_MOD:      p_mod       = tef_save_rd_str(&f); break;
+          case TEF_SAVE_ITEM_PREFIX_NAME:     p_name      = tef_save_rd_str(&f); break;
           default: break;
         }
       }
-      if (loader && mod && name && stack > 0)
-        apply_item(player, cont, slot, loader, mod, name, stack, prefix);
+      if (stack > 0)
+        apply_item(player, cont, slot, original_id, loader, mod, name,
+                   stack, prefix, p_loader, p_mod, p_name);
     }
   }
 }

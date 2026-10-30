@@ -30,6 +30,7 @@
 #include "internal/terraria/content/projectile_manager.h"
 #include "internal/terraria/content/buff_manager.h"
 #include "internal/terraria/content/npc_manager.h"
+#include "internal/terraria/content/prefix_manager.h"
 #include "patchlib/property.h"
 
 static patch_handle_t get_graphics_device = PATCH_NULL;
@@ -39,11 +40,12 @@ static patch_handle_t local_player = PATCH_NULL;
 
 static bool initialize_prefix(patch_handle_t this, void **args,
                                const patch_method_signature_t *sig_info, void *result) {
-    int base_count = terraria_item_id_get_count();
-    size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
-    size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
-    size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
-    size_t custom_npc = tefstd_vector_size(&g_terraria_npc_registry);
+    const int base_count = terraria_item_id_get_count();
+    const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
+    const size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
+    const size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
+    const size_t custom_npc = tefstd_vector_size(&g_terraria_npc_registry);
+    const size_t custom_prefix = tefstd_vector_size(&g_terraria_prefix_registry);
 
     TEKLOG_INFO("Main.Initialize: %d base + %zu custom items, %d base + %zu custom projectiles, %d base + %zu custom buffs, %d base + %zu custom npcs",
                 base_count, custom_count, terraria_projectile_id_get_count(), custom_proj,
@@ -74,9 +76,27 @@ static bool initialize_prefix(patch_handle_t this, void **args,
         TEKLOG_INFO("Assigned NPC IDs");
     }
 
-    const size_t count = tefstd_vector_size(&g_terraria_item_registry);
+    if (custom_prefix > 0) {
+        if (terraria_prefix_manager_assign_ids(terraria_prefix_id_get_count())) {
+            TEKLOG_INFO("Assigned %zu custom prefix IDs (base=%d)",
+                        custom_prefix, terraria_prefix_id_get_count());
+        } else {
+            TEKLOG_ERROR("Failed to assign custom prefix IDs (slots full?)");
+        }
+    }
+
+    int prefix_initialized = 0;
+    for (size_t i = 0; i < custom_prefix; ++i) {
+        terraria_prefix_handle_t** prefix_handle = tefstd_vector_at(&g_terraria_prefix_registry, i);
+        if (*prefix_handle && (*prefix_handle)->prefix_ops.early_init) {
+            (*prefix_handle)->prefix_ops.early_init(*prefix_handle);
+            prefix_initialized++;
+        }
+    }
+    TEKLOG_INFO("Initialized %d custom prefixes", prefix_initialized);
+
     int initialized = 0;
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < custom_count; ++i) {
         terraria_item_handle_t** item_handle = tefstd_vector_at(&g_terraria_item_registry, i);
         if (*item_handle && (*item_handle)->item_ops.early_init) {
             (*item_handle)->item_ops.early_init(*item_handle);
@@ -85,9 +105,8 @@ static bool initialize_prefix(patch_handle_t this, void **args,
     }
     TEKLOG_INFO("Initialized %d custom items", initialized);
 
-    const size_t proj_count = tefstd_vector_size(&g_terraria_projectile_registry);
     int proj_initialized = 0;
-    for (size_t i = 0; i < proj_count; ++i) {
+    for (size_t i = 0; i < custom_proj; ++i) {
         terraria_projectile_handle_t** proj_handle =
                 tefstd_vector_at(&g_terraria_projectile_registry, i);
         if (*proj_handle && (*proj_handle)->projectile_ops.early_init) {
@@ -109,9 +128,8 @@ static bool initialize_prefix(patch_handle_t this, void **args,
     }
     TEKLOG_INFO("Initialized %d custom buffs", buff_initialized);
 
-    const size_t npc_count = tefstd_vector_size(&g_terraria_npc_registry);
     int npc_initialized = 0;
-    for (size_t i = 0; i < npc_count; ++i) {
+    for (size_t i = 0; i < custom_npc; ++i) {
         terraria_npc_handle_t** npc_handle =
                 tefstd_vector_at(&g_terraria_npc_registry, i);
         if (*npc_handle && (*npc_handle)->npc_ops.early_init) {
@@ -134,6 +152,8 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
     const size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
     const size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
     const size_t custom_npc = tefstd_vector_size(&g_terraria_npc_registry);
+    const size_t custom_prefix = tefstd_vector_size(&g_terraria_prefix_registry);
+
     if (custom_count == 0 && custom_proj == 0 && custom_buff == 0 && custom_npc == 0)
         return;
     TEKLOG_INFO("Main.Initialize completed, final resizing pass...");
@@ -143,7 +163,8 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
         terraria_projectile_manager_resize();
     if (custom_npc > 0)
         terraria_npc_manager_resize();
-
+    if (custom_prefix > 0)
+        terraria_prefix_manager_resize();
 }
 
 
@@ -151,10 +172,11 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
                                  const patch_method_signature_t *sig_info) {
     TEKLOG_INFO("Main.Initialize_AlmostEverything completed, resizing arrays...");
 
-    size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
-    size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
-    size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
-    size_t custom_npc = tefstd_vector_size(&g_terraria_npc_registry);
+    const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
+    const size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
+    const size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
+    const size_t custom_npc = tefstd_vector_size(&g_terraria_npc_registry);
+    const size_t custom_prefix = tefstd_vector_size(&g_terraria_prefix_registry);
 
     if (custom_count > 0) {
         terraria_item_manager_resize(true);
@@ -187,23 +209,37 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
         TEKLOG_INFO("Custom NPC arrays resized and textures initialized");
     }
 
+
+    if (custom_prefix > 0) {
+        terraria_prefix_manager_resize();
+        terraria_prefix_manager_init_localized_text();
+        TEKLOG_INFO("Applied %zu custom prefix names to Lang.prefix",
+                    custom_prefix);
+    }
+
+    int prefix_initialized = 0;
+    for (size_t i = 0; i < custom_prefix; ++i) {
+        terraria_prefix_handle_t** prefix_handle = tefstd_vector_at(&g_terraria_prefix_registry, i);
+        if (*prefix_handle && (*prefix_handle)->prefix_ops.init_static) {
+            (*prefix_handle)->prefix_ops.init_static(*prefix_handle);
+            prefix_initialized++;
+        }
+    }
+    TEKLOG_INFO("Initialized %d custom prefixes", prefix_initialized);
+
     // 初始化静态数据
-    const size_t count = tefstd_vector_size(&g_terraria_item_registry);
     int initialized = 0;
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < custom_count; ++i) {
         terraria_item_handle_t** item_handle = tefstd_vector_at(&g_terraria_item_registry, i);
         if (*item_handle && (*item_handle)->item_ops.init_static) {
             (*item_handle)->item_ops.init_static(*item_handle);
             initialized++;
         }
     }
-    
-
     TEKLOG_INFO("Initialized %d custom items", initialized);
 
-    const size_t proj_count = tefstd_vector_size(&g_terraria_projectile_registry);
     int proj_initialized = 0;
-    for (size_t i = 0; i < proj_count; ++i) {
+    for (size_t i = 0; i < custom_proj; ++i) {
         terraria_projectile_handle_t** proj_handle =
                 tefstd_vector_at(&g_terraria_projectile_registry, i);
         if (*proj_handle && (*proj_handle)->projectile_ops.init_static) {
@@ -213,9 +249,8 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     }
     TEKLOG_INFO("Initialized %d custom projectiles", proj_initialized);
 
-    const size_t buff_count = tefstd_vector_size(&g_terraria_buff_registry);
     int buff_initialized = 0;
-    for (size_t i = 0; i < buff_count; ++i) {
+    for (size_t i = 0; i < custom_buff; ++i) {
         terraria_buff_handle_t** buff_handle =
                 tefstd_vector_at(&g_terraria_buff_registry, i);
         if (*buff_handle && (*buff_handle)->buff_ops.init_static) {
@@ -225,9 +260,8 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     }
     TEKLOG_INFO("Initialized %d custom buffs", buff_initialized);
 
-    const size_t npc_count = tefstd_vector_size(&g_terraria_npc_registry);
     int npc_initialized = 0;
-    for (size_t i = 0; i < npc_count; ++i) {
+    for (size_t i = 0; i < custom_npc; ++i) {
         terraria_npc_handle_t** npc_handle =
                 tefstd_vector_at(&g_terraria_npc_registry, i);
         if (*npc_handle && (*npc_handle)->npc_ops.init_static) {

@@ -795,6 +795,7 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 
 #include "tefstd/hashmap.h"
 #include "tefstd/skipmap.h"
+#include "tefstd/log.h"
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/property.h"
@@ -816,6 +817,7 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/buff_manager.h"
 #include "terraria/content/audio_manager.h"
+#include "terraria/content/prefix_manager.h"
 #include "terraria/gui.h"
 
 void tpf_init_libtefkernel() {
@@ -905,6 +907,15 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(tefstd_vector_erase);
     TPF_KERNEL_SYMBOL(tefstd_vector_remove_value);
     TPF_KERNEL_SYMBOL(tefstd_vector_init_from_array);
+
+    TEKLOG_DEBUG("Registering log symbols");
+    TPF_KERNEL_SYMBOL(tefstd_log_open);
+    TPF_KERNEL_SYMBOL(tefstd_log_close);
+    TPF_KERNEL_SYMBOL(tefstd_log_write);
+    TPF_KERNEL_SYMBOL(tefstd_log_write_ex);
+    TPF_KERNEL_SYMBOL(tefstd_log_set_level);
+    TPF_KERNEL_SYMBOL(tefstd_log_flush);
+    TPF_KERNEL_SYMBOL(tefstd_log_dropped);
 
     // ==================== 注册TEFPKG包管理API ====================
     TEKLOG_DEBUG("Registering TEFPKG package management symbols");
@@ -1149,6 +1160,14 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_audio_manager_is_playing);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_stop_all);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_set_master_volume);
+
+    // prefix_manager
+    TPF_KERNEL_SYMBOL(terraria_prefix_manager_register_prefix);
+    TPF_KERNEL_SYMBOL(terraria_prefix_manager_unregister_prefix_by_id);
+    TPF_KERNEL_SYMBOL(terraria_prefix_manager_get_prefix);
+    TPF_KERNEL_SYMBOL(terraria_prefix_manager_find_prefix);
+    TPF_KERNEL_SYMBOL(terraria_prefix_id_get_count);
+    TPF_KERNEL_SYMBOL(terraria_prefix_manager_remaining_slots);
 
 
     // 将内核插件添加到全局列表

@@ -316,36 +316,42 @@ public static unsafe class HookManager
         {
             context.OriginalArgs[i] = args?.Length > i ? args[i] : null;
 
-            // ★ 特殊处理 ref 和 out 参数
             var paramInfo = parameters[i];
             var isRefOrOut = paramInfo.ParameterType.IsByRef || paramInfo.IsOut;
 
             if (isRefOrOut)
             {
-                // ref/out 参数：分配指针大小的内存，指向实际数据
                 var elementType = paramInfo.ParameterType.GetElementType()!;
+
+                // ptr 指向 dataPtr
                 var ptr = Marshal.AllocHGlobal(IntPtr.Size);
                 context.AllocatedPointers.Add(ptr);
 
+                // 总是分配 dataPtr，保证 C 端 **(T**)args[i] 可读写
+                var elemSize = Utils.GetTypeSize(elementType);
+                var dataPtr = Marshal.AllocHGlobal(elemSize);
+                context.AllocatedPointers.Add(dataPtr);
+
+                // ★ 自动判断：Harmony 在 postfix 时可能已把 out/ref 的当前值写回 __args，
+                //   有值就复制到 dataPtr；没有就清零（避免读 AllocHGlobal 未初始化内存）。
                 if (context.OriginalArgs[i] != null)
                 {
-                    // 分配实际数据内存并写入值
-                    var dataPtr = Marshal.AllocHGlobal(Utils.GetTypeSize(elementType));
-                    context.AllocatedPointers.Add(dataPtr);
                     Utils.SetNativeValue(dataPtr, context.OriginalArgs[i]);
-                    Marshal.WriteIntPtr(ptr, dataPtr);
+                    Logger.Debug($"PrepareContext: ref/out param {i}, type={elementType.Name}, " +
+                                 $"value={context.OriginalArgs[i]}");
                 }
                 else
                 {
-                    Marshal.WriteIntPtr(ptr, IntPtr.Zero);
+                    var p = (byte*)dataPtr;
+                    for (var b = 0; b < elemSize; b++) p[b] = 0;
+                    Logger.Debug($"PrepareContext: ref/out param {i}, type={elementType.Name}, value=null (zeroed)");
                 }
 
+                Marshal.WriteIntPtr(ptr, dataPtr);
                 context.ArgsPtr[i] = ptr.ToPointer();
-                Logger.Debug($"PrepareContext: ref/out param {i}, type={elementType.Name}, ptr={ptr}");
             }
             else
             {
-                // 普通参数
                 var argPtr = MarshalArgument(context.OriginalArgs[i], parameters[i].ParameterType,
                     context.AllocatedPointers, context.GcHandlesToFree);
                 context.ArgsPtr[i] = argPtr.ToPointer();
@@ -355,8 +361,18 @@ public static unsafe class HookManager
         // 准备返回值指针
         var returnType = context.MethodInfo.ReturnType;
         if (returnType == typeof(void)) return context;
-        context.ResultPtr = Marshal.AllocHGlobal(Utils.GetTypeSize(returnType));
+
+        var resultSize = Utils.GetTypeSize(returnType);
+        context.ResultPtr = Marshal.AllocHGlobal(resultSize);
         context.AllocatedPointers.Add(context.ResultPtr);
+
+        // ★ 清零：result 为 null 时 ResultPtr 必须全 0，
+        //   否则 C 端会把随机值当 GCHandle 解引用。
+        {
+            var p = (byte*)context.ResultPtr;
+            for (var b = 0; b < resultSize; b++) p[b] = 0;
+        }
+
         if (result != null)
             Utils.SetNativeValue(context.ResultPtr, result);
 
@@ -437,24 +453,20 @@ public static unsafe class HookManager
 
             if (isRefOrOut)
             {
-                // ★ ref/out 参数：读取两次指针
-                // 第一次：读取指向实际数据的指针
-                var dataPtrPtr = Marshal.ReadIntPtr(argPtr);
-                if (dataPtrPtr == IntPtr.Zero) continue;
+                // ★ ptr -> dataPtr -> 值
+                var dataPtr = Marshal.ReadIntPtr(argPtr);
+                if (dataPtr == IntPtr.Zero) continue;
 
                 var elementType = paramInfo.ParameterType.GetElementType()!;
-
-                // 第二次：从实际数据指针读取值
                 if (Utils.IsValueType(elementType) || elementType.IsEnum)
                 {
-                    var newValue = Utils.GetNativeValue(dataPtrPtr, elementType);
+                    var newValue = Utils.GetNativeValue(dataPtr, elementType);
                     if (newValue != null)
                         args[i] = newValue;
                 }
                 else
                 {
-                    // 引用类型：从 GCHandle 读取
-                    var handlePtr = Marshal.ReadIntPtr(dataPtrPtr);
+                    var handlePtr = Marshal.ReadIntPtr(dataPtr);
                     if (handlePtr != IntPtr.Zero)
                     {
                         var handle = GCHandle.FromIntPtr(handlePtr);
@@ -467,7 +479,6 @@ public static unsafe class HookManager
             }
             else if (!Utils.IsValueType(paramInfo.ParameterType))
             {
-                // 普通引用类型参数
                 var handlePtr = Marshal.ReadIntPtr(argPtr);
                 if (handlePtr == IntPtr.Zero) continue;
                 var handle = GCHandle.FromIntPtr(handlePtr);
