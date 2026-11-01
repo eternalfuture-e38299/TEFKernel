@@ -147,7 +147,11 @@ static void log_queue_init(log_queue_t* queue) {
 
 #if POSIX_THREADS
     pthread_mutex_init(&queue->mutex, NULL);
-    pthread_cond_init(&queue->cond, NULL);
+    pthread_condattr_t attr;
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+    pthread_cond_init(&queue->cond, &attr);
+    pthread_condattr_destroy(&attr);
 #else
     InitializeCriticalSection(&queue->mutex);
     InitializeConditionVariable(&queue->cond);
@@ -255,7 +259,7 @@ static log_node_t* log_queue_pop_all_wait(log_queue_t* queue, int timeout_ms, co
             pthread_cond_wait(&queue->cond, &queue->mutex);
         } else {
             struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
+            clock_gettime(CLOCK_MONOTONIC, &ts);
             ts.tv_sec += timeout_ms / 1000;
             ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
             if (ts.tv_nsec >= 1000000000L) {
@@ -388,7 +392,11 @@ static unsigned __stdcall log_thread(void* arg)
 
         // 处理批量日志
         log_node_t* current = node_list;
+        int has_critical = 0;
         while (current != NULL) {
+            if (current->level >= TEFKERNEL_LOG_LEVEL_ERROR) {
+                has_critical = 1;
+            }
             // 获取当前时间
             char time_buf[64];
             get_current_time_for_log(time_buf, sizeof(time_buf));
@@ -440,8 +448,9 @@ static unsigned __stdcall log_thread(void* arg)
             dirty = 1;
         }
 
-        // 当前批次处理完毕，集中刷盘一次，杜绝每行 fflush 带来的 I/O 堵塞
-        if (ctx->log_file && dirty) {
+        // 若批次内包含错误或崩溃日志，立即刷盘保全现场；
+        // 否则依托 64KB stdio 缓冲，在队列空闲超时（2秒）时再集中刷盘，避免闪存 I/O 频繁竞争
+        if (ctx->log_file && dirty && has_critical) {
             fflush(ctx->log_file);
             dirty = 0;
         }
