@@ -351,6 +351,10 @@ static void *text_handle(const char *text, void **temp_pin) {
                 patchlib_free(g_text_cache[lru_idx].handle);
             free(g_text_cache[lru_idx].text);
         }
+        g_text_cache[lru_idx].text = NULL;
+        g_text_cache[lru_idx].handle = PATCH_NULL;
+        g_text_cache[lru_idx].pin = NULL;
+        g_text_cache[lru_idx].hash = 0;
         slot = lru_idx;
     }
 
@@ -367,7 +371,12 @@ static void *text_handle(const char *text, void **temp_pin) {
     }
 
     /* malloc 失败兜底：作为非缓存临时句柄，画完在帧末回收 */
-    if (temp_pin) *temp_pin = pin;
+    if (g_deferred_ready) {
+        gui_deferred_release_t rel = {.text = NULL, .handle = h, .pin = pin};
+        tefstd_vector_push_back(&g_deferred_releases, &rel);
+    } else {
+        if (temp_pin) *temp_pin = pin;
+    }
     return h;
 }
 
@@ -409,7 +418,10 @@ void terraria_gui_text(const char *text, float x, float y, float scale, unsigned
     void *temp_pin = NULL;
     void *str = text_handle(text, &temp_pin);
     if (!str) return;
-    if (!ensure_batch()) return;
+    if (!ensure_batch()) {
+        text_release_temp(temp_pin);
+        return;
+    }
     v2f pos = {x, y};
     color4 c = premul_color4(color_of(rgba));
     float sc = scale <= 0 ? 1.0f : scale;
@@ -435,7 +447,10 @@ void terraria_gui_draw_string(patch_handle_t font, const char *text, float x, fl
     void *temp_pin = NULL;
     void *str = text_handle(text, &temp_pin);
     if (!str) return;
-    if (!ensure_batch()) return;
+    if (!ensure_batch()) {
+        text_release_temp(temp_pin);
+        return;
+    }
     const color4 c = premul_color4(color_of(rgba));
 #if defined(__ANDROID__)
     const unsigned packed = (unsigned) c.r | ((unsigned) c.g << 8) |
@@ -565,7 +580,8 @@ void terraria_gui_remove_draw(tef_gui_draw_cb cb) {
 static void frame_postfix(patch_handle_t this, void **args, void *result,
                           const patch_method_signature_t *sig) {
     (void) this; (void) args; (void) result; (void) sig;
-    if (g_in_draw || !g_entries_ready || f_sprite_batch == PATCH_NULL) {
+    if (g_in_draw) return;
+    if (!g_entries_ready || f_sprite_batch == PATCH_NULL) {
         terraria_gui_end_frame_cleanup();
         return;
     }
