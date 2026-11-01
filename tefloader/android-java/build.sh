@@ -9,25 +9,58 @@ set -e  # 遇到错误立即退出
 # 加载环境配置
 if [ -f "config.env" ]; then
     source config.env
-else
-    # 默认配置
-    JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
-    ANDROID_SDK="$HOME/Android/Sdk"
-    BUILD_TOOLS="36.1.0"
-    PLATFORM="android-36.1"
-    MIN_API=24
-
-    JAVAC="$JAVA_HOME/bin/javac"
-    JAR="$JAVA_HOME/bin/jar"
-    D8="$ANDROID_SDK/build-tools/$BUILD_TOOLS/d8"
-
-    PROJECT_ROOT=$(pwd)
-    SRC_DIR="$PROJECT_ROOT/src"
-    BUILD_DIR="$PROJECT_ROOT/build"
-    OUTPUT_DIR="$BUILD_DIR/output"
-    LIBS_DIR="$BUILD_DIR/libs"
-    ANDROID_JAR="$ANDROID_SDK/platforms/$PLATFORM/android.jar"
 fi
+
+# 智能解析默认配置（支持环境变量与系统默认路径）
+JAVA_HOME="${JAVA_HOME:-$(dirname $(dirname $(readlink -f $(which javac 2>/dev/null || echo "/usr/bin/javac"))))}"
+
+if [ -z "$ANDROID_SDK" ] || [ ! -d "$ANDROID_SDK" ]; then
+    for candidate in "$ANDROID_HOME" "$ANDROID_SDK_ROOT" "/usr/local/lib/android/sdk" "$HOME/Android/Sdk"; do
+        if [ -n "$candidate" ] && [ -d "$candidate" ]; then
+            ANDROID_SDK="$candidate"
+            break
+        fi
+    done
+fi
+ANDROID_SDK="${ANDROID_SDK:-$HOME/Android/Sdk}"
+
+if [ -z "$BUILD_TOOLS" ] || [ ! -f "$ANDROID_SDK/build-tools/$BUILD_TOOLS/d8" ]; then
+    if [ -d "$ANDROID_SDK/build-tools" ]; then
+        for bt in $(ls -1 "$ANDROID_SDK/build-tools" | sort -V -r); do
+            if [ -f "$ANDROID_SDK/build-tools/$bt/d8" ]; then
+                BUILD_TOOLS="$bt"
+                break
+            fi
+        done
+    fi
+    BUILD_TOOLS="${BUILD_TOOLS:-34.0.0}"
+fi
+
+if [ -z "$PLATFORM" ] || [ ! -f "$ANDROID_SDK/platforms/$PLATFORM/android.jar" ]; then
+    if [ -d "$ANDROID_SDK/platforms" ]; then
+        for p in $(ls -1 "$ANDROID_SDK/platforms" | sort -V -r); do
+            if [ -f "$ANDROID_SDK/platforms/$p/android.jar" ]; then
+                PLATFORM="$p"
+                break
+            fi
+        done
+    fi
+    PLATFORM="${PLATFORM:-android-34}"
+fi
+
+MIN_API="${MIN_API:-24}"
+
+JAVAC="${JAVAC:-$JAVA_HOME/bin/javac}"
+JAR="${JAR:-$JAVA_HOME/bin/jar}"
+D8="${D8:-$ANDROID_SDK/build-tools/$BUILD_TOOLS/d8}"
+[ -f "$D8" ] && chmod +x "$D8" 2>/dev/null || true
+
+PROJECT_ROOT=$(pwd)
+SRC_DIR="$PROJECT_ROOT/src"
+BUILD_DIR="$PROJECT_ROOT/build"
+OUTPUT_DIR="$BUILD_DIR/output"
+LIBS_DIR="$BUILD_DIR/libs"
+ANDROID_JAR="${ANDROID_JAR:-$ANDROID_SDK/platforms/$PLATFORM/android.jar}"
 
 # 创建目录
 mkdir -p "$BUILD_DIR/classes" "$OUTPUT_DIR" "$LIBS_DIR"
@@ -176,6 +209,7 @@ $D8 \
 if [ $? -eq 0 ] && [ -f "$OUTPUT_DIR/classes.dex" ]; then
     # 重命名 DEX 文件
     mv "$OUTPUT_DIR/classes.dex" "$OUTPUT_DIR/tefloader.dex"
+    cp "$OUTPUT_DIR/tefloader.dex" "$OUTPUT_DIR/tefloader-android.dex"
 
     DEX_SIZE=$(ls -lh "$OUTPUT_DIR/tefloader.dex" | awk '{print $5}')
     echo "✓ DEX 转换成功"
