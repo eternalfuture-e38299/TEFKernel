@@ -209,6 +209,16 @@ static bool ensure_jni_cache(JNIEnv* env) {
         clear_pending(env, "FindClass ParcelFileDescriptor");
     }
 
+    if (!g_cache.bundleInit || !g_cache.bundlePutString || !g_cache.bundlePutInt ||
+        !g_cache.bundlePutLong || !g_cache.bundleGetBoolean || !g_cache.bundleGetInt ||
+        !g_cache.bundleGetLong || !g_cache.bundleGetString || !g_cache.bundleGetParcelable ||
+        !g_cache.uri || !g_cache.resolverCall) {
+        clear_pending(env, "ensure_jni_cache verification");
+        ALOGE("cpcall: Failed to resolve all required JNI metadata");
+        return false;
+    }
+
+    clear_pending(env, "ensure_jni_cache");
     g_cache.initialized = true;
     ALOGD("cpcall: JNI cache initialized successfully");
     return true;
@@ -246,6 +256,12 @@ static jobject getContentResolver(JNIEnv* env) {
     jclass atClass = env->GetObjectClass(at);
     jmethodID getApplication = env->GetMethodID(
             atClass, "getApplication", "()Landroid/app/Application;");
+    if (!getApplication) {
+        clear_pending(env, "GetMethodID getApplication");
+        env->DeleteLocalRef(atClass);
+        env->DeleteLocalRef(at);
+        return nullptr;
+    }
     jobject context = env->CallObjectMethod(at, getApplication);
     clear_pending(env, "CallObjectMethod getApplication");
     env->DeleteLocalRef(atClass);
@@ -257,6 +273,12 @@ static jobject getContentResolver(JNIEnv* env) {
     jclass contextClass = env->GetObjectClass(context);
     jmethodID getResolverMethod = env->GetMethodID(
             contextClass, "getContentResolver", "()Landroid/content/ContentResolver;");
+    if (!getResolverMethod) {
+        clear_pending(env, "GetMethodID getContentResolver");
+        env->DeleteLocalRef(contextClass);
+        env->DeleteLocalRef(context);
+        return nullptr;
+    }
     jobject localResolver = env->CallObjectMethod(context, getResolverMethod);
     clear_pending(env, "CallObjectMethod getContentResolver");
     env->DeleteLocalRef(contextClass);
@@ -802,8 +824,8 @@ int cp_call_stat(const char* path, struct stat* buf) {
     memset(buf, 0, sizeof(struct stat));
     buf->st_size = getLong(env, result, "file_size");
     buf->st_mtime = getLong(env, result, "last_modified");
-    buf->st_mode = getBoolean(env, result, "is_dir") ? S_IFDIR : S_IFREG;
-    buf->st_mode |= 0644; // 默认权限
+    const bool is_dir = getBoolean(env, result, "is_dir");
+    buf->st_mode = is_dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);
 
     env->DeleteLocalRef(extras);
     env->DeleteLocalRef(result);
