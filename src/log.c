@@ -63,8 +63,10 @@ typedef struct {
     log_node_t* tail;
 #if POSIX_THREADS
     pthread_mutex_t mutex;
+    pthread_cond_t cond;
 #else
     CRITICAL_SECTION mutex;
+    CONDITION_VARIABLE cond;
 #endif
     int count;
     int capacity;
@@ -79,7 +81,7 @@ typedef struct {
 #else
     HANDLE thread_id;
 #endif
-    int running;
+    volatile int running;
     char filename[256];  // 存储生成的文件名
 } log_context_t;
 
@@ -145,14 +147,17 @@ static void log_queue_init(log_queue_t* queue) {
 
 #if POSIX_THREADS
     pthread_mutex_init(&queue->mutex, NULL);
+    pthread_cond_init(&queue->cond, NULL);
 #else
     InitializeCriticalSection(&queue->mutex);
+    InitializeConditionVariable(&queue->cond);
 #endif
 }
 
 // 销毁日志队列
 static void log_queue_destroy(log_queue_t* queue) {
 #if POSIX_THREADS
+    pthread_cond_destroy(&queue->cond);
     pthread_mutex_destroy(&queue->mutex);
 #else
     DeleteCriticalSection(&queue->mutex);
@@ -201,8 +206,10 @@ static int log_queue_push(log_queue_t* queue, const tefkernel_log_level_t level,
     queue->count++;
 
 #if POSIX_THREADS
+    pthread_cond_signal(&queue->cond);
     pthread_mutex_unlock(&queue->mutex);
 #else
+    WakeConditionVariable(&queue->cond);
     LeaveCriticalSection(&queue->mutex);
 #endif
 
@@ -227,6 +234,53 @@ static log_node_t* log_queue_pop_all(log_queue_t* queue) {
         return NULL;
     }
 
+    queue->head = queue->tail = NULL;
+    queue->count = 0;
+
+#if POSIX_THREADS
+    pthread_mutex_unlock(&queue->mutex);
+#else
+    LeaveCriticalSection(&queue->mutex);
+#endif
+
+    return head;
+}
+
+// 从队列获取所有节点，带条件变量等待（消除盲等待与CPU热功耗）
+static log_node_t* log_queue_pop_all_wait(log_queue_t* queue, int timeout_ms, const volatile int* running) {
+#if POSIX_THREADS
+    pthread_mutex_lock(&queue->mutex);
+    while (*running && queue->head == NULL) {
+        if (timeout_ms <= 0) {
+            pthread_cond_wait(&queue->cond, &queue->mutex);
+        } else {
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += timeout_ms / 1000;
+            ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
+            if (ts.tv_nsec >= 1000000000L) {
+                ts.tv_sec += 1;
+                ts.tv_nsec -= 1000000000L;
+            }
+            int rc = pthread_cond_timedwait(&queue->cond, &queue->mutex, &ts);
+            if (rc != 0) {
+                // 超时或出错，跳出等待
+                break;
+            }
+        }
+    }
+#else
+    EnterCriticalSection(&queue->mutex);
+    while (*running && queue->head == NULL) {
+        DWORD dwTimeout = (timeout_ms <= 0) ? INFINITE : (DWORD)timeout_ms;
+        BOOL ok = SleepConditionVariableCS(&queue->cond, &queue->mutex, dwTimeout);
+        if (!ok) {
+            break;
+        }
+    }
+#endif
+
+    log_node_t* head = queue->head;
     queue->head = queue->tail = NULL;
     queue->count = 0;
 
@@ -314,21 +368,21 @@ static unsigned __stdcall log_thread(void* arg)
 {
     log_context_t* ctx = arg;
 
-    // 批量处理缓冲区
-    char batch_buffer[8192];  // 8KB缓冲区
+    // 批量处理缓冲区增大至 32KB
+    char batch_buffer[32768];  // 32KB缓冲区
     size_t batch_size = 0;
+    int dirty = 0;
 
     while (ctx->running) {
-        // 批量获取所有日志节点
-        log_node_t* node_list = log_queue_pop_all(&ctx->queue);
+        // 等待日志到来（带超时2秒，超时期间CPU进入低功耗休眠，避免 1ms 忙轮询）
+        log_node_t* node_list = log_queue_pop_all_wait(&ctx->queue, 2000, &ctx->running);
 
         if (node_list == NULL) {
-            // 没有日志，短暂休眠避免CPU占用过高
-#if POSIX_THREADS
-            usleep(1000);  // 1ms
-#else
-            Sleep(1);
-#endif
+            // 没有日志或超时：若有未刷盘内容则执行平滑刷盘
+            if (ctx->log_file && dirty) {
+                fflush(ctx->log_file);
+                dirty = 0;
+            }
             continue;
         }
 
@@ -355,18 +409,22 @@ static unsigned __stdcall log_thread(void* arg)
                                       "[%s] [%s] %s\n",
                                       time_buf, level_str, current->message);
 
-                if (line_len > 0 && (batch_size + line_len) < sizeof(batch_buffer)) {
-                    batch_size += line_len;
+                if (line_len > 0 && (batch_size + (size_t)line_len) < sizeof(batch_buffer)) {
+                    batch_size += (size_t)line_len;
+                    dirty = 1;
                 } else {
-                    // 缓冲区满，立即写入
+                    // 缓冲区满，写入文件
                     if (batch_size > 0) {
                         fwrite(batch_buffer, 1, batch_size, ctx->log_file);
-                        fflush(ctx->log_file);  // 立即刷新到磁盘
                         batch_size = 0;
                     }
-                    // 直接写入当前行
-                    fprintf(ctx->log_file, "[%s] [%s] %s\n", time_buf, level_str, current->message);
-                    fflush(ctx->log_file);
+                    if (line_len > 0 && (size_t)line_len < sizeof(batch_buffer)) {
+                        batch_size = snprintf(batch_buffer, sizeof(batch_buffer),
+                                              "[%s] [%s] %s\n", time_buf, level_str, current->message);
+                    } else {
+                        fprintf(ctx->log_file, "[%s] [%s] %s\n", time_buf, level_str, current->message);
+                    }
+                    dirty = 1;
                 }
             }
 
@@ -375,11 +433,17 @@ static unsigned __stdcall log_thread(void* arg)
             current = next;
         }
 
-        // 写入剩余的缓冲区内容
+        // 写入当前批次剩余的缓冲区内容
         if (batch_size > 0 && ctx->log_file) {
             fwrite(batch_buffer, 1, batch_size, ctx->log_file);
-            fflush(ctx->log_file);
             batch_size = 0;
+            dirty = 1;
+        }
+
+        // 当前批次处理完毕，集中刷盘一次，杜绝每行 fflush 带来的 I/O 堵塞
+        if (ctx->log_file && dirty) {
+            fflush(ctx->log_file);
+            dirty = 0;
         }
     }
 
@@ -435,8 +499,8 @@ void tefkernel_log_init(const char* filename) {
         g_log_ctx.log_file = fopen(g_log_ctx.filename, "w");
 
         if (g_log_ctx.log_file) {
-            // 设置文件缓冲区为无缓冲，实现实时写入
-            setvbuf(g_log_ctx.log_file, NULL, _IONBF, 0);
+            // 设置 64KB 缓冲区，避免无缓冲导致每次写入都陷入内核态
+            setvbuf(g_log_ctx.log_file, NULL, _IOFBF, 64 * 1024);
 
             // 写入文件头
             char time_buf[64];
@@ -583,14 +647,18 @@ void tefkernel_log_cleanup(void) {
         // 写入关闭日志
         tefkernel_log_write(TEFKERNEL_LOG_LEVEL_INFO, "Log system shutting down");
 
-        // 等待日志写入完成
+        // 通知线程退出并唤醒它
 #if POSIX_THREADS
-        usleep(50000);  // 50ms
-#else
-        Sleep(50);
-#endif
-
+        pthread_mutex_lock(&g_log_ctx.queue.mutex);
         g_log_ctx.running = 0;
+        pthread_cond_broadcast(&g_log_ctx.queue.cond);
+        pthread_mutex_unlock(&g_log_ctx.queue.mutex);
+#else
+        EnterCriticalSection(&g_log_ctx.queue.mutex);
+        g_log_ctx.running = 0;
+        WakeAllConditionVariable(&g_log_ctx.queue.cond);
+        LeaveCriticalSection(&g_log_ctx.queue.mutex);
+#endif
 
         // 等待日志线程退出
 #if POSIX_THREADS
