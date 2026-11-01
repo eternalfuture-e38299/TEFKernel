@@ -22,6 +22,8 @@
 
 #include "patchlib/struct/array.h"
 
+#include <string.h>
+
 #include "internal/log.h"
 #include "../../il2cpp_api.h"
 
@@ -67,4 +69,30 @@ size_t patchlib_array_length(patch_handle_t array) {
 
     TEKLOG_DEBUG("Array length: %zu", result);
     return result;
+}
+
+/* 数组元素是否是引用类型。名字形如 "Single[]" / "System.Int32[]"；
+ * 命中托管值类型名则返回 false，其余按引用处理（与旧行为一致）。 */
+bool patchlib_array_element_is_reference(patch_handle_t array) {
+    if (!patchlib_is_valid(array)) return false;
+
+    void *klass = il2cpp_object_get_class(array);
+    if (!klass) return true;
+
+    const char *name = il2cpp_class_get_name(klass);
+    if (!name || !*name) return true;
+
+    static const char *const value_type_names[] = {
+        "Boolean[]", "Byte[]", "SByte[]", "Int16[]", "UInt16[]",
+        "Int32[]", "UInt32[]", "Int64[]", "UInt64[]",
+        "IntPtr[]", "UIntPtr[]", "Single[]", "Double[]",
+        "Char[]", "Decimal[]",
+    };
+
+    for (size_t i = 0; i < sizeof(value_type_names) / sizeof(value_type_names[0]); ++i) {
+        if (strstr(name, value_type_names[i]) != NULL) {
+            return false;
+        }
+    }
+    return true;
 }
