@@ -822,7 +822,8 @@ static terraria_npc_handle_t *custom_from_instance(patch_handle_t inst) {
     if (!inst)
         return NULL;
     const int type = get_npc_type(inst);
-    const int nid = type - g_npc_base;
+    const int base = terraria_npc_id_get_count();
+    const int nid = type - base;
     const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
     if (nid < 0 || nid >= (int) count)
         return NULL;
@@ -926,7 +927,8 @@ static npc_ai_fn g_orig_npc_ai = NULL;
 static void npc_ai_detour(void *this) {
     if (!this) return;
     const int type = get_npc_type(this);
-    const int nid = type - g_npc_base;
+    const int base = terraria_npc_id_get_count();
+    const int nid = type - base;
     const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
     if (nid < 0 || nid >= (int) count) {
         /* 原版 NPC：超快速旁路，直接调用原函数 */
@@ -1016,7 +1018,7 @@ static void ensure_local_player_aggro_array(void) {
     if (patchlib_array_at(players, (size_t) my, &player) && player) {
         patch_handle_t arr = PATCH_NULL;
         patchlib_field_get_value(f_no_aggro, player, &arr);
-        const int base = g_npc_base;
+        const int base = terraria_npc_id_get_count();
         const int need = base + (int) tefstd_vector_size(&g_terraria_npc_registry);
         if (patchlib_is_valid(arr)) {
             const size_t len = patchlib_array_length(arr);
