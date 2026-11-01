@@ -206,6 +206,10 @@ endif()
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_definitions(tefkernel PRIVATE _DARWIN_C_SOURCE)
+endif()
+
 if (${ANDROID})
     # set(Plugin.SymbolResolver OFF CACHE BOOL "Enable symbol resolver" FORCE)
 

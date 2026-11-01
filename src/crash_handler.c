@@ -62,7 +62,7 @@
     #include <dlfcn.h>
 #endif
 
-#if defined(PLATFORM_ANDROID) || defined(PLATFORM_LINUX) || defined(PLATFORM_APPLE)
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_LINUX)
     #include <ucontext.h>
 #endif
 

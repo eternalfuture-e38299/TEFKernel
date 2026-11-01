@@ -20,6 +20,13 @@
  * Created: 2025/12/20
  *******************************************************************************/
 
+#ifndef _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE 1
+#endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
 #include "internal/log.h"
 
 #include <stdio.h>
@@ -147,11 +154,17 @@ static void log_queue_init(log_queue_t* queue) {
 
 #if POSIX_THREADS
     pthread_mutex_init(&queue->mutex, NULL);
+#if defined(__APPLE__)
+    // macOS 没有 pthread_condattr_setclock，默认采用 REALTIME，
+    // 后续通过 pthread_cond_timedwait_relative_np 实现不受系统时间跳变影响的相对超时等待
+    pthread_cond_init(&queue->cond, NULL);
+#else
     pthread_condattr_t attr;
     pthread_condattr_init(&attr);
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
     pthread_cond_init(&queue->cond, &attr);
     pthread_condattr_destroy(&attr);
+#endif
 #else
     InitializeCriticalSection(&queue->mutex);
     InitializeConditionVariable(&queue->cond);
@@ -258,6 +271,17 @@ static log_node_t* log_queue_pop_all_wait(log_queue_t* queue, int timeout_ms, co
         if (timeout_ms <= 0) {
             pthread_cond_wait(&queue->cond, &queue->mutex);
         } else {
+#if defined(__APPLE__)
+            // macOS 专有扩展，直接使用纳秒相对超时，无需获取时间戳亦不受时钟跳变干扰
+            struct timespec reltime;
+            reltime.tv_sec = timeout_ms / 1000;
+            reltime.tv_nsec = (long)(timeout_ms % 1000) * 1000000L;
+            int rc = pthread_cond_timedwait_relative_np(&queue->cond, &queue->mutex, &reltime);
+            if (rc != 0) {
+                // 超时或出错，跳出等待
+                break;
+            }
+#else
             struct timespec ts;
             clock_gettime(CLOCK_MONOTONIC, &ts);
             ts.tv_sec += timeout_ms / 1000;
@@ -271,6 +295,7 @@ static log_node_t* log_queue_pop_all_wait(log_queue_t* queue, int timeout_ms, co
                 // 超时或出错，跳出等待
                 break;
             }
+#endif
         }
     }
 #else
