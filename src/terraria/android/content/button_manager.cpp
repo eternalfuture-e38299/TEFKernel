@@ -2,6 +2,7 @@
 // signatures; Vector2/Rectangle/Color are used only in fixed typed draw calls.
 #include "terraria/content/button_manager.h"
 #include "button_state.hpp"
+#include "button_paging.hpp"
 #include "button_log.hpp"
 #include "button_json.hpp"
 #include "button_images.hpp"
@@ -165,7 +166,8 @@ void sync_input(){
     if(in_menu()||editing()||ui_blocked())held.clear();
     state.sync(held);
 }
-struct NativeOptions { H object=nullptr,original=nullptr;H expanded=nullptr;unsigned object_pin=0,original_pin=0,expanded_pin=0;std::vector<std::string> keys; };
+constexpr int page_prev_id=65534,page_next_id=65535;
+struct NativeOptions { int page=0,built_page=-1,pending_page=-1;unsigned long long change_tick=0; H object=nullptr,original=nullptr;H expanded=nullptr;unsigned object_pin=0,original_pin=0,expanded_pin=0;std::vector<std::string> keys; };
 std::map<H,NativeOptions> native_options;
 std::map<int,std::string> native_keys;
 std::map<std::string,int> native_ids;
@@ -194,32 +196,64 @@ bool native_overlay_prefix(H obj,void**,const patch_method_signature_t*,void* re
   if(!entry.original_pin)throw std::runtime_error("cannot retain native orientation options");
   gui::images::release_object(entry.expanded_pin);entry.expanded_pin=0;entry.expanded=nullptr;
  }
- if(entry.expanded&&entry.keys==keys){
+ if(entry.pending_page>=0&&tick>entry.change_tick){entry.page=entry.pending_page;entry.pending_page=-1;}
+ if(entry.expanded&&entry.keys==keys&&entry.page==entry.built_page){
   write(f_control_options,obj,entry.expanded);
   auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
   return false;
  }
  const auto count=patchlib_array_length(entry.original);
- auto expanded=patchlib_array_resize(entry.original,count+keys.size(),nullptr);
- if(!expanded)throw std::runtime_error("cannot extend native action options");
- for(size_t i=0;i<keys.size();++i){int id=native_ids.at(keys[i]);if(!patchlib_array_set(expanded,count+i,&id))throw std::runtime_error("cannot fill native action option");}
+ const auto total=count+keys.size();entry.page=std::clamp(entry.page,0,page_count(total)-1);
+ const auto begin=page_begin(total,entry.page),end=page_end(total,entry.page);
+ const bool paged=page_count(total)>1;
+ auto expanded=patchlib_array_resize(entry.original,end-begin+(paged?2:0),nullptr);
+ if(!expanded)throw std::runtime_error("cannot allocate native action page");
+ for(size_t i=begin;i<end;++i){int id=0;
+  if(i<count){if(!patchlib_array_at(entry.original,i,&id))throw std::runtime_error("cannot read native action");}
+  else id=native_ids.at(keys[i-count]);
+  if(!patchlib_array_set(expanded,i-begin,&id))throw std::runtime_error("cannot fill native action page");
+ }
+ if(paged){int prev=page_prev_id,next=page_next_id;patchlib_array_set(expanded,end-begin,&prev);patchlib_array_set(expanded,end-begin+1,&next);}
+ entry.built_page=entry.page;
  const auto pin=gui::images::retain_object(expanded);if(!pin)throw std::runtime_error("cannot retain expanded native options");
  gui::images::release_object(entry.expanded_pin);entry.expanded=expanded;entry.expanded_pin=pin;
  write(f_control_options,obj,expanded);entry.keys=std::move(keys);
  auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
  return false;
 }
+struct NativeOptionDraw {H setting;int navigation;};
+std::vector<NativeOptionDraw> native_option_draws;
+bool native_option_prefix(H obj,void** args,const patch_method_signature_t*,void*){
+ int id=0;if(args&&args[1]){const int index=*static_cast<int*>(args[1]);auto array=read<H>(f_control_options,obj);if(array&&index>=0)patchlib_array_at(array,static_cast<size_t>(index),&id);}
+ native_option_draws.push_back({obj,id==page_prev_id?-1:id==page_next_id?1:0});return false;
+}
+void native_option_postfix(H,void**,void*,const patch_method_signature_t*){if(!native_option_draws.empty())native_option_draws.pop_back();}
+void native_transaction_postfix(H,void**,void* result,const patch_method_signature_t*){
+ if(!result||native_option_draws.empty()||!native_option_draws.back().navigation)return;
+ // PE GUITransactionButton.Draw returns 0 when the transaction is accepted.
+ auto& context=native_option_draws.back();auto it=native_options.find(context.setting);
+ if(*static_cast<int*>(result)==0&&it!=native_options.end()){
+  auto& e=it->second;const auto total=patchlib_array_length(e.original)+state.actions.size();
+  e.pending_page=std::clamp(e.page+context.navigation,0,page_count(total)-1);e.change_tick=tick;
+ }
+ // Consume navigation before the original option handler can bind or close it.
+ *static_cast<int*>(result)=1;
+}
 bool native_name_prefix(H,void** args,const patch_method_signature_t*,void* result){
- if(!args||!args[0]||!result)return false;auto a=native_action(*static_cast<int*>(args[0]));if(!a)return false;
+ if(!args||!args[0]||!result)return false;
+ int id=*static_cast<int*>(args[0]);
+ if(id==page_prev_id||id==page_next_id){*static_cast<H*>(result)=patchlib_string_create(id==page_prev_id?"上一页":"下一页");return true;}
+ auto a=native_action(id);if(!a)return false;
  *static_cast<H*>(result)=patchlib_string_create(a->name.c_str());return true;
 }
 bool native_style_prefix(H,void** args,const patch_method_signature_t*,void* result){
- if(!args||!args[0]||!result||!native_action(*static_cast<int*>(args[0])))return false;
+ if(!args||!args[0]||!result||!native_action(*static_cast<int*>(args[0]))&&*static_cast<int*>(args[0])!=page_prev_id&&*static_cast<int*>(args[0])!=page_next_id)return false;
  *static_cast<int*>(result)=1;return true;
 }
 bool native_texture_prefix(H,void** args,const patch_method_signature_t*,void*){
  if(!args||!args[0]||!args[1]||!args[2])return false;
- auto a=native_action(*static_cast<int*>(args[0]));if(!a)return false;
+ int id=*static_cast<int*>(args[0]);if(id==page_prev_id||id==page_next_id){*static_cast<int*>(args[0])=id==page_prev_id?20:21;return false;}
+ auto a=native_action(id);if(!a)return false;
  if(a->icon.empty()){*static_cast<int*>(args[0])=carrier;return false;}
  int w=0,h=0;H texture=gui::images::texture(a->icon,w,h);
  if(!texture){texture=gui::images::texture("@builtin-white",w,h);}
@@ -442,7 +476,7 @@ void copy_postfix(H,void**,void*,const patch_method_signature_t*){auto i=state.b
 void paste_postfix(H,void**,void*,const patch_method_signature_t*){if(state.has_clipboard)state.bindings[profile_key()]=state.clipboard;clear_input();}
 void default_postfix(H,void**,void*,const patch_method_signature_t*){state.bindings.erase(profile_key());clear_input();}
 struct Callback{prefix_callback_t pre=nullptr;postfix_callback_t post=nullptr;bool finalize=false;};
-std::array<Callback,32> callbacks;
+std::array<Callback,40> callbacks;
 void stop(const char* message){if(ready)LOG_WARN("[controls] disabled after native callback failure: {}",message);ready=false;reason=message;state.reset_input();}
 template<size_t I>bool pre_guard(H obj,void** args,const patch_method_signature_t* sig,void* result){
     if(!ready)return false;
@@ -457,7 +491,7 @@ template<size_t I>void post_guard(H obj,void** args,void* result,const patch_met
 template<size_t... I>auto prefix_table(std::index_sequence<I...>){return std::array<prefix_callback_t,sizeof...(I)>{pre_guard<I>...};}
 template<size_t... I>auto postfix_table(std::index_sequence<I...>){return std::array<postfix_callback_t,sizeof...(I)>{post_guard<I>...};}
 void add_hook(H target,prefix_callback_t pre,postfix_callback_t post,bool finalize=false){
-    static const auto pres=prefix_table(std::make_index_sequence<32>{});static const auto posts=postfix_table(std::make_index_sequence<32>{});
+    static const auto pres=prefix_table(std::make_index_sequence<40>{});static const auto posts=postfix_table(std::make_index_sequence<40>{});
     const auto index=hooks.size();if(index>=callbacks.size())throw std::runtime_error("native control hook capacity exceeded");
     callbacks[index]={pre,post,finalize};
     auto h=patchlib_install_prepost_hook(target,pre?pres[index]:nullptr,post?posts[index]:nullptr);
@@ -502,6 +536,8 @@ void install(){
     try{
         resolve();
         add_hook(method(api.setting,"GetControlType",0),native_overlay_prefix,nullptr);
+        add_hook(method(api.setting,"PulldownOptionDraw",4),native_option_prefix,native_option_postfix,true);
+        add_hook(method(type("GUITransactionButton"),"Draw",9),nullptr,native_transaction_postfix);
         add_hook(method(api.editor,"GetControlName",1),native_name_prefix,nullptr);
         add_hook(method(api.editor,"GetButtonControlSubStyle",1),native_style_prefix,nullptr);
         add_hook(method(api.editor,"GetControlTextureFrame",3),native_texture_prefix,nullptr);
@@ -538,7 +574,7 @@ void install(){
 }
 void shutdown(){
     for(auto it=hooks.rbegin();it!=hooks.rend();++it)patchlib_uninstall_hook(*it);
-    hooks.clear();restore_render();clear_input();restore_native_options();drawing.clear();quick_drawing.clear();group_drawing.clear();runtime_depth=0;
+    hooks.clear();native_option_draws.clear();restore_render();clear_input();restore_native_options();drawing.clear();quick_drawing.clear();group_drawing.clear();runtime_depth=0;
     gui::images::clear();ready=false;state.actions.clear();state.clear_history();state.backup.clear();state.clipboard.clear();state.has_backup=false;state.has_clipboard=false;
 }
 }
