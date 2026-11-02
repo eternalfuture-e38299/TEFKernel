@@ -31,6 +31,10 @@
 #include "private.h"
 #include "internal/log.h"
 
+/* 在 ffi_guard.cpp 中用 C++ catch-all 包住 ffi_call，避免托管异常展开到
+ * 顶层导致 std::terminate → SIGABRT。返回 0=正常，1=已捕获托管异常。 */
+extern int tef_ffi_call_guarded(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue);
+
 void* patchlib_method_get_pointer(patch_handle_t method) {
     if (!patchlib_is_valid(method))
         return NULL;
@@ -196,60 +200,6 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
         return false;
     }
 
-    /* ---------- 无结构体的调用走 il2cpp_runtime_invoke 安全路径 ----------
-     * libffi 调用帧没有 CFI，托管异常展开到该帧找不到 handler，会直接
-     * std::terminate → SIGABRT。il2cpp_runtime_invoke 会把异常捕获进 exc，
-     * 参数/返回值也是常规 C 编组，因此除结构体外的调用一律走它。 */
-    const size_t explicit_arg_count = tefstd_vector_size(&signature.arg_types);
-    bool has_struct = (signature.return_type == PATCH_STRUCT);
-    for (size_t i = 0; i < explicit_arg_count && !has_struct; i++) {
-        const patch_type_t* at = tefstd_vector_at(&signature.arg_types, i);
-        if (at && *at == PATCH_STRUCT) has_struct = true;
-    }
-
-    if (!has_struct) {
-        void** invoke_args = args;
-        void** tmp_args = NULL;
-        if (!invoke_args && explicit_arg_count > 0) {
-            tmp_args = calloc(explicit_arg_count, sizeof(void*));
-            invoke_args = tmp_args;
-        }
-
-        void* exc = NULL;
-        void* result = il2cpp_runtime_invoke(method,
-            signature.is_instance ? instance : PATCH_NULL, invoke_args, &exc);
-        if (tmp_args) free(tmp_args);
-
-        if (exc) {
-            void* klass = il2cpp_object_get_class(exc);
-            const char* name_space = klass ? il2cpp_class_get_namespace(klass) : NULL;
-            const char* name = klass ? il2cpp_class_get_name(klass) : NULL;
-            TEKLOG_ERROR("托管异常(已捕获): %s.%s",
-                         name_space ? name_space : "?", name ? name : "?");
-            patchlib_method_signature_free(&signature);
-            return false;
-        }
-
-        if (return_value && signature.return_type != PATCH_VOID) {
-            if (!result) {
-                if (signature.return_type == PATCH_OBJECT || signature.return_type == PATCH_POINTER)
-                    *(void**)return_value = NULL;
-                else
-                    memset(return_value, 0, get_size_from_patch_type(signature.return_type));
-            } else if (signature.return_type == PATCH_OBJECT ||
-                       signature.return_type == PATCH_POINTER) {
-                *(void**)return_value = result;
-            } else {
-                void* unboxed = il2cpp_object_unbox(result);
-                if (unboxed)
-                    memcpy(return_value, unboxed, get_size_from_patch_type(signature.return_type));
-            }
-        }
-
-        patchlib_method_signature_free(&signature);
-        return true;
-    }
-
     void* method_ptr = patchlib_method_get_pointer(method);
     if (!method_ptr) {
         TEKLOG_ERROR("Failed to get method pointer");
@@ -258,6 +208,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     /* ---------- 参数个数：explicit + this + MethodInfo ---------- */
+    size_t explicit_arg_count = tefstd_vector_size(&signature.arg_types);
     const int total_arg_count =
         (int)explicit_arg_count
         + (signature.is_instance ? 1 : 0)
@@ -371,7 +322,11 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     TEKLOG_DEBUG("Calling method via FFI (nargs=%d)", total_arg_count);
-    ffi_call(&cif, FFI_FN(method_ptr), return_value, arg_values);
+    const int guard_failed = tef_ffi_call_guarded(&cif, FFI_FN(method_ptr),
+                                                  return_value, arg_values);
+    if (guard_failed) {
+        TEKLOG_ERROR("托管异常(已捕获): method=%p", method);
+    }
     TEKLOG_DEBUG("Method invocation completed successfully");
 
     /* ---------- 释放 ffi_type ---------- */
@@ -390,7 +345,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     free(arg_values);
     free(arg_types);
     patchlib_method_signature_free(&signature);
-    return true;
+    return guard_failed == 0;
 }
 
 bool patchlib_constructor_invoke(patch_handle_t constructor,
