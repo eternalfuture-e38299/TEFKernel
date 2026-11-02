@@ -19,3 +19,5 @@ void set_budget(size_t bytes);
 void stats(size_t &used,size_t &limit,size_t &entries,uint64_t &evictions);
 void clear();
 }
+
+namespace tefkernel::gui::images { void* texture(const std::string& id,int& w,int& h); }

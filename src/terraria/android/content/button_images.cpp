@@ -229,3 +229,11 @@ void clear(){std::vector<std::string> ids;for(auto &kv:cache)ids.push_back(kv.fi
  native_draw=nullptr;
 }
 }
+
+namespace tefkernel::gui::images {
+void* texture(const std::string& id,int& w,int& h){
+ if(id=="@builtin-white"&&!cache.count(id)){Entry e;e.path=id;cache.emplace(id,std::move(e));}
+ auto it=cache.find(id);if(it==cache.end())return nullptr;auto& e=it->second;e.last_use=frame;
+ if(!load(e))return nullptr;w=e.w;h=e.h;return e.tex;
+}
+}

@@ -58,19 +58,8 @@ constexpr int unbound=28; // supplied PE 1.4.5.8 ContolType.Count
 constexpr int carrier=27; // safe, existing ArmorSetAbility, never persisted for mods
 struct Region{Rect rect;std::string key,profile,slot;unsigned long long tick=0;bool multi=true;};
 std::map<std::string,Region> regions;
-struct Choice{int kind=0,value=0;std::string key;Rect rect;unsigned epoch=0;};
-struct Claim{bool popup=false,cancelled=false,released=false;Region region;Choice choice;};
+struct Claim{bool cancelled=false,released=false;Region region;};
 std::map<int,Claim> claims;
-std::vector<Choice> rows;
-Rect popup_rect;
-unsigned popup_epoch=0;
-unsigned long long popup_tick=0;
-int popup_page=0;
-std::vector<std::string> module_ids;
-int popup_module=0;
-H popup_owner=nullptr;
-std::string popup_context;
-std::optional<Choice> selected;
 struct DrawContext{std::string key,slot;bool multi=true;};
 std::vector<DrawContext> drawing;
 unsigned runtime_depth=0;
@@ -92,8 +81,7 @@ std::vector<std::pair<std::string,std::string>> changes;
 void invalidate(const std::string& key,bool removing){
     normal_held.erase(key);
     for(auto i=radial_held.begin();i!=radial_held.end();)if(i->second.key==key)i=radial_held.erase(i);else ++i;
-    for(auto& [id,claim]:claims)if((!claim.popup&&claim.region.key==key)||(removing&&claim.popup&&claim.choice.key==key))claim.cancelled=true;
-    if(removing&&selected&&selected->key==key)selected.reset();
+    for(auto& [id,claim]:claims)if(claim.region.key==key)claim.cancelled=true;
     for(auto it=regions.begin();it!=regions.end();)if(it->second.key==key)it=regions.erase(it);else ++it;
 }
 H need(H h,const char* name){if(!h||!patchlib_is_valid(h))throw std::runtime_error(std::string("missing ")+name);return h;}
@@ -177,153 +165,67 @@ void sync_input(){
     if(in_menu()||editing()||ui_blocked())held.clear();
     state.sync(held);
 }
-std::string module_title(const std::string& id){
-    std::vector<std::string> parts;size_t start=0;
-    while(start<=id.size()){
-        const size_t end=id.find('.',start);
-        parts.push_back(id.substr(start,end==std::string::npos?std::string::npos:end-start));
-        if(end==std::string::npos)break;
-        start=end+1;
-    }
-    if(parts.size()>=3)parts.erase(parts.begin());
-    if(parts.size()>1){
-        auto tail=parts.back();std::transform(tail.begin(),tail.end(),tail.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
-        if(tail=="probe"||tail=="diagnostic"||tail=="debug"||tail=="test")parts.pop_back();
-    }
-    std::string label;
-    for(const auto& part:parts){
-        if(!label.empty())label+=' ';
-        bool capitalize=true;
-        for(unsigned char c:part){
-            if(c=='_'||c=='-'){label+=' ';capitalize=true;continue;}
-            label+=capitalize?static_cast<char>(std::toupper(c)):static_cast<char>(c);
-            capitalize=false;
-        }
-    }
-    return label.empty()?id:label;
-}
+struct NativeOptions { H object=nullptr,original=nullptr;H expanded=nullptr;unsigned object_pin=0,original_pin=0,expanded_pin=0;std::vector<std::string> keys; };
+std::map<H,NativeOptions> native_options;
+std::map<int,std::string> native_keys;
+std::map<std::string,int> native_ids;
+int next_native_id=65536;
+H f_control_options=nullptr;
 void refresh_modules(){
-    const std::string current=module_ids.empty()||popup_module<0||static_cast<size_t>(popup_module)>=module_ids.size()?std::string{}:module_ids[popup_module];
-    std::set<std::string> owners;for(const auto& [key,a]:state.actions)owners.insert(a.owner);
-    module_ids.assign(owners.begin(),owners.end());
-    auto it=std::find(module_ids.begin(),module_ids.end(),current);
-    popup_module=it==module_ids.end()?0:static_cast<int>(it-module_ids.begin());
-    if(module_ids.empty())popup_page=0;
+ for(const auto& [key,a]:state.actions)if(!native_ids.count(key)){int id=next_native_id++;native_ids[key]=id;native_keys[id]=key;}
 }
-int module_action_count(const std::string& owner){
-    int count=0;for(const auto& [key,a]:state.actions)if(a.owner==owner)++count;return count;
+Action* native_action(int id){auto i=native_keys.find(id);return i==native_keys.end()?nullptr:state.find(i->second);}
+void restore_native_options(){
+ for(auto& [object,e]:native_options){write(f_control_options,object,e.original);gui::images::release_object(e.expanded_pin);gui::images::release_object(e.original_pin);gui::images::release_object(e.object_pin);}
+ native_options.clear();native_keys.clear();native_ids.clear();next_native_id=65536;
 }
-void popup_closed(H obj,void**,void*,const patch_method_signature_t*){
-    if(obj!=popup_owner)return;
-    rows.clear();selected.reset();popup_owner=nullptr;popup_context.clear();popup_tick=0;++popup_epoch;
+bool native_overlay_prefix(H obj,void**,const patch_method_signature_t*,void* result){
+ if(setting_index(obj)==-2)return false;
+ auto array=read<H>(f_control_options,obj);if(!array)return false;
+ auto& entry=native_options[obj];
+ if(!entry.object){
+  entry.object=obj;entry.original=array;
+  entry.object_pin=gui::images::retain_object(obj);entry.original_pin=gui::images::retain_object(array);
+  if(!entry.object_pin||!entry.original_pin)throw std::runtime_error("cannot retain native options");
+ }
+ std::vector<std::string> keys;for(const auto& [key,a]:state.actions)keys.push_back(key);
+ if(array!=entry.original&&array!=entry.expanded){
+  gui::images::release_object(entry.original_pin);entry.original=array;entry.original_pin=gui::images::retain_object(array);entry.keys.clear();
+  if(!entry.original_pin)throw std::runtime_error("cannot retain native orientation options");
+  gui::images::release_object(entry.expanded_pin);entry.expanded_pin=0;entry.expanded=nullptr;
+ }
+ if(entry.expanded&&entry.keys==keys){
+  write(f_control_options,obj,entry.expanded);
+  auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
+  return false;
+ }
+ const auto count=patchlib_array_length(entry.original);
+ auto expanded=patchlib_array_resize(entry.original,count+keys.size(),nullptr);
+ if(!expanded)throw std::runtime_error("cannot extend native action options");
+ for(size_t i=0;i<keys.size();++i){int id=native_ids.at(keys[i]);if(!patchlib_array_set(expanded,count+i,&id))throw std::runtime_error("cannot fill native action option");}
+ const auto pin=gui::images::retain_object(expanded);if(!pin)throw std::runtime_error("cannot retain expanded native options");
+ gui::images::release_object(entry.expanded_pin);entry.expanded=expanded;entry.expanded_pin=pin;
+ write(f_control_options,obj,expanded);entry.keys=std::move(keys);
+ auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
+ return false;
 }
-void close_popup(H obj){call(api.close_options,obj);rows.clear();selected.reset();popup_owner=nullptr;popup_context.clear();++popup_epoch;}
-void choose(H obj,Choice choice){
-    if(choice.kind==3){
-        if(module_ids.empty())return;
-        const int count=module_action_count(module_ids[popup_module]);
-        const int pages=std::max(1,(count+3)/4);
-        popup_page=std::clamp(popup_page+choice.value,0,pages-1);++popup_epoch;return;
-    }
-    if(choice.kind==4){
-        if(module_ids.size()<2)return;
-        const int count=static_cast<int>(module_ids.size());
-        popup_module=(popup_module+choice.value+count)%count;popup_page=0;++popup_epoch;return;
-    }
-    if(choice.kind!=2||!state.find(choice.key))return;
-    auto slot=setting_slot(obj),p=profile_key();if(slot.empty()||p.empty())return;
-    auto edit=edit_object();if(edit)call(api.add_undo,edit); // participates in native undo/redo
-    int value=unbound;void* args[]={&value};
-    selecting=true;
-    try{call(api.update_value,obj,args);}catch(...){selecting=false;throw;}
-    selecting=false;
-    state.bindings[p][slot]=choice.key;
-    close_popup(obj);
+bool native_name_prefix(H,void** args,const patch_method_signature_t*,void* result){
+ if(!args||!args[0]||!result)return false;auto a=native_action(*static_cast<int*>(args[0]));if(!a)return false;
+ *static_cast<H*>(result)=patchlib_string_create(a->name.c_str());return true;
 }
-bool popup_hover_prefix(H obj,void** args,const patch_method_signature_t*,void* result){
-    if(!result||obj!=popup_owner||!read<bool>(api.display_options,obj)||tick-popup_tick>2||!args||!args[0])return false;
-    const Vec position=*static_cast<const Vec*>(args[0]);
-    if(!contains(popup_rect,position.x,position.y))return false;
-    *static_cast<bool*>(result)=true;return true;
+bool native_style_prefix(H,void** args,const patch_method_signature_t*,void* result){
+ if(!args||!args[0]||!result||!native_action(*static_cast<int*>(args[0])))return false;
+ *static_cast<int*>(result)=1;return true;
 }
-bool picker_prefix(H obj,void**,const patch_method_signature_t*,void*){
-    // Always let the game's overlay draw and process its own vanilla options.
-    if(obj==popup_owner&&selected){
-        auto choice=*selected;selected.reset();
-        if(choice.epoch==popup_epoch){choose(obj,choice);if(!popup_owner)return true;}
-    }
-    return false;
+bool native_texture_prefix(H,void** args,const patch_method_signature_t*,void*){
+ if(!args||!args[0]||!args[1]||!args[2])return false;
+ auto a=native_action(*static_cast<int*>(args[0]));if(!a)return false;
+ if(a->icon.empty()){*static_cast<int*>(args[0])=carrier;return false;}
+ int w=0,h=0;H texture=gui::images::texture(a->icon,w,h);
+ if(!texture){texture=gui::images::texture("@builtin-white",w,h);}
+ auto out_texture=*static_cast<H**>(args[1]);auto out_rect=*static_cast<Rect**>(args[2]);
+ if(out_texture)*out_texture=texture;if(out_rect)*out_rect=Rect{0,0,w,h};return true;
 }
-void picker_postfix(H obj,void**,void*,const patch_method_signature_t*){
-    const int binding_index=setting_index(obj);
-    if(state.actions.empty()||!read<bool>(api.display_options,obj)||binding_index==-2){
-        if(obj==popup_owner)popup_closed(obj,nullptr,nullptr,nullptr);
-        return;
-    }
-    auto config=read<H>(api.active_slot),style=config?read<H>(api.slot_style,config):nullptr;
-    if(!style||read<int>(api.slot_kind,style)!=(binding_index<0?1:2))return;
-    const int width=invoke<int>(api.width),height=invoke<int>(api.height);
-    if(width<300||height<160||module_ids.empty())return;
-    const std::string context=profile_key()+"\n"+setting_slot(obj);
-    if(obj!=popup_owner||context!=popup_context){popup_owner=obj;popup_context=context;popup_page=0;popup_module=0;selected.reset();++popup_epoch;}
-    popup_module=std::clamp(popup_module,0,static_cast<int>(module_ids.size())-1);
-    const std::string& selected_module=module_ids[popup_module];
-    const int action_count=module_action_count(selected_module),pages=std::max(1,(action_count+3)/4);
-    popup_page=std::clamp(popup_page,0,pages-1);
-    const int width_px=std::min(width-16,std::max(420,width*52/100));
-    const int padding=8,gap=8;
-    const int header_h=std::clamp(width_px/16,32,42);
-    const int row_h=std::min(std::clamp(width_px/11+8,40,64),(height-header_h-padding*2-gap*2-16)/2);
-    const int x=(width-width_px)/2,dock_h=padding*2+header_h+gap+row_h*2+gap;
-    const int y=std::max(8,height-dock_h-8);
-    const int first_action=popup_page*4;
-    popup_rect={x,y,width_px,dock_h};
-    popup_tick=tick;
-    rows.clear();
-    rectangle(popup_rect,color(23,35,75,250));
-    Rect header{x+padding,y+padding,width_px-padding*2,header_h};
-    rectangle(header,color(32,58,84));
-    const int nav_w=header_h-8,nav_y=header.y+4;
-    const int module_w=header.w*58/100;
-    const int module_count=static_cast<int>(module_ids.size());
-    for(int direction=0;direction<2;++direction){
-        const int delta=direction==0?-1:1;
-        const bool enabled=module_count>1;
-        Rect r{direction==0?header.x+4:header.x+module_w-nav_w-4,nav_y,nav_w,nav_w};
-        rectangle(r,enabled?color(54,83,117):color(39,57,78));
-        text(direction==0?"<":">",r,enabled?color(248,222,135):color(117,132,150),true);
-        if(enabled)rows.push_back({4,delta,{},r,popup_epoch});
-    }
-    text(module_title(selected_module)+"  "+std::to_string(popup_module+1)+"/"+std::to_string(module_count),
-         {header.x+nav_w+8,header.y+4,module_w-nav_w*2-16,nav_w},color(240,244,255),true);
-    const int page_x=header.x+module_w+gap,page_w=header.w-module_w-gap;
-    for(int direction=0;direction<2;++direction){
-        const int delta=direction==0?-1:1;
-        const bool enabled=direction==0?popup_page>0:popup_page+1<pages;
-        Rect r{direction==0?page_x:page_x+page_w-nav_w-4,nav_y,nav_w,nav_w};
-        rectangle(r,enabled?color(42,66,100):color(36,53,74));
-        text(direction==0?"<":">",r,enabled?color(240,244,255):color(117,132,150),true);
-        if(enabled)rows.push_back({3,delta,{},r,popup_epoch});
-    }
-    text(std::to_string(popup_page+1)+"/"+std::to_string(pages),
-         {page_x+nav_w+4,nav_y,page_w-nav_w*2-12,nav_w},color(240,244,255),true);
-    const int col_w=(width_px-padding*2-gap)/2;
-    int index=0;
-    for(auto& [key,a]:state.actions){
-        if(a.owner!=selected_module)continue;
-        const int local=index++-first_action;
-        if(local<0||local>=4)continue;
-        Rect r{x+padding+(local%2)*(col_w+gap),header.y+header_h+gap+(local/2)*(row_h+gap),col_w,row_h};
-        rectangle(r,color(44,82,99,250));
-        Rect label{r.x+8,r.y,r.w-16,r.h};
-        const int icon_size=std::min(r.h-12,r.w/3);
-        Rect icon{r.x+8,r.y+(r.h-icon_size)/2,icon_size,icon_size};
-        if(action_icon(a,icon)){label.x=icon.x+icon.w+6;label.w=r.x+r.w-8-label.x;}
-        text(a.name,label,color(240,244,255),true);
-        rows.push_back({2,0,key,r,popup_epoch});
-    }
-}
-
 bool value_prefix(H obj,void**,const patch_method_signature_t*,void* result){
     if(!result||setting_index(obj)==-2)return false;
     auto a=state.find(active_key(obj));if(!a)return false;
@@ -439,16 +341,10 @@ void quick_postfix(H,void** args,void*,const patch_method_signature_t*){
     if(!ready||!args||!args[1])return;
     auto a=state.find(draw.context.key);if(!a||!a->visible)return;
     Rect r=region(*static_cast<H*>(args[1]));if(r.w<=0||r.h<=0)return;
-    Rect label=r,icon_area=r;
-    if(a->show_label){
-        const int label_h=std::min(22,std::max(12,r.h/3));
-        icon_area.h=std::max(0,r.h-label_h);
-        label.y+=icon_area.h;label.h=label_h;
-    }
-    const int icon_size=std::min(icon_area.w,icon_area.h)*3/4;
-    Rect icon{icon_area.x+(icon_area.w-icon_size)/2,icon_area.y+(icon_area.h-icon_size)/2,icon_size,icon_size};
+    const int icon_size=std::min(r.w,r.h)*3/4;
+    Rect icon{r.x+(r.w-icon_size)/2,r.y+(r.h-icon_size)/2,icon_size,icon_size};
     const bool has_icon=action_icon(*a,icon);
-    if(!has_icon||a->show_label)text(a->name,has_icon?label:r,a->enabled?color(245,247,255):color(130,135,150),true);
+    if(!has_icon)text(a->name,r,a->enabled?color(245,247,255):color(130,135,150),true);
     auto p=profile_key();
     if(draw.radial){
         const auto id=p+"\n"+draw.context.slot;
@@ -474,9 +370,9 @@ void tick_postfix(H,void**,void*,const patch_method_signature_t*){++tick;gui::im
 void poll_postfix(H,void**,void*,const patch_method_signature_t*){
     if(in_menu()){clear_input();return;}
     auto cm=read<H>(api.manager_instance);if(!cm){clear_input();return;}
-    bool in_editor=editing();bool picker=in_editor&&popup_owner&&tick-popup_tick<=2;
+    bool in_editor=editing();
     bool blocked=!in_editor&&ui_blocked();
-    if(blocked){normal_held.clear();radial_held.clear();state.reset_input();for(auto& [id,c]:claims)if(!c.popup)c.cancelled=true;}
+    if(blocked){normal_held.clear();radial_held.clear();state.reset_input();for(auto& [id,c]:claims)c.cancelled=true;}
     auto p=profile_key();std::set<int> live;std::set<std::string> held;
     for(auto i=claims.begin();i!=claims.end();)if(i->second.released)i=claims.erase(i);else ++i;
     int count=invoke<int>(api.count,cm);
@@ -486,21 +382,17 @@ void poll_postfix(H,void**,void*,const patch_method_signature_t*){
         bool down=read<bool>(api.cursor_down,cur),old=read<bool>(api.cursor_old,cur);
         auto claim=claims.find(id);
         if(claim==claims.end()&&down&&!old){
-            if(picker&&contains(popup_rect,pos.x,pos.y)){
-                Claim v;v.popup=true;v.choice={0,0,{},popup_rect,popup_epoch};for(auto& row:rows)if(contains(row.rect,pos.x,pos.y)){v.choice=row;break;}
-                claim=claims.emplace(id,v).first;
-            }else if(!in_editor&&!blocked&&!read<bool>(api.cursor_ignore,cur)){for(auto& [key,r]:regions){auto a=state.find(r.key);if(r.profile==p&&tick-r.tick<=2&&a&&a->visible&&contains(r.rect,pos.x,pos.y)){
+            if(!in_editor&&!blocked&&!read<bool>(api.cursor_ignore,cur)){for(auto& [key,r]:regions){auto a=state.find(r.key);if(r.profile==p&&tick-r.tick<=2&&a&&a->visible&&contains(r.rect,pos.x,pos.y)){
                 Claim v;v.region=r;
-                if(!r.multi)for(auto& [other_id,other]:claims)if(!other.popup&&!other.released&&!other.cancelled&&other.region.profile==r.profile&&other.region.slot==r.slot)v.cancelled=true;
+                if(!r.multi)for(auto& [other_id,other]:claims)if(!other.released&&!other.cancelled&&other.region.profile==r.profile&&other.region.slot==r.slot)v.cancelled=true;
                 claim=claims.emplace(id,v).first;break;}}
             }
         }
         if(claim==claims.end())continue;
         auto& v=claim->second;write(api.cursor_ignore,cur,true);write(api.cursor_world,cur,true);
-        Rect r=v.popup?v.choice.rect:v.region.rect;
+        Rect r=v.region.rect;
         if(!contains(r,pos.x,pos.y))v.cancelled=true;
-        if(v.popup){if(!down&&!v.cancelled&&picker&&v.choice.epoch==popup_epoch&&v.choice.kind)selected=v.choice;}
-        else if(down&&!v.cancelled&&!in_editor&&!blocked&&v.region.profile==p)held.insert(v.region.key);
+        if(down&&!v.cancelled&&!in_editor&&!blocked&&v.region.profile==p)held.insert(v.region.key);
         if(!down)v.released=true;
     }
     for(auto i=claims.begin();i!=claims.end();)if(!live.count(i->first))i=claims.erase(i);else ++i;
@@ -509,7 +401,15 @@ void poll_postfix(H,void**,void*,const patch_method_signature_t*){
 bool dispatch_prefix(H,void** args,const patch_method_signature_t*,void*){
     return args&&args[0]&&claims.count(read<int>(api.cursor_id,*static_cast<H*>(args[0])));
 }
-bool update_prefix(H obj,void**,const patch_method_signature_t*,void*){
+bool update_prefix(H obj,void** args,const patch_method_signature_t*,void*){
+ if(args&&args[0]){auto a=native_action(*static_cast<int*>(args[0]));if(a){
+  const auto key=a->key,slot=setting_slot(obj),p=profile_key();changes.emplace_back("","");
+  if(slot.empty()||p.empty())return true;
+  auto edit=edit_object();if(edit)call(api.add_undo,edit);
+  int value=unbound;void* nested[]={&value};selecting=true;
+  try{call(api.update_value,obj,nested);}catch(...){selecting=false;throw;}selecting=false;
+  state.bindings[p][slot]=key;return true;
+ }}
     changes.emplace_back(!selecting&&setting_index(obj)!=-2?profile_key():std::string{},setting_slot(obj));
     return false;
 }
@@ -568,6 +468,7 @@ void resolve(){
     api.main=type("Main","Terraria");api.styles=type("VirtualControlsStyles_Layout");api.binding=type("VirtualControlsBinding_Layout");
     api.slot=type("VirtualControlsHardwareConfigurationMapping_Layout");api.slot_type=type("VirtualControlsSlotTypeMapping_Layout");
     api.panel=type("GUIVirtualInputControllerEdit_ControlPanel");api.setting=need(patchlib_type_get_inner_type(api.panel,"ControlPanelActionSetting"),"ControlPanelActionSetting");
+    f_control_options=field(api.setting,"controlOptions");
     api.quick=type("GUIQuickActionButton");api.editor=type("GUIVirtualInputControllerEdit");api.interface_edit=type("GUIInterfaceEdit");
     api.gui=type("GUIInstance");api.cursor=type("Cursor");api.manager=type("CursorManager");
     api.batch=field(api.main,"spriteBatch");api.width=method(api.main,"get_screenWidth",0);api.height=method(api.main,"get_screenHeight",0);api.menu=patchlib_type_get_field(api.main,"gameMenu");if(!api.menu||!patchlib_is_valid(api.menu)){api.menu=nullptr;api.menu_getter=method(api.main,"get_gameMenu",0);}
@@ -600,11 +501,12 @@ void install(){
     if(ready)return;
     try{
         resolve();
-        add_hook(method(api.setting,"DrawOverlay",0),picker_prefix,picker_postfix);
-        add_hook(api.is_over_options,popup_hover_prefix,nullptr);
+        add_hook(method(api.setting,"GetControlType",0),native_overlay_prefix,nullptr);
+        add_hook(method(api.editor,"GetControlName",1),native_name_prefix,nullptr);
+        add_hook(method(api.editor,"GetButtonControlSubStyle",1),native_style_prefix,nullptr);
+        add_hook(method(api.editor,"GetControlTextureFrame",3),native_texture_prefix,nullptr);
         add_hook(method(api.setting,"GetValue",0),value_prefix,nullptr);
         add_hook(api.update_value,update_prefix,change_postfix,true);
-        add_hook(api.close_options,nullptr,popup_closed);
         add_hook(method(api.editor,"RemoveSlot",1),remove_slot_prefix,change_postfix,true);
         auto controller=type("GUIVirtualInputController");
         add_hook(method(controller,"Draw",0),runtime_prefix,runtime_postfix,true);
@@ -636,7 +538,7 @@ void install(){
 }
 void shutdown(){
     for(auto it=hooks.rbegin();it!=hooks.rend();++it)patchlib_uninstall_hook(*it);
-    hooks.clear();restore_render();clear_input();rows.clear();module_ids.clear();popup_module=0;drawing.clear();quick_drawing.clear();group_drawing.clear();selected.reset();popup_owner=nullptr;runtime_depth=0;
+    hooks.clear();restore_render();clear_input();restore_native_options();drawing.clear();quick_drawing.clear();group_drawing.clear();runtime_depth=0;
     gui::images::clear();ready=false;state.actions.clear();state.clear_history();state.backup.clear();state.clipboard.clear();state.has_backup=false;state.has_clipboard=false;
 }
 }
