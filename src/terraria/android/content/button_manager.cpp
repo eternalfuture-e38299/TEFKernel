@@ -1,8 +1,8 @@
-// Native Android touch-layout bindings. All hooks use primitive/reference
-// signatures; Vector2/Rectangle/Color are used only in fixed typed draw calls.
+// Native Android touch-layout bindings for the supplied PE editor.
+// Value-type arguments use PatchLib struct signatures; drawing uses typed calls.
 #include "terraria/content/button_manager.h"
 #include "button_state.hpp"
-#include "button_paging.hpp"
+#include "button_scroll.hpp"
 #include "button_log.hpp"
 #include "button_json.hpp"
 #include "button_images.hpp"
@@ -49,9 +49,9 @@ struct Api {
  H main{},styles{},binding{},slot{},slot_type{},panel{},setting{},quick{},editor{},interface_edit{},cursor{},manager{},gui{};
  H batch{},width{},height{},menu{},menu_getter{},styles_instance{},active_profile{},profile_id{},profile_controls{},binding_slot{},binding_action{},binding_groups{};
  H slot_id{},slot_style{},slot_kind{},slot_multi{},active_control{},active_slot{},action_binding{},display_options{};
- H gui_active{},gui_edit{},edit_enabled{},gui_editor{},gui_runtime{},ui_open{};
+ H selected_position{},gui_active{},gui_edit{},edit_enabled{},gui_editor{},gui_runtime{},ui_open{};
  H manager_instance{},cursor_id{},cursor_pos{},cursor_down{},cursor_old{},cursor_ignore{},cursor_world{},cursor_layer{},group_capture{};
- H rect{},text{},get_region{},adjust{},count{},at{},update_value{},close_options{},is_over_options{},add_undo{},has_undo{},has_redo{};
+ H rect{},text{},get_region{},transaction_region{},grid_horizontal{},grid_line_count{},adjust{},count{},at{},update_value{},close_options{},is_over_options{},add_undo{},has_undo{},has_redo{};
 } api;
 std::vector<patch_hook_id_t> hooks;
 unsigned long long tick=0;
@@ -166,8 +166,19 @@ void sync_input(){
     if(in_menu()||editing()||ui_blocked())held.clear();
     state.sync(held);
 }
-constexpr int page_prev_id=65534,page_next_id=65535;
-struct NativeOptions { int page=0,built_page=-1,pending_page=-1;unsigned long long change_tick=0; H object=nullptr,original=nullptr;H expanded=nullptr;unsigned object_pin=0,original_pin=0,expanded_pin=0;std::vector<std::string> keys; };
+constexpr int empty_option=-1;
+struct NativeOptions {
+ ScrollWindow window;ScrollGesture gesture;
+ int built_row=-1,built_columns=-1,built_rows=-1,built_total=-1;bool built_horizontal=false;
+ H object=nullptr,original=nullptr,expanded=nullptr;
+ unsigned object_pin=0,original_pin=0,expanded_pin=0;
+ std::vector<std::string> keys;
+ std::vector<Rect> cells;std::vector<int> cell_ids;
+ Rect bounds,rail;float pitch=0;
+ unsigned long long last_draw=0,block_until=0;
+ std::string pressed_slot,pressed_profile;
+};
+std::map<int,H> scroll_claims;
 std::map<H,NativeOptions> native_options;
 std::map<int,std::string> native_keys;
 std::map<std::string,int> native_ids;
@@ -179,7 +190,7 @@ void refresh_modules(){
 Action* native_action(int id){auto i=native_keys.find(id);return i==native_keys.end()?nullptr:state.find(i->second);}
 void restore_native_options(){
  for(auto& [object,e]:native_options){write(f_control_options,object,e.original);gui::images::release_object(e.expanded_pin);gui::images::release_object(e.original_pin);gui::images::release_object(e.object_pin);}
- native_options.clear();native_keys.clear();native_ids.clear();next_native_id=65536;
+ native_options.clear();scroll_claims.clear();native_keys.clear();native_ids.clear();next_native_id=65536;
 }
 bool native_overlay_prefix(H obj,void**,const patch_method_signature_t*,void* result){
  if(setting_index(obj)==-2)return false;
@@ -192,67 +203,191 @@ bool native_overlay_prefix(H obj,void**,const patch_method_signature_t*,void* re
  }
  std::vector<std::string> keys;for(const auto& [key,a]:state.actions)keys.push_back(key);
  if(array!=entry.original&&array!=entry.expanded){
-  gui::images::release_object(entry.original_pin);entry.original=array;entry.original_pin=gui::images::retain_object(array);entry.keys.clear();
+  gui::images::release_object(entry.original_pin);entry.original=array;entry.original_pin=gui::images::retain_object(array);entry.keys.clear();entry.gesture.cancel();entry.last_draw=0;
   if(!entry.original_pin)throw std::runtime_error("cannot retain native orientation options");
   gui::images::release_object(entry.expanded_pin);entry.expanded_pin=0;entry.expanded=nullptr;
  }
- if(entry.pending_page>=0&&tick>entry.change_tick){entry.page=entry.pending_page;entry.pending_page=-1;}
- if(entry.expanded&&entry.keys==keys&&entry.page==entry.built_page){
+ const auto count=patchlib_array_length(entry.original);
+ entry.window.total=static_cast<int>(count+keys.size());entry.window.clamp();
+ if(entry.keys!=keys)entry.gesture.cancel();
+ if(entry.expanded&&entry.keys==keys&&entry.window.row==entry.built_row&&
+    entry.window.columns==entry.built_columns&&entry.window.rows==entry.built_rows&&entry.window.total==entry.built_total&&entry.window.horizontal==entry.built_horizontal){
   write(f_control_options,obj,entry.expanded);
   auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
   return false;
  }
- const auto count=patchlib_array_length(entry.original);
- const auto total=count+keys.size();entry.page=std::clamp(entry.page,0,page_count(total)-1);
- const auto begin=page_begin(total,entry.page),end=page_end(total,entry.page);
- const bool paged=page_count(total)>1;
- auto expanded=patchlib_array_resize(entry.original,end-begin+(paged?2:0),nullptr);
- if(!expanded)throw std::runtime_error("cannot allocate native action page");
- for(size_t i=begin;i<end;++i){int id=0;
-  if(i<count){if(!patchlib_array_at(entry.original,i,&id))throw std::runtime_error("cannot read native action");}
-  else id=native_ids.at(keys[i-count]);
-  if(!patchlib_array_set(expanded,i-begin,&id))throw std::runtime_error("cannot fill native action page");
+ const int length=std::min(entry.window.total,entry.window.capacity());
+ auto expanded=patchlib_array_resize(entry.original,length,nullptr);
+ if(!expanded)throw std::runtime_error("cannot allocate native action window");
+ for(int cell=0;cell<length;++cell){
+  const int source=entry.window.source(cell);int id=empty_option;
+  if(source>=0&&static_cast<size_t>(source)<count){if(!patchlib_array_at(entry.original,source,&id))throw std::runtime_error("cannot read native action");}
+  else if(source>=0)id=native_ids.at(keys[source-count]);
+  if(!patchlib_array_set(expanded,cell,&id))throw std::runtime_error("cannot fill native action window");
  }
- if(paged){int prev=page_prev_id,next=page_next_id;patchlib_array_set(expanded,end-begin,&prev);patchlib_array_set(expanded,end-begin+1,&next);}
- entry.built_page=entry.page;
+ entry.built_row=entry.window.row;entry.built_columns=entry.window.columns;
+ entry.built_rows=entry.window.rows;entry.built_total=entry.window.total;entry.built_horizontal=entry.window.horizontal;
  const auto pin=gui::images::retain_object(expanded);if(!pin)throw std::runtime_error("cannot retain expanded native options");
  gui::images::release_object(entry.expanded_pin);entry.expanded=expanded;entry.expanded_pin=pin;
  write(f_control_options,obj,expanded);entry.keys=std::move(keys);
  auto a=state.find(active_key(obj));if(a&&result){*static_cast<int*>(result)=native_ids.at(a->key);return true;}
  return false;
 }
-struct NativeOptionDraw {H setting;int navigation;};
+struct NativeOptionDraw {H setting;int cell;};
 std::vector<NativeOptionDraw> native_option_draws;
-bool native_option_prefix(H obj,void** args,const patch_method_signature_t*,void*){
- int id=0;if(args&&args[1]){const int index=*static_cast<int*>(args[1]);auto array=read<H>(f_control_options,obj);if(array&&index>=0)patchlib_array_at(array,static_cast<size_t>(index),&id);}
- native_option_draws.push_back({obj,id==page_prev_id?-1:id==page_next_id?1:0});return false;
-}
-void native_option_postfix(H,void**,void*,const patch_method_signature_t*){if(!native_option_draws.empty())native_option_draws.pop_back();}
-void native_transaction_postfix(H,void**,void* result,const patch_method_signature_t*){
- if(!result||native_option_draws.empty()||!native_option_draws.back().navigation)return;
- // PE GUITransactionButton.Draw returns 0 when the transaction is accepted.
- auto& context=native_option_draws.back();auto it=native_options.find(context.setting);
- if(*static_cast<int*>(result)==0&&it!=native_options.end()){
-  auto& e=it->second;const auto total=patchlib_array_length(e.original)+state.actions.size();
-  e.pending_page=std::clamp(e.page+context.navigation,0,page_count(total)-1);e.change_tick=tick;
+bool scroll_overlay_prefix(H obj,void**,const patch_method_signature_t*,void*){
+ auto it=native_options.find(obj);if(it!=native_options.end()){
+  auto& e=it->second;e.cells.clear();e.cell_ids.clear();
+  if(!read<bool>(api.display_options,obj)){e.gesture.cancel();e.last_draw=0;}
  }
- // Consume navigation before the original option handler can bind or close it.
- *static_cast<int*>(result)=1;
+ return false;
+}
+bool native_option_prefix(H obj,void** args,const patch_method_signature_t*,void*){
+ const int cell=args&&args[1]?*static_cast<int*>(args[1]):-1;
+ native_option_draws.push_back({obj,cell});
+ auto it=native_options.find(obj);if(it==native_options.end()||cell<0)return false;
+ auto& e=it->second;
+ // Supplied PE metadata: PulldownOptionDraw(ItemGrid_Layout, int, Vector2, float).
+ // The native layout reports its orientation; never infer rows from screen pixels.
+ H grid=args&&args[0]?*static_cast<H*>(args[0]):nullptr;
+ if(grid&&cell==0){
+  const bool horizontal=read<bool>(api.grid_horizontal,grid);
+  const int lines=std::clamp(read<int>(api.grid_line_count,grid),1,27);
+  const int columns=horizontal?lines:std::max(1,27/lines);
+  const int rows=horizontal?std::max(1,27/lines):lines;
+  if(columns!=e.window.columns||rows!=e.window.rows||horizontal!=e.window.horizontal){
+   e.window.configure(columns,rows,horizontal);e.gesture.cancel();e.last_draw=0;
+  }
+ }
+ int id=empty_option;auto array=read<H>(f_control_options,obj);
+ if(array&&static_cast<size_t>(cell)<patchlib_array_length(array))patchlib_array_at(array,cell,&id);
+ if(static_cast<size_t>(cell)>=e.cells.size()){e.cells.resize(cell+1);e.cell_ids.resize(cell+1,empty_option);}
+ e.cell_ids[cell]=id;return id==empty_option;
+}
+void native_option_postfix(H,void**,void*,const patch_method_signature_t*){
+ if(native_option_draws.empty())return;
+ const auto context=native_option_draws.back();native_option_draws.pop_back();
+ auto it=native_options.find(context.setting);
+ // PE resets selectedPosition=-1 before drawing the grid. Its final outside-click
+ // test dismisses only when this stays -1; a rail gesture belongs to this overlay.
+ if(it!=native_options.end()&&it->second.block_until>=tick)write(api.selected_position,context.setting,0);
+}
+bool native_transaction_prefix(H,void** args,const patch_method_signature_t*,void*){
+ if(native_option_draws.empty()||!args||!args[0])return false;
+ const auto context=native_option_draws.back();auto it=native_options.find(context.setting);
+ if(it==native_options.end()||context.cell<0)return false;
+ auto& e=it->second;if(static_cast<size_t>(context.cell)>=e.cells.size())return false;
+ using Fn=Rect(*)(void*);auto fn=reinterpret_cast<Fn>(patchlib_method_get_pointer(api.transaction_region));
+ H layout=*static_cast<H*>(args[0]);if(fn&&layout)e.cells[context.cell]=fn(layout);
+ return false;
+}
+void native_transaction_postfix(H,void**,void* result,const patch_method_signature_t*){
+ if(!result||native_option_draws.empty())return;
+ auto it=native_options.find(native_option_draws.back().setting);
+ // Draw returns 0 on acceptance. A captured touch is committed on release below,
+ // so the original option handler cannot bind a cell during a swipe or close it.
+ if(it!=native_options.end()&&it->second.block_until>=tick)*static_cast<int*>(result)=1;
+}
+void scroll_overlay_postfix(H obj,void**,void*,const patch_method_signature_t*){
+ auto it=native_options.find(obj);if(it==native_options.end())return;auto& e=it->second;
+ if(!read<bool>(api.display_options,obj)||e.cells.empty()){e.gesture.cancel();e.last_draw=0;return;}
+ Rect bounds{};
+ for(const auto& r:e.cells)if(r.w>0&&r.h>0){
+  if(!bounds.w)bounds=r;
+  else{const int right=std::max(bounds.x+bounds.w,r.x+r.w),bottom=std::max(bounds.y+bounds.h,r.y+r.h);
+   bounds.x=std::min(bounds.x,r.x);bounds.y=std::min(bounds.y,r.y);bounds.w=right-bounds.x;bounds.h=bottom-bounds.y;}
+ }
+ if(bounds.w<=0||bounds.h<=0){e.last_draw=0;return;}
+ e.bounds=bounds;e.last_draw=tick;e.pitch=static_cast<float>(bounds.h)/e.window.rows;
+ for(size_t i=1;i<e.cells.size();++i)if(e.cells[i].y>e.cells[0].y&&e.cells[i].x==e.cells[0].x){e.pitch=static_cast<float>(e.cells[i].y-e.cells[0].y);break;}
+ if(!e.window.max_row()){e.rail={};return;}
+ const int width=std::clamp(bounds.h/e.window.rows/3,14,28);
+ const int screen=invoke<int>(api.width);
+ e.rail={std::clamp(bounds.x+bounds.w+4,0,std::max(0,screen-width)),bounds.y,width,bounds.h};
+ rectangle(e.rail,color(28,38,68,235));
+ const int thumb=e.window.thumb_size(e.rail.h),travel=e.rail.h-thumb;
+ const int y=e.rail.y+static_cast<int>(std::lround(static_cast<float>(travel)*e.window.row/e.window.max_row()));
+ rectangle({e.rail.x+2,y,std::max(1,width-4),thumb},e.gesture.active()?color(149,198,245):color(99,146,207));
+}
+bool scroll_over_prefix(H obj,void** args,const patch_method_signature_t*,void* result){
+ auto it=native_options.find(obj);if(it==native_options.end()||!result)return false;
+ const auto& e=it->second;
+ if(!e.last_draw||tick-e.last_draw>2||!e.window.max_row()||!read<bool>(api.display_options,obj))return false;
+ bool over=e.block_until>=tick;
+ if(args&&args[0]){const auto pos=*static_cast<Vec*>(args[0]);over=over||contains(e.rail,pos.x,pos.y);}
+ if(!over)return false;
+ *static_cast<bool*>(result)=true;return true;
+}
+void poll_native_scroll(){
+ auto cm=read<H>(api.manager_instance);if(!cm)return;
+ std::set<int> live;
+ using Adjust=Vec(*)(Vec);auto adjust=reinterpret_cast<Adjust>(patchlib_method_get_pointer(api.adjust));
+ const int count=std::clamp(invoke<int>(api.count,cm),0,32);
+ for(int index=0;index<count;++index){
+  void* arg[]={&index};H cur=invoke<H>(api.at,cm,arg);if(!cur)continue;
+  const int id=read<int>(api.cursor_id,cur);live.insert(id);
+  Vec pos=adjust(read<Vec>(api.cursor_pos,cur));const bool down=read<bool>(api.cursor_down,cur),old=read<bool>(api.cursor_old,cur);
+  auto claim=scroll_claims.find(id);
+  if(claim==scroll_claims.end()&&down&&!old&&editing()&&!in_menu()){
+   for(auto& [obj,e]:native_options){
+    if(!e.last_draw||tick-e.last_draw>2||!read<bool>(api.display_options,obj)||!e.window.max_row())continue;
+    const bool on_rail=contains(e.rail,pos.x,pos.y);if(!on_rail&&!contains(e.bounds,pos.x,pos.y))continue;
+    int selected=-1;
+    for(size_t cell=0;cell<e.cells.size();++cell)if(contains(e.cells[cell],pos.x,pos.y)){selected=static_cast<int>(cell);break;}
+    const int thumb=e.window.thumb_size(e.rail.h);
+    const float top=e.rail.y+static_cast<float>(e.rail.h-thumb)*e.window.row/e.window.max_row();
+    const float grab=on_rail&&pos.y>=top&&pos.y<top+thumb?pos.y-top:thumb/2.0f;
+    if(e.gesture.begin(id,pos.y,e.window.row,on_rail,selected,grab)){
+     e.pressed_slot=setting_slot(obj);e.pressed_profile=profile_key();
+    }
+    claim=scroll_claims.emplace(id,obj).first;break;
+   }
+  }
+  if(claim==scroll_claims.end())continue;
+  write(api.cursor_ignore,cur,true);write(api.cursor_world,cur,true);
+  auto it=native_options.find(claim->second);
+  if(it!=native_options.end()){
+   auto& e=it->second;e.block_until=tick+1;
+   const bool valid=editing()&&!in_menu()&&read<bool>(api.display_options,it->first)&&tick-e.last_draw<=2&&
+    setting_slot(it->first)==e.pressed_slot&&profile_key()==e.pressed_profile;
+   if(!valid)e.gesture.cancel();
+   if(e.gesture.cursor==id){
+    if(e.gesture.rail){
+     const int travel=e.rail.h-e.window.thumb_size(e.rail.h);
+     if(travel>0)e.window.set_fraction((pos.y-e.rail.y-e.gesture.grab)/travel);
+    }else if(e.gesture.move(id,pos.y,e.pitch,std::max(8.0f,e.pitch*0.15f)))e.window.set_row(e.gesture.target_row);
+    if(!down){
+     const int cell=e.gesture.cell;
+     const bool tap=e.gesture.release(id);
+     if(tap&&cell>=0&&static_cast<size_t>(cell)<e.cells.size()&&contains(e.cells[cell],pos.x,pos.y)){
+      int action=e.cell_ids[cell];
+      if(action!=empty_option&&(action<65536||native_action(action))){
+       void* args[]={&action};call(api.update_value,it->first,args);call(api.close_options,it->first);e.last_draw=0;
+      }
+     }
+    }
+   }
+  }
+  if(!down)scroll_claims.erase(claim);
+ }
+ for(auto i=scroll_claims.begin();i!=scroll_claims.end();)if(!live.count(i->first)){
+  auto e=native_options.find(i->second);if(e!=native_options.end()&&e->second.gesture.cursor==i->first)e->second.gesture.cancel();i=scroll_claims.erase(i);
+ }else ++i;
 }
 bool native_name_prefix(H,void** args,const patch_method_signature_t*,void* result){
  if(!args||!args[0]||!result)return false;
  int id=*static_cast<int*>(args[0]);
- if(id==page_prev_id||id==page_next_id){*static_cast<H*>(result)=patchlib_string_create(id==page_prev_id?"上一页":"下一页");return true;}
+ if(id==empty_option){*static_cast<H*>(result)=patchlib_string_create("");return true;}
  auto a=native_action(id);if(!a)return false;
  *static_cast<H*>(result)=patchlib_string_create(a->name.c_str());return true;
 }
 bool native_style_prefix(H,void** args,const patch_method_signature_t*,void* result){
- if(!args||!args[0]||!result||!native_action(*static_cast<int*>(args[0]))&&*static_cast<int*>(args[0])!=page_prev_id&&*static_cast<int*>(args[0])!=page_next_id)return false;
+ if(!args||!args[0]||!result||(!native_action(*static_cast<int*>(args[0]))&&*static_cast<int*>(args[0])!=empty_option))return false;
  *static_cast<int*>(result)=1;return true;
 }
 bool native_texture_prefix(H,void** args,const patch_method_signature_t*,void*){
  if(!args||!args[0]||!args[1]||!args[2])return false;
- int id=*static_cast<int*>(args[0]);if(id==page_prev_id||id==page_next_id){*static_cast<int*>(args[0])=id==page_prev_id?20:21;return false;}
+ int id=*static_cast<int*>(args[0]);if(id==empty_option){*static_cast<int*>(args[0])=carrier;return false;}
  auto a=native_action(id);if(!a)return false;
  if(a->icon.empty()){*static_cast<int*>(args[0])=carrier;return false;}
  int w=0,h=0;H texture=gui::images::texture(a->icon,w,h);
@@ -402,6 +537,7 @@ void tick_postfix(H,void**,void*,const patch_method_signature_t*){++tick;gui::im
     if(in_menu()||editing())state.sync({});
 }
 void poll_postfix(H,void**,void*,const patch_method_signature_t*){
+    poll_native_scroll();
     if(in_menu()){clear_input();return;}
     auto cm=read<H>(api.manager_instance);if(!cm){clear_input();return;}
     bool in_editor=editing();
@@ -433,7 +569,8 @@ void poll_postfix(H,void**,void*,const patch_method_signature_t*){
     normal_held=std::move(held);sync_input();
 }
 bool dispatch_prefix(H,void** args,const patch_method_signature_t*,void*){
-    return args&&args[0]&&claims.count(read<int>(api.cursor_id,*static_cast<H*>(args[0])));
+    if(!args||!args[0])return false;
+    const int id=read<int>(api.cursor_id,*static_cast<H*>(args[0]));return claims.count(id)||scroll_claims.count(id);
 }
 bool update_prefix(H obj,void** args,const patch_method_signature_t*,void*){
  if(args&&args[0]){auto a=native_action(*static_cast<int*>(args[0]));if(a){
@@ -510,9 +647,11 @@ void resolve(){
     auto prof=type("VirtualControlsProfile_Layout");api.profile_id=field(prof,"Id");api.profile_controls=field(prof,"Controls");
     api.binding_slot=field(api.binding,"SlotId");api.binding_action=field(api.binding,"Action");api.binding_groups=field(api.binding,"GroupActions");api.slot_id=field(api.slot,"SlotId");api.slot_multi=field(api.slot,"MultiTouch");api.slot_style=field(api.slot,"Style");api.slot_kind=field(api.slot_type,"ControlType");
     api.active_control=field(api.panel,"ActiveControl");api.active_slot=field(api.panel,"ActiveSlotConfig");api.action_binding=field(api.setting,"ActionBinding");
-    api.display_options=field(type("GUIPulldownSetting"),"displayOptions");api.gui_active=field(api.gui,"Active");api.gui_edit=field(api.gui,"GUIInterfaceEdit");api.gui_editor=field(api.gui,"GUIVirtualInputControllerEdit");api.edit_enabled=field(api.interface_edit,"Enabled");api.gui_runtime=field(api.gui,"GUIVirtualInputController");api.ui_open=method(type("GUIVirtualInputController"),"get_InGameUIOpen",0);
+    api.selected_position=field(type("GUIPulldownSetting"),"selectedPosition");api.display_options=field(type("GUIPulldownSetting"),"displayOptions");api.gui_active=field(api.gui,"Active");api.gui_edit=field(api.gui,"GUIInterfaceEdit");api.gui_editor=field(api.gui,"GUIVirtualInputControllerEdit");api.edit_enabled=field(api.interface_edit,"Enabled");api.gui_runtime=field(api.gui,"GUIVirtualInputController");api.ui_open=method(type("GUIVirtualInputController"),"get_InGameUIOpen",0);
     api.manager_instance=field(api.manager,"Instance");api.cursor_id=field(api.cursor,"Id");api.cursor_pos=field(api.cursor,"Position");api.cursor_down=field(api.cursor,"Down");api.cursor_old=field(api.cursor,"WasDown");api.cursor_ignore=field(api.cursor,"Ignore");api.cursor_world=field(api.cursor,"IgnoreForWorld");api.cursor_layer=field(api.cursor,"InputLayer");api.group_capture=method(type("GUIVirtualInputController"),"UpdateCursorGroupControl",7);
     api.rect=method(type("Utils","Terraria"),"DrawInvBG",3);api.text=method(type("Utils","Terraria"),"DrawBorderString",8);api.get_region=method(api.quick,"GetRegionWithoutPicking",1);
+    api.transaction_region=method(type("GUITransactionButton"),"GetRegion",1);
+    auto grid=type("ItemGrid_Layout");api.grid_horizontal=field(grid,"Horizontal");api.grid_line_count=field(grid,"ItemLineCount");
     api.adjust=method(type("XNAUnityRunner"),"AdjustRealScreenForUI",1);api.count=method(api.manager,"GetNumCursors",0);api.at=method(api.manager,"GetCursor",1);
     api.update_value=method(api.setting,"UpdateValue",1);api.close_options=method(type("GUIPulldownSetting"),"CloseOptions",0);api.is_over_options=method(api.setting,"IsOverOptions",1);
     api.add_undo=method(api.interface_edit,"AddControlUndo",0);api.has_undo=method(api.interface_edit,"HasUndo",0);api.has_redo=method(api.interface_edit,"HasRedo",0);
@@ -537,7 +676,9 @@ void install(){
         resolve();
         add_hook(method(api.setting,"GetControlType",0),native_overlay_prefix,nullptr);
         add_hook(method(api.setting,"PulldownOptionDraw",4),native_option_prefix,native_option_postfix,true);
-        add_hook(method(type("GUITransactionButton"),"Draw",9),nullptr,native_transaction_postfix);
+        add_hook(method(type("GUITransactionButton"),"Draw",9),native_transaction_prefix,native_transaction_postfix);
+        add_hook(method(api.setting,"DrawOverlay",0),scroll_overlay_prefix,scroll_overlay_postfix);
+        add_hook(api.is_over_options,scroll_over_prefix,nullptr);
         add_hook(method(api.editor,"GetControlName",1),native_name_prefix,nullptr);
         add_hook(method(api.editor,"GetButtonControlSubStyle",1),native_style_prefix,nullptr);
         add_hook(method(api.editor,"GetControlTextureFrame",3),native_texture_prefix,nullptr);
