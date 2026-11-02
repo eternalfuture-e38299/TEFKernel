@@ -46,30 +46,47 @@ char *tef_save_invoke_get_str(patch_handle_t method, patch_handle_t instance) {
 }
 
 patch_handle_t tef_save_container_array(patch_handle_t player, const uint8_t cont, bool *out_is_chest) {
-  struct { patch_handle_t *field; bool is_chest; } m[9];
-  m[TEF_SAVE_CONT_INV]     = (typeof(m[0])){.field = &g_h.f_player_inventory, .is_chest = false};
-  m[TEF_SAVE_CONT_MISC]    = (typeof(m[0])){.field = &g_h.f_player_misc_equips, .is_chest = false};
-  m[TEF_SAVE_CONT_MISCDYE] = (typeof(m[0])){.field = &g_h.f_player_misc_dyes, .is_chest = false};
-  m[TEF_SAVE_CONT_ARMOR]   = (typeof(m[0])){.field = &g_h.f_player_armor, .is_chest = false};
-  m[TEF_SAVE_CONT_DYE]     = (typeof(m[0])){.field = &g_h.f_player_dye, .is_chest = false};
-  m[TEF_SAVE_CONT_BANK]    = (typeof(m[0])){.field = &g_h.f_player_bank, .is_chest = true};
-  m[TEF_SAVE_CONT_BANK2]   = (typeof(m[0])){.field = &g_h.f_player_bank2, .is_chest = true};
-  m[TEF_SAVE_CONT_BANK3]   = (typeof(m[0])){.field = &g_h.f_player_bank3, .is_chest = true};
-  m[TEF_SAVE_CONT_BANK4]   = (typeof(m[0])){.field = &g_h.f_player_bank4, .is_chest = true};
+  struct { patch_handle_t *field; } m[9];
+  m[TEF_SAVE_CONT_INV]     = (typeof(m[0])){.field = &g_h.f_player_inventory};
+  m[TEF_SAVE_CONT_MISC]    = (typeof(m[0])){.field = &g_h.f_player_misc_equips};
+  m[TEF_SAVE_CONT_MISCDYE] = (typeof(m[0])){.field = &g_h.f_player_misc_dyes};
+  m[TEF_SAVE_CONT_ARMOR]   = (typeof(m[0])){.field = &g_h.f_player_armor};
+  m[TEF_SAVE_CONT_DYE]     = (typeof(m[0])){.field = &g_h.f_player_dye};
+  m[TEF_SAVE_CONT_BANK]    = (typeof(m[0])){.field = &g_h.f_player_bank};
+  m[TEF_SAVE_CONT_BANK2]   = (typeof(m[0])){.field = &g_h.f_player_bank2};
+  m[TEF_SAVE_CONT_BANK3]   = (typeof(m[0])){.field = &g_h.f_player_bank3};
+  m[TEF_SAVE_CONT_BANK4]   = (typeof(m[0])){.field = &g_h.f_player_bank4};
 
   if (cont > 8) return PATCH_NULL;
   if (!patchlib_is_valid(*m[cont].field)) return PATCH_NULL;
-  if (out_is_chest) *out_is_chest = m[cont].is_chest;
 
   patch_handle_t v = PATCH_NULL;
   patchlib_field_get_value(*m[cont].field, player, &v);
-  if (m[cont].is_chest && patchlib_is_valid(v)) {
+  if (!patchlib_is_valid(v)) return PATCH_NULL;
+
+  /* 普通容器本身就是 Item[] */
+  if (cont < TEF_SAVE_CONT_BANK) {
+    if (out_is_chest) *out_is_chest = false;
+    return v;
+  }
+
+  /* 新版 Player.bank* 是 InventoryStorage（Item[]），不是 Chest（ChestItem[]）。
+   * 两者 item 字段名相同，但数组元素类型不同：按 Chest 处理会把 ChestItem
+   * 结构体字节当成 Item* 写进 Item[] 槽位，产生 0x…1834 之类的假指针并崩溃。 */
+  if (patchlib_is_valid(g_h.f_bank_item)) {
     patch_handle_t items = PATCH_NULL;
-    patchlib_field_get_value(g_h.f_chest_item, v, &items);
+    patchlib_field_get_value(g_h.f_bank_item, v, &items);
     patchlib_free(v);
+    if (out_is_chest) *out_is_chest = false;
     return items;
   }
-  return v;
+
+  /* Chest（ChestItem[]）路径 */
+  if (out_is_chest) *out_is_chest = true;
+  patch_handle_t items = PATCH_NULL;
+  patchlib_field_get_value(g_h.f_chest_item, v, &items);
+  patchlib_free(v);
+  return items;
 }
 
 patch_handle_t tef_save_container_get_item(patch_handle_t arr, const size_t i, const bool is_chest) {
@@ -89,6 +106,14 @@ patch_handle_t tef_save_container_get_item(patch_handle_t arr, const size_t i, c
   return item;
 }
 
+static void clamp_stack(patch_handle_t item, int *stack) {
+  if (*stack < 1) return;
+  int maxs = 0;
+  if (patchlib_is_valid(g_h.f_item_max_stack))
+    patchlib_field_get_value(g_h.f_item_max_stack, item, &maxs);
+  if (maxs > 0 && *stack > maxs) *stack = maxs;
+}
+
 void tef_save_container_set_custom(patch_handle_t arr, size_t slot, bool is_chest,
                               int id, int stack, int prefix) {
 #if defined(__ANDROID__)
@@ -98,6 +123,7 @@ void tef_save_container_set_custom(patch_handle_t arr, size_t slot, bool is_ches
     void *ca[2] = {&id, &variant};
     patchlib_constructor_invoke(g_h.m_item_ctor, &item, ca);
     if (!patchlib_is_valid(item)) return;
+    clamp_stack(item, &stack);
     if (stack > 0) patchlib_field_set_value(g_h.ops.f_stack, item, &stack);
     if (prefix > 0 && patchlib_is_valid(g_h.ops.m_prefix)) {
       void *pa[1] = {&prefix};
@@ -119,6 +145,7 @@ void tef_save_container_set_custom(patch_handle_t arr, size_t slot, bool is_ches
   int iid = id;
   void *a1[1] = {&iid};
   patchlib_method_invoke_args(g_h.ops.m_net_defaults, item, NULL, a1);
+  clamp_stack(item, &stack);
   if (stack > 0) patchlib_field_set_value(g_h.ops.f_stack, item, &stack);
   if (prefix > 0 && patchlib_is_valid(g_h.ops.m_prefix)) {
     void *pa[1] = {&prefix};
@@ -161,6 +188,41 @@ int tef_save_sanitize_chest(patch_handle_t chest, const int max_valid) {
   return changed;
 }
 
+int tef_save_sanitize_bank(patch_handle_t storage, const int max_valid) {
+  if (!patchlib_is_valid(storage) || !patchlib_is_valid(g_h.f_bank_item) ||
+      !patchlib_is_valid(g_h.ops.f_type)) return 0;
+
+  const terraria_item_handle_t *ph = terraria_item_manager_unknown_item();
+  const int ph_id = ph ? ph->runtime_id : -1;
+  if (ph_id < 0) return 0;
+
+  int max_items = 0;
+  if (patchlib_is_valid(g_h.f_bank_max_items))
+    patchlib_field_get_value(g_h.f_bank_max_items, storage, &max_items);
+
+  patch_handle_t items = PATCH_NULL;
+  patchlib_field_get_value(g_h.f_bank_item, storage, &items);
+  if (!patchlib_is_valid(items)) return 0;
+
+  size_t lim = patchlib_array_length(items);
+  if (max_items > 0 && (size_t)max_items < lim) lim = (size_t)max_items;
+
+  int changed = 0;
+  for (size_t i = 0; i < lim; ++i) {
+    patch_handle_t item = tef_save_container_get_item(items, i, false);
+    if (!patchlib_is_valid(item)) continue;
+    int type = 0;
+    patchlib_field_get_value(g_h.ops.f_type, item, &type);
+    if (type >= max_valid) {
+      tef_save_container_set_custom(items, i, false, ph_id, 1, 0);
+      changed++;
+    }
+    patchlib_free(item);
+  }
+  patchlib_free(items);
+  return changed;
+}
+
 void tef_save_game_handles_init(void) {
   if (g_inited) return;
   g_inited = true;
@@ -189,9 +251,17 @@ void tef_save_game_handles_init(void) {
     patchlib_free(chest_class);
   }
 
+  patch_handle_t storage_class = patchlib_type_get_type("Terraria", "InventoryStorage");
+  if (patchlib_is_valid(storage_class)) {
+    g_h.f_bank_item      = patchlib_type_get_field(storage_class, "item");
+    g_h.f_bank_max_items = patchlib_type_get_field(storage_class, "maxItems");
+    patchlib_free(storage_class);
+  }
+
   patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
   if (patchlib_is_valid(item_class)) {
     g_h.m_item_ctor = patchlib_type_get_method_by_param_count(item_class, ".ctor", 2);
+    g_h.f_item_max_stack = patchlib_type_get_field(item_class, "maxStack");
     patchlib_free(item_class);
   }
   patch_handle_t chestitem_class = patchlib_type_get_type("Terraria", "ChestItem");
@@ -216,6 +286,8 @@ void tef_save_game_handles_init(void) {
   if (patchlib_is_valid(main_class)) {
     g_h.f_main_chest        = patchlib_type_get_field(main_class, "chest");
     g_h.f_main_active_world = patchlib_type_get_field(main_class, "ActiveWorldFileData");
+    g_h.f_main_world_list   = patchlib_type_get_field(main_class, "WorldList");
+    g_h.m_main_get_player_list = patchlib_type_get_method_by_param_count(main_class, "get_PlayerList", 0);
     patchlib_free(main_class);
   }
 }
