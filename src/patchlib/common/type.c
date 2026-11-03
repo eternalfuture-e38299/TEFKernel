@@ -207,7 +207,7 @@ patch_handle_t patchlib_type_get_type(const char *ns, const char *name) {
 
         TEKLOG_DEBUG("Searching in assembly %zu, image: %p", i, image);
         void *found_class = il2cpp_class_from_name(image, ns, name); // 从名称获取类
-        il2cpp_free(image);
+        il2cpp_free((void *)image);
         if (found_class) {
 #if !defined(__ANDROID__)
             TEF_FREE_NATIVE(assemblies);

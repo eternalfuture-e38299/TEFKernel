@@ -24,6 +24,7 @@
 #include "patchlib/method.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/type.h"
+#include "patchlib/il2cpp_api.h"
 #include "terraria/asset.h"
 #include "terraria/texture2d.h"
 
@@ -45,6 +46,21 @@ tefstd_vector_t g_terraria_projectile_registry;
 static patch_handle_t projectile_class = PATCH_NULL;
 static patch_handle_t f_type = PATCH_NULL;       // Projectile.type (int)
 static patch_handle_t f_active = PATCH_NULL;     // Projectile.active (bool)
+
+/* Projectile.type 字段偏移（dump.cs 确认实际偏移为 0x64），初始化时尝试通过 IL2CPP API 动态获取 */
+static int g_proj_type_offset = 0x64;
+
+static inline int get_projectile_type(void *instance) {
+    if (!instance) return -1;
+    if (g_proj_type_offset >= 0) {
+        return *(const int *)((const char *)instance + g_proj_type_offset);
+    }
+    int type = -1;
+    if (patchlib_is_valid(f_type)) {
+        patchlib_field_get_value(f_type, instance, &type);
+    }
+    return type;
+}
 
 static patch_handle_t projectile_id_count = PATCH_NULL;   // ProjectileID.Count (short)
 static patch_handle_t f_texture_projectile = PATCH_NULL;  // TextureAssets.Projectile
@@ -217,10 +233,17 @@ bool terraria_projectile_manager_assign_ids(const int base_id) {
     return true;
 }
 
+static int g_projectile_base_count = 0;
+
 int terraria_projectile_id_get_count() {
+    if (g_projectile_base_count > 0)
+        return g_projectile_base_count;
     short count = 0;
-    if (patchlib_is_valid(projectile_id_count))
+    if (patchlib_is_valid(projectile_id_count)) {
         patchlib_field_get_value(projectile_id_count, NULL, &count);
+        if (count > 0)
+            g_projectile_base_count = count;
+    }
     return count;
 }
 
@@ -775,16 +798,54 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
 
 }
 
+#if defined(__ANDROID__)
+typedef void (*projectile_ai_fn)(void *this);
+static projectile_ai_fn g_orig_projectile_ai = NULL;
+
+static void projectile_ai_detour(void *this) {
+    if (!this) return;
+    const int type = get_projectile_type(this);
+    const int base = terraria_projectile_id_get_count();
+    const int nid = type - base;
+    const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
+
+    if (nid < 0 || nid >= (int) count) {
+        /* 原版弹幕：超快速旁路，直接调用原函数 */
+        g_orig_projectile_ai(this);
+        return;
+    }
+
+    terraria_projectile_handle_t **pp =
+            tefstd_vector_at(&g_terraria_projectile_registry, (size_t) nid);
+    if (!pp || !*pp) {
+        g_orig_projectile_ai(this);
+        return;
+    }
+    terraria_projectile_handle_t *h = *pp;
+    if (h->no_ai_hook || !h->projectile_ops.ai) {
+        g_orig_projectile_ai(this);
+        return;
+    }
+
+    if (h->ai_after_vanilla) {
+        g_orig_projectile_ai(this);
+        h->projectile_ops.ai(h, this);
+        return;
+    }
+
+    h->projectile_ops.ai(h, this);
+}
+#endif
+
 static bool ai_prefix(patch_handle_t this, void **args,
                       const patch_method_signature_t *sig_info, void *result) {
     (void) args;
     (void) sig_info;
     (void) result;
-    if (!this || !patchlib_is_valid(f_type))
+    if (!this)
         return false;
 
-    int type = 0;
-    patchlib_field_get_value(f_type, this, &type);
+    const int type = get_projectile_type(this);
     const int base = terraria_projectile_id_get_count();
     const int nid = type - base;
     const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
@@ -815,10 +876,9 @@ static bool ai_prefix(patch_handle_t this, void **args,
 static void kill_postfix(patch_handle_t this, void **args, void *result,
                          const patch_method_signature_t *sig_info) {
     (void) args; (void) result; (void) sig_info;
-    if (!this || !patchlib_is_valid(f_type)) return;
+    if (!this) return;
 
-    int type = 0;
-    patchlib_field_get_value(f_type, this, &type);
+    const int type = get_projectile_type(this);
     const int nid = type - terraria_projectile_id_get_count();
     const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
     if (nid < 0 || nid >= (int) count) return;
@@ -832,10 +892,9 @@ static void kill_postfix(patch_handle_t this, void **args, void *result,
 
 /* 由「当前结算中的弹幕」找到自定义句柄；非自定义返回 NULL */
 static terraria_projectile_handle_t *custom_projectile_from(patch_handle_t proj) {
-    if (!proj || !patchlib_is_valid(f_type)) return NULL;
+    if (!proj) return NULL;
 
-    int type = 0;
-    patchlib_field_get_value(f_type, proj, &type);
+    const int type = get_projectile_type(proj);
     const int nid = type - terraria_projectile_id_get_count();
     const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
     if (nid < 0 || nid >= (int) count) return NULL;
@@ -927,10 +986,20 @@ static bool handle_movement_prefix(patch_handle_t this, void **args,
         patchlib_free(g_move_projectile);
         g_move_projectile = PATCH_NULL;
     }
+    g_move_pending = false;
+
+    if (!this) return false;
+
+    /* 快速旁路过滤：原版弹幕不分配 handle，不读取速度 */
+    const int type = get_projectile_type(this);
+    const int nid = type - terraria_projectile_id_get_count();
+    const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
+    if (nid < 0 || nid >= (int) count) return false;
+
     g_move_pending = true;
     g_move_vx = 0.0f;
     g_move_vy = 0.0f;
-    if (this && patchlib_is_valid(f_velocity)) {
+    if (patchlib_is_valid(f_velocity)) {
         float v[2] = {0.0f, 0.0f};
         patchlib_field_get_value(f_velocity, this, v);
         g_move_vx = v[0];
@@ -970,11 +1039,10 @@ static void ai_postfix(patch_handle_t this, void **args, void *result,
     (void) args;
     (void) result;
     (void) sig_info;
-    if (!this || !patchlib_is_valid(f_type))
+    if (!this)
         return;
 
-    int type = 0;
-    patchlib_field_get_value(f_type, this, &type);
+    const int type = get_projectile_type(this);
     const int base = terraria_projectile_id_get_count();
     const int nid = type - base;
     const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
@@ -1008,6 +1076,12 @@ void terraria_projectile_manager_init() {
     }
 
     f_type = patchlib_type_get_field(projectile_class, "type");
+#if defined(__ANDROID__)
+    if (patchlib_is_valid(f_type)) {
+        const size_t off = il2cpp_field_get_offset(f_type);
+        if (off > 0) g_proj_type_offset = (int) off;
+    }
+#endif
     f_active = patchlib_type_get_field(projectile_class, "active");
 
     /* perIDStaticNPCImmunity 的兜底（二维表无法扩容，见
@@ -1054,12 +1128,22 @@ void terraria_projectile_manager_init() {
                     (int) h_set_defaults);
     }
 
-    /* AI() 是 void 实例方法：prefix 安全（桌面加载器不会读返回缓冲） */
+    /* AI() 是 void 实例方法：Android 上优先使用强类型直接 hook，零 LibFFI 开销 */
     patch_handle_t ai = patchlib_type_get_method_by_param_count(
             projectile_class, "AI", 0);
     if (patchlib_is_valid(ai)) {
+#if defined(__ANDROID__)
+        if (patchlib_install_typed_hook(ai, (void *) projectile_ai_detour,
+                                        (void **) &g_orig_projectile_ai)) {
+            TEKLOG_INFO("projectile: fast-path typed hook installed for Projectile.AI");
+        } else {
+            h_ai = patchlib_install_prepost_hook(ai, ai_prefix, ai_postfix);
+            TEKLOG_INFO("projectile: hooked Projectile.AI via prepost (%d)", (int) h_ai);
+        }
+#else
         h_ai = patchlib_install_prepost_hook(ai, ai_prefix, ai_postfix);
         TEKLOG_INFO("projectile: hooked Projectile.AI (%d)", (int) h_ai);
+#endif
     }
 
     /* Kill()：自定义弹幕销毁回调 */
@@ -1148,6 +1232,16 @@ void terraria_projectile_manager_destroy() {
         patchlib_uninstall_hook(h_damage);
         h_damage = PATCH_HOOK_INVALID_ID;
     }
+#if defined(__ANDROID__)
+    if (g_orig_projectile_ai) {
+        patch_handle_t ai = patchlib_type_get_method_by_param_count(projectile_class, "AI", 0);
+        if (patchlib_is_valid(ai)) {
+            patchlib_uninstall_typed_hook(ai);
+            patchlib_free(ai);
+        }
+        g_orig_projectile_ai = NULL;
+    }
+#endif
     if (h_ai != PATCH_HOOK_INVALID_ID) {
         patchlib_uninstall_hook(h_ai);
         h_ai = PATCH_HOOK_INVALID_ID;

@@ -25,3 +25,6 @@ tefloader/android-java/build
 
 .fake
 .cache
+
+.idea
+.agent

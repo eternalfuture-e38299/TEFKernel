@@ -1054,6 +1054,9 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_field_get_size);
     TPF_KERNEL_SYMBOL(patchlib_method_get_pointer);
 
+    TPF_KERNEL_SYMBOL(patchlib_install_typed_hook);
+    TPF_KERNEL_SYMBOL(patchlib_uninstall_typed_hook);
+
     TPF_KERNEL_SYMBOL(patchlib_thread_attach);
     TPF_KERNEL_SYMBOL(patchlib_thread_current);
     TPF_KERNEL_SYMBOL(patchlib_thread_detach);

@@ -1,15 +1,22 @@
 name: Cross-Platform Build
 
 on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   linux-x86_64:
+    name: Build Linux x86_64
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -19,23 +26,22 @@ jobs:
           sudo apt-get install -y clang cmake make
         
       - name: Configure
-        run: cmake --preset ci-linux-x86_64-${{ matrix.build_type }}
+        run: cmake --preset ci-linux-x86_64-release
         
       - name: Build
-        run: cmake --build --preset ci-linux-x86_64-${{ matrix.build_type }}
+        run: cmake --build --preset ci-linux-x86_64-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64-${{ matrix.build_type }}
-          path: build/ci-linux-x86_64-${{ matrix.build_type }}/
+          name: intermediate-linux-x86_64
+          path: build/ci-linux-x86_64-release/libtefkernel.linux.x86_64.so
+          if-no-files-found: error
+          retention-days: 1
 
   linux-x86:
+    name: Build Linux x86
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -45,47 +51,53 @@ jobs:
           sudo apt-get install -y clang cmake make gcc-multilib g++-multilib
         
       - name: Configure
-        run: cmake --preset ci-linux-x86-${{ matrix.build_type }}
+        run: cmake --preset ci-linux-x86-release
         
       - name: Build
-        run: cmake --build --preset ci-linux-x86-${{ matrix.build_type }}
+        run: cmake --build --preset ci-linux-x86-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86-${{ matrix.build_type }}
-          path: build/ci-linux-x86-${{ matrix.build_type }}/
+          name: intermediate-linux-x86
+          path: build/ci-linux-x86-release/libtefkernel.linux.x86.so
+          if-no-files-found: error
+          retention-days: 1
 
   windows-x86_64:
+    name: Build Windows x86_64
     runs-on: windows-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
       - name: Install dependencies
-        run: choco install cmake mingw -y
+        shell: powershell
+        run: |
+          choco install cmake mingw make -y
+          if (Test-Path "C:\mingw64\bin") {
+              "C:\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+              if (Test-Path "C:\mingw64\bin\mingw32-make.exe") {
+                  Copy-Item "C:\mingw64\bin\mingw32-make.exe" "C:\mingw64\bin\make.exe" -Force
+              }
+          }
         
       - name: Configure
-        run: cmake --preset ci-windows-x86_64-${{ matrix.build_type }}
+        run: cmake --preset ci-windows-x86_64-release
         
       - name: Build
-        run: cmake --build --preset ci-windows-x86_64-${{ matrix.build_type }}
+        run: cmake --build --preset ci-windows-x86_64-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x86_64-${{ matrix.build_type }}
-          path: build/ci-windows-x86_64-${{ matrix.build_type }}/
+          name: intermediate-windows-x86_64
+          path: build/ci-windows-x86_64-release/libtefkernel.windows.x86_64.dll
+          if-no-files-found: error
+          retention-days: 1
 
   windows-x86:
+    name: Build Windows x86
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -97,71 +109,62 @@ jobs:
           sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
 
       - name: Configure
-        run: cmake --preset ci-windows-x86-${{ matrix.build_type }}
+        run: cmake --preset ci-windows-x86-release
         
       - name: Build
-        run: cmake --build --preset ci-windows-x86-${{ matrix.build_type }}
+        run: cmake --build --preset ci-windows-x86-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x86-${{ matrix.build_type }}
-          path: build/ci-windows-x86-${{ matrix.build_type }}/
+          name: intermediate-windows-x86
+          path: build/ci-windows-x86-release/libtefkernel.windows.x86.dll
+          if-no-files-found: error
+          retention-days: 1
 
   macos-x86_64:
+    name: Build macOS x86_64
     runs-on: macos-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install dependencies
-        run: brew install cmake make
         
       - name: Configure
-        run: cmake --preset ci-macos-x86_64-${{ matrix.build_type }}
+        run: cmake --preset ci-macos-x86_64-release
         
       - name: Build
-        run: cmake --build --preset ci-macos-x86_64-${{ matrix.build_type }}
+        run: cmake --build --preset ci-macos-x86_64-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-x86_64-${{ matrix.build_type }}
-          path: build/ci-macos-x86_64-${{ matrix.build_type }}/
+          name: intermediate-macos-x86_64
+          path: build/ci-macos-x86_64-release/libtefkernel.mac.x86_64.dylib
+          if-no-files-found: error
+          retention-days: 1
 
   macos-arm64:
+    name: Build macOS ARM64
     runs-on: macos-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install dependencies
-        run: brew install cmake make
         
       - name: Configure
-        run: cmake --preset ci-macos-arm64-${{ matrix.build_type }}
+        run: cmake --preset ci-macos-arm64-release
         
       - name: Build
-        run: cmake --build --preset ci-macos-arm64-${{ matrix.build_type }}
+        run: cmake --build --preset ci-macos-arm64-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64-${{ matrix.build_type }}
-          path: build/ci-macos-arm64-${{ matrix.build_type }}/
+          name: intermediate-macos-arm64
+          path: build/ci-macos-arm64-release/libtefkernel.mac.arm64.dylib
+          if-no-files-found: error
+          retention-days: 1
 
   android-arm64:
+    name: Build Android ARM64
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -177,24 +180,23 @@ jobs:
       - name: Configure
         run: |
           TOOLCHAIN_FILE="${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake"
-          cmake --preset ci-android-arm64-${{ matrix.build_type }} \
+          cmake --preset ci-android-arm64-release \
                 -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
         
       - name: Build
-        run: cmake --build --preset ci-android-arm64-${{ matrix.build_type }}
+        run: cmake --build --preset ci-android-arm64-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm64-${{ matrix.build_type }}
-          path: build/ci-android-arm64-${{ matrix.build_type }}/
+          name: intermediate-android-arm64
+          path: build/ci-android-arm64-release/libtefkernel.android.arm64-v8a.so
+          if-no-files-found: error
+          retention-days: 1
 
   android-arm32:
+    name: Build Android ARM32
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_type: [debug, release]
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -210,14 +212,208 @@ jobs:
       - name: Configure
         run: |
           TOOLCHAIN_FILE="${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake"
-          cmake --preset ci-android-arm32-${{ matrix.build_type }} \
+          cmake --preset ci-android-arm32-release \
                 -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
         
       - name: Build
-        run: cmake --build --preset ci-android-arm32-${{ matrix.build_type }}
+        run: cmake --build --preset ci-android-arm32-release
         
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm32-${{ matrix.build_type }}
-          path: build/ci-android-arm32-${{ matrix.build_type }}/
+          name: intermediate-android-arm32
+          path: build/ci-android-arm32-release/libtefkernel.android.armeabi-v7a.so
+          if-no-files-found: error
+          retention-days: 1
+
+  tefloader-android:
+    name: Build TefLoader Android DEX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build DEX
+        env:
+          ANDROID_SDK: ${{ env.ANDROID_HOME }}
+        run: |
+          cd tefloader/android-java
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: intermediate-tefloader-android
+          path: tefloader/android-java/build/output/tefloader-android.dex
+          if-no-files-found: error
+          retention-days: 1
+
+  tefloader-net:
+    name: Build TefLoader .NET
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build tefloader
+        run: dotnet build tefloader/net/tefloader.csproj -c Release
+
+      - name: Stage outputs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path staging-net/net452 -Force
+          New-Item -ItemType Directory -Path staging-net/net472 -Force
+          Copy-Item tefloader/net/bin/Release/net452/tefloader.exe staging-net/net452/
+          Copy-Item tefloader/net/bin/Release/net452/tefloader.exe.config staging-net/net452/
+          Copy-Item tefloader/net/bin/Release/net452/tefloader.pdb staging-net/net452/
+          Copy-Item tefloader/net/bin/Release/net472/tefloader.exe staging-net/net472/
+          Copy-Item tefloader/net/bin/Release/net472/tefloader.exe.config staging-net/net472/
+          Copy-Item tefloader/net/bin/Release/net472/tefloader.pdb staging-net/net472/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: intermediate-tefloader-net
+          path: staging-net/
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    name: Package and Publish Artifacts
+    runs-on: ubuntu-latest
+    needs:
+      - linux-x86_64
+      - linux-x86
+      - windows-x86_64
+      - windows-x86
+      - macos-x86_64
+      - macos-arm64
+      - android-arm64
+      - android-arm32
+      - tefloader-android
+      - tefloader-net
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Download all intermediate artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: intermediates
+
+      - name: Assemble packages
+        run: |
+          mkdir -p staging/kernel staging/tefloader-net dist
+
+          # 1. 组装 tefkernel.zip (info.json + 8 个平台的共享库)
+          cp info.json staging/kernel/
+          cp intermediates/intermediate-linux-x86_64/libtefkernel.linux.x86_64.so staging/kernel/
+          cp intermediates/intermediate-linux-x86/libtefkernel.linux.x86.so staging/kernel/
+          cp intermediates/intermediate-windows-x86_64/libtefkernel.windows.x86_64.dll staging/kernel/
+          cp intermediates/intermediate-windows-x86/libtefkernel.windows.x86.dll staging/kernel/
+          cp intermediates/intermediate-macos-x86_64/libtefkernel.mac.x86_64.dylib staging/kernel/
+          cp intermediates/intermediate-macos-arm64/libtefkernel.mac.arm64.dylib staging/kernel/
+          cp intermediates/intermediate-android-arm64/libtefkernel.android.arm64-v8a.so staging/kernel/
+          cp intermediates/intermediate-android-arm32/libtefkernel.android.armeabi-v7a.so staging/kernel/
+
+          # 严格校验所有 9 个文件存在且非空
+          for f in info.json \
+                   libtefkernel.linux.x86_64.so \
+                   libtefkernel.linux.x86.so \
+                   libtefkernel.windows.x86_64.dll \
+                   libtefkernel.windows.x86.dll \
+                   libtefkernel.mac.x86_64.dylib \
+                   libtefkernel.mac.arm64.dylib \
+                   libtefkernel.android.arm64-v8a.so \
+                   libtefkernel.android.armeabi-v7a.so; do
+            if [ ! -s "staging/kernel/$f" ]; then
+              echo "Error: missing or empty staging/kernel/$f"
+              exit 1
+            fi
+          done
+
+          cd staging/kernel
+          zip -9 -r ../../dist/tefkernel.zip *
+          cd ../..
+
+          # 2. 组装 tefloader.zip (net452 + net472)
+          cp -r intermediates/intermediate-tefloader-net/* staging/tefloader-net/
+          cd staging/tefloader-net
+          zip -9 -r ../../dist/tefloader.zip net452 net472
+          cd ../..
+
+          # 3. 复制 tefloader-android.dex
+          cp intermediates/intermediate-tefloader-android/tefloader-android.dex dist/
+          [ -s dist/tefloader-android.dex ] || (echo "Error: missing or empty tefloader-android.dex" && exit 1)
+
+      - name: Verify build outputs
+        run: |
+          echo "=========================================="
+          echo "Build Output Directory (dist/):"
+          ls -la dist/
+          echo "=========================================="
+
+          echo "Verifying tefkernel.zip entries:"
+          unzip -l dist/tefkernel.zip
+          
+          echo "Verifying tefloader.zip entries:"
+          unzip -l dist/tefloader.zip
+
+          # Ensure all expected artifacts exist and are non-empty
+          [ -s dist/tefkernel.zip ] || (echo "Missing or empty tefkernel.zip" && exit 1)
+          [ -s dist/tefloader-android.dex ] || (echo "Missing or empty tefloader-android.dex" && exit 1)
+          [ -s dist/tefloader.zip ] || (echo "Missing or empty tefloader.zip" && exit 1)
+
+      - name: Upload build artifacts (bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: dist/
+
+      - name: Upload tefkernel.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: tefkernel.zip
+          path: dist/tefkernel.zip
+
+      - name: Upload tefloader-android.dex
+        uses: actions/upload-artifact@v4
+        with:
+          name: tefloader-android.dex
+          path: dist/tefloader-android.dex
+
+      - name: Upload tefloader.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: tefloader.zip
+          path: dist/tefloader.zip
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## 📦 Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact | Size | SHA256 |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          for f in dist/*; do
+            if [ -f "$f" ]; then
+              fname=$(basename "$f")
+              fsize=$(ls -lh "$f" | awk '{print $5}')
+              fsha=$(sha256sum "$f" | cut -d' ' -f1)
+              echo "| \`$fname\` | $fsize | \`$fsha\` |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

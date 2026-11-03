@@ -13,6 +13,7 @@
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
+#include "patchlib/il2cpp_api.h"
 #include "terraria/asset.h"
 #include "terraria/language_manager.h"
 #include "terraria/texture2d.h"
@@ -26,6 +27,22 @@ tefstd_vector_t g_terraria_npc_registry;
 static patch_handle_t npc_class = PATCH_NULL;
 static patch_handle_t f_type = PATCH_NULL;
 static patch_handle_t f_active = PATCH_NULL;
+
+/* NPC.type 字段偏移（dump.cs 确认实际偏移为 0x164），初始化时尝试通过 IL2CPP API 动态获取 */
+static int g_npc_type_offset = 0x164;
+
+static inline int get_npc_type(void *instance) {
+    if (!instance) return -1;
+    if (g_npc_type_offset >= 0) {
+        return *(const int *)((const char *)instance + g_npc_type_offset);
+    }
+    int type = -1;
+    if (patchlib_is_valid(f_type)) {
+        patchlib_field_get_value(f_type, instance, &type);
+    }
+    return type;
+}
+
 static patch_handle_t npc_id_count = PATCH_NULL;       /* NPCID.Count (short) */
 static patch_handle_t f_texture_npc = PATCH_NULL;      /* TextureAssets.Npc */
 static patch_handle_t f_npc_frame_count = PATCH_NULL;  /* Main.npcFrameCount */
@@ -190,9 +207,14 @@ bool terraria_npc_manager_assign_ids(const int base_id) {
 }
 
 int terraria_npc_id_get_count(void) {
+    if (g_npc_base > 0)
+        return g_npc_base;
     short count = 0;
-    if (patchlib_is_valid(npc_id_count))
+    if (patchlib_is_valid(npc_id_count)) {
         patchlib_field_get_value(npc_id_count, NULL, &count);
+        if (count > 0)
+            g_npc_base = count;
+    }
     return count;
 }
 
@@ -797,11 +819,11 @@ void terraria_npc_manager_init_texture2d(void) {
 /* ------------------------------------------------------------------ */
 
 static terraria_npc_handle_t *custom_from_instance(patch_handle_t inst) {
-    if (!inst || !patchlib_is_valid(f_type))
+    if (!inst)
         return NULL;
-    int type = 0;
-    patchlib_field_get_value(f_type, inst, &type);
-    const int nid = type - g_npc_base;
+    const int type = get_npc_type(inst);
+    const int base = terraria_npc_id_get_count();
+    const int nid = type - base;
     const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
     if (nid < 0 || nid >= (int) count)
         return NULL;
@@ -898,6 +920,43 @@ static void npc_loot_postfix(patch_handle_t this, void **args, void *result,
         h->npc_ops.on_death(h, this);
 }
 
+#if defined(__ANDROID__)
+typedef void (*npc_ai_fn)(void *this);
+static npc_ai_fn g_orig_npc_ai = NULL;
+
+static void npc_ai_detour(void *this) {
+    if (!this) return;
+    const int type = get_npc_type(this);
+    const int base = terraria_npc_id_get_count();
+    const int nid = type - base;
+    const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
+    if (nid < 0 || nid >= (int) count) {
+        /* 原版 NPC：超快速旁路，直接调用原函数 */
+        g_orig_npc_ai(this);
+        return;
+    }
+
+    terraria_npc_handle_t **pp = tefstd_vector_at(&g_terraria_npc_registry, (size_t) nid);
+    if (!pp || !*pp) {
+        g_orig_npc_ai(this);
+        return;
+    }
+    terraria_npc_handle_t *h = *pp;
+    if (!h->npc_ops.ai) {
+        g_orig_npc_ai(this);
+        return;
+    }
+
+    if (h->ai_after_vanilla) {
+        g_orig_npc_ai(this);
+        h->npc_ops.ai(h, this);
+        return;
+    }
+
+    h->npc_ops.ai(h, this);
+}
+#endif
+
 /* NPC.AI() 前置：自定义 NPC 默认跳过原版 AI */
 static bool ai_prefix(patch_handle_t this, void **args,
                       const patch_method_signature_t *sig_info, void *result) {
@@ -959,7 +1018,7 @@ static void ensure_local_player_aggro_array(void) {
     if (patchlib_array_at(players, (size_t) my, &player) && player) {
         patch_handle_t arr = PATCH_NULL;
         patchlib_field_get_value(f_no_aggro, player, &arr);
-        const int base = g_npc_base;
+        const int base = terraria_npc_id_get_count();
         const int need = base + (int) tefstd_vector_size(&g_terraria_npc_registry);
         if (patchlib_is_valid(arr)) {
             const size_t len = patchlib_array_length(arr);
@@ -1161,6 +1220,12 @@ void terraria_npc_manager_init(void) {
     }
 
     f_type = patchlib_type_get_field(npc_class, "type");
+#if defined(__ANDROID__)
+    if (patchlib_is_valid(f_type)) {
+        const size_t off = il2cpp_field_get_offset(f_type);
+        if (off > 0) g_npc_type_offset = (int) off;
+    }
+#endif
     f_active = patchlib_type_get_field(npc_class, "active");
     f_npc_boss = patchlib_type_get_field(npc_class, "boss");
 #if defined(__ANDROID__)
@@ -1252,8 +1317,18 @@ void terraria_npc_manager_init(void) {
 
     patch_handle_t ai = patchlib_type_get_method_by_param_count(npc_class, "AI", 0);
     if (patchlib_is_valid(ai)) {
+#if defined(__ANDROID__)
+        if (patchlib_install_typed_hook(ai, (void *) npc_ai_detour,
+                                        (void **) &g_orig_npc_ai)) {
+            TEKLOG_INFO("npc: fast-path typed hook installed for NPC.AI");
+        } else {
+            h_ai = patchlib_install_prepost_hook(ai, ai_prefix, ai_postfix);
+            TEKLOG_INFO("npc: hooked NPC.AI via prepost (%d)", (int) h_ai);
+        }
+#else
         h_ai = patchlib_install_prepost_hook(ai, ai_prefix, ai_postfix);
         TEKLOG_INFO("npc: hooked NPC.AI (%d)", (int) h_ai);
+#endif
     }
 
     TEKLOG_INFO("npc: init done (base=%d, custom=%zu)",
@@ -1280,6 +1355,16 @@ void terraria_npc_manager_destroy(void) {
         patchlib_uninstall_hook(h_town_room_ctor);
         h_town_room_ctor = PATCH_HOOK_INVALID_ID;
     }
+#if defined(__ANDROID__)
+    if (g_orig_npc_ai) {
+        patch_handle_t ai = patchlib_type_get_method_by_param_count(npc_class, "AI", 0);
+        if (patchlib_is_valid(ai)) {
+            patchlib_uninstall_typed_hook(ai);
+            patchlib_free(ai);
+        }
+        g_orig_npc_ai = NULL;
+    }
+#endif
     if (h_ai != PATCH_HOOK_INVALID_ID) {
         patchlib_uninstall_hook(h_ai);
         h_ai = PATCH_HOOK_INVALID_ID;
