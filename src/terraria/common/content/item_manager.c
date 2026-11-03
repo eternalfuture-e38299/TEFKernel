@@ -217,6 +217,7 @@ static patch_handle_t f_emergency_group_default = PATCH_NULL; // EmergencyStacki
 static bool g_emergency_group_lookup_checked = false;
 
 static patch_handle_t g_misc_fallback_class = PATCH_NULL;
+static patch_handle_t f_quickstack_first_entry = PATCH_NULL;
 static patch_handle_t f_misc_fallback_fits = PATCH_NULL; // ItemFilters+MiscFallback._fitsFilterByItemType
 
 static patch_handle_t g_loot_counter_class = PATCH_NULL;
@@ -2212,76 +2213,6 @@ static void force_resize_critical_item_sets(const int new_size) {
         force_resize_itemid_set(names[i], new_size);
 }
 
-// Terraria.GameContent.QuickStacking.MatchingItemTypeDestinationList
-// .firstEntryForType 是 int[ItemID.Count]，在 Tail/Add/Lookup 中直接按物品
-// type 索引且无边界检查。快速堆叠到箱子/银行时会用它给自定义物品分类，
-// 不扩容就会 IndexOutOfRangeException。该实例是 QuickStacking 的静态字段
-// matchingItemTypeScratch。新槽位填 0（表示无条目）即可。
-static void resize_quickstacking(const int new_size) {
-    if (new_size <= 0)
-        return;
-
-    patch_handle_t qs_class =
-            patchlib_type_get_type("Terraria.GameContent", "QuickStacking");
-    if (!patchlib_is_valid(qs_class))
-        return;
-
-    patch_handle_t nested_class =
-            patchlib_type_get_inner_type(qs_class, "MatchingItemTypeDestinationList");
-    patch_handle_t f_scratch =
-            patchlib_type_get_field(qs_class, "matchingItemTypeScratch");
-    if (!patchlib_is_valid(nested_class) || !patchlib_is_valid(f_scratch)) {
-        if (patchlib_is_valid(nested_class))
-            patchlib_free(nested_class);
-        if (patchlib_is_valid(f_scratch))
-            patchlib_free(f_scratch);
-        patchlib_free(qs_class);
-        return;
-    }
-
-    patch_handle_t scratch = PATCH_NULL;
-    patchlib_field_get_value(f_scratch, NULL, &scratch);
-    if (!scratch) {
-        patchlib_free(f_scratch);
-        patchlib_free(nested_class);
-        patchlib_free(qs_class);
-        return;
-    }
-
-    patch_handle_t f_first =
-            patchlib_type_get_field(nested_class, "firstEntryForType");
-    if (patchlib_is_valid(f_first)) {
-        patch_handle_t array = PATCH_NULL;
-        patchlib_field_get_value(f_first, scratch, &array);
-        if (array) {
-            const size_t len = patchlib_array_length(array);
-            if (len > 0 && len < (size_t) new_size) {
-                patch_handle_t int_type = patchlib_get_basic_type(PATCH_INT32);
-                patch_handle_t narray =
-                        patchlib_array_create(new_size, int_type);
-                patchlib_free(int_type);
-                if (patchlib_is_valid(narray)) {
-                    // 新数组默认全 0；复制旧数据
-                    patchlib_array_copy(narray, array, len);
-                    patchlib_field_set_value(f_first, scratch, &narray);
-                    TEKLOG_INFO("resize_quickstacking: ✅ firstEntryForType (%zu -> %d)",
-                                len, new_size);
-                    patchlib_free(narray);
-                } else {
-                    TEKLOG_ERROR("resize_quickstacking: failed to create new array");
-                }
-            }
-            patchlib_free(array);
-        }
-        patchlib_free(f_first);
-    }
-
-    patchlib_free(scratch);
-    patchlib_free(f_scratch);
-    patchlib_free(nested_class);
-    patchlib_free(qs_class);
-}
-
 // ============================================================================
 // 实例级「按物品 type 索引」数组的构造后自愈
 //
@@ -2323,6 +2254,17 @@ static bool grow_instance_array_field(patch_handle_t field,
     }
     patchlib_free(array);
     return ok;
+}
+
+static void quickstack_reset_postfix(patch_handle_t this, void **args,
+                                       void *result,
+                                       const patch_method_signature_t *sig_info) {
+    (void) args;
+    (void) result;
+    (void) sig_info;
+    grow_instance_array_field(f_quickstack_first_entry, this,
+                              terraria_item_manager_get_count(),
+                              "QuickStacking.firstEntryForType");
 }
 
 /* EmergencyStacking.GroupLookup postfix：
@@ -2438,6 +2380,22 @@ static void loot_simulation_item_counter_ctor_postfix(
 
 /* 安装上述实例数组的自愈钩子。句柄长期缓存，class 句柄不释放。 */
 static void install_instance_item_array_hooks(void) {
+    {
+        patch_handle_t cls = patchlib_type_get_type("Terraria.GameContent", "QuickStacking");
+        patch_handle_t nested = patchlib_type_get_inner_type(cls, "MatchingItemTypeDestinationList");
+        f_quickstack_first_entry = patchlib_type_get_field(nested, "firstEntryForType");
+        patch_handle_t reset = patchlib_type_get_method_by_param_count(nested, "Reset", 0);
+        if (patchlib_is_valid(f_quickstack_first_entry) && patchlib_is_valid(reset)) {
+            const int hook = patchlib_install_prepost_hook(reset, NULL, quickstack_reset_postfix);
+            TEKLOG_INFO("quickstack: Reset array resize hook=%d", (int)hook);
+        } else {
+            TEKLOG_ERROR("quickstack: firstEntryForType or Reset not found");
+        }
+        patchlib_free(reset);
+        patchlib_free(nested);
+        patchlib_free(cls);
+    }
+
     /* EmergencyStacking._groupLookup / EmergencyStacking+Group.Default */
     {
         patch_handle_t cls = patchlib_type_get_type("Terraria.GameContent",
@@ -2563,8 +2521,6 @@ void terraria_item_manager_resize(const bool allow_create) {
     resize_armor_set_bonuses(terraria_item_id_get_count(), new_size);
     // 兜底：强制扩容运行时物品更新/拾取/绘制会用到的 ItemID.Sets 集合
     force_resize_critical_item_sets(new_size);
-    // 快速堆叠按 type 索引的 firstEntryForType（无边界检查）
-    resize_quickstacking(new_size);
 
     patchlib_free(bool_type);
     patchlib_free(int_type);
