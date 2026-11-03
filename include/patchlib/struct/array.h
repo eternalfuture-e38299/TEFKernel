@@ -91,6 +91,15 @@ DEFINE_FUNCTION(size_t, patchlib_array_length, patch_handle_t array)
 DEFINE_FUNCTION(size_t, patchlib_array_element_size, patch_handle_t array);
 
 /**
+ * @brief 数组元素是否为引用类型（对象）
+ *
+ * 用于 patch.array_at 省略类型参数时判断能否安全地按指针读取。
+ * 32 位平台上 float / int 等标量和对象指针都是 4 字节，不能只靠
+ * element_size 区分；这里根据数组元素类型名判断。
+ */
+DEFINE_FUNCTION(bool, patchlib_array_element_is_reference, patch_handle_t array);
+
+/**
  * @brief 从 C 数组复制到 IL2CPP 数组
  * @param dest IL2CPP 目标数组
  * @param src C 源数组指针

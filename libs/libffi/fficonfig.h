@@ -3,6 +3,9 @@
 #endif
 #define HAVE_ALLOCA 1
 #ifndef _WIN64
+#define HAVE_AS_CFI_PSEUDO_OP 1
+#endif
+#ifndef _WIN64
 #define HAVE_AS_ASCII_PSEUDO_OP 1
 #endif
 #ifndef _WIN64

@@ -62,15 +62,22 @@ typedef struct {
   patch_handle_t f_chest_item;
   patch_handle_t f_chest_max_items;
 
+  /* 新版 Player.bank* 是 InventoryStorage（Item[]），不是 Chest（ChestItem[]） */
+  patch_handle_t f_bank_item;
+  patch_handle_t f_bank_max_items;
+
   patch_handle_t m_pfd_get_player;
   patch_handle_t m_file_get_path;
 
   patch_handle_t f_main_chest;
   patch_handle_t f_main_active_world;
+  patch_handle_t f_main_world_list;
+  patch_handle_t m_main_get_player_list;
 
   patch_handle_t m_item_ctor;
   patch_handle_t m_chestitem_expand;
   patch_handle_t m_chestitem_set_to_item;
+  patch_handle_t f_item_max_stack;
 } tef_save_game_handles_t;
 
 /* 单例 */
@@ -94,6 +101,9 @@ void tef_save_container_set_custom(patch_handle_t arr, size_t slot, bool is_ches
 
 /* 通用：清理箱子中越界物品（返回改动数） */
 int tef_save_sanitize_chest(patch_handle_t chest, int max_valid);
+
+/* 通用：清理玩家银行（InventoryStorage，Item[]）中越界物品（返回改动数） */
+int tef_save_sanitize_bank(patch_handle_t storage, int max_valid);
 
 #ifdef __cplusplus
 }

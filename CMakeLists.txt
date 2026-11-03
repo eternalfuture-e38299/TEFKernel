@@ -44,6 +44,7 @@ if (ANDROID)
             src/patchlib/android/il2cpp_api.c
             src/patchlib/android/private.c
             src/patchlib/android/method_hook.c
+            src/patchlib/android/ffi_guard.cpp
             src/patchlib/android/struct/array.c
             src/patchlib/android/struct/string.c
     )

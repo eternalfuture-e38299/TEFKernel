@@ -31,6 +31,10 @@
 #include "private.h"
 #include "internal/log.h"
 
+/* 在 ffi_guard.cpp 中用 C++ catch-all 包住 ffi_call，避免托管异常展开到
+ * 顶层导致 std::terminate → SIGABRT。返回 0=正常，1=已捕获托管异常。 */
+extern int tef_ffi_call_guarded(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue);
+
 void* patchlib_method_get_pointer(patch_handle_t method) {
     if (!patchlib_is_valid(method))
         return NULL;
@@ -318,7 +322,11 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     }
 
     TEKLOG_DEBUG("Calling method via FFI (nargs=%d)", total_arg_count);
-    ffi_call(&cif, FFI_FN(method_ptr), return_value, arg_values);
+    const int guard_failed = tef_ffi_call_guarded(&cif, FFI_FN(method_ptr),
+                                                  return_value, arg_values);
+    if (guard_failed) {
+        TEKLOG_ERROR("托管异常(已捕获): method=%p", method);
+    }
     TEKLOG_DEBUG("Method invocation completed successfully");
 
     /* ---------- 释放 ffi_type ---------- */
@@ -337,7 +345,7 @@ bool patchlib_method_invoke_args(patch_handle_t method, patch_handle_t instance,
     free(arg_values);
     free(arg_types);
     patchlib_method_signature_free(&signature);
-    return true;
+    return guard_failed == 0;
 }
 
 bool patchlib_constructor_invoke(patch_handle_t constructor,
