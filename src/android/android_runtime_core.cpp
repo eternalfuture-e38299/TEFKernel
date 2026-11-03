@@ -1,4 +1,3 @@
-#include "terraria/content/button_manager.h"
 /*******************************************************************************
  * tefkernel - android_runtime_core
  * Copyright (C) 2025 eternalfuture-e38299
@@ -169,7 +168,6 @@ static int hook_il2cpp_init(const char* domain_name) {
     terraria_buff_manager_init();
     terraria_prefix_manager_init();
     terraria_gui_init();
-    terraria_button_manager_install();
 
     tef_save_game_handles_init();
     tef_player_save_init();
