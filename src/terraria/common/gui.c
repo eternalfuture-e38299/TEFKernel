@@ -109,13 +109,38 @@ static void *g_sb;
 static tef_gui_frame_t g_frame;
 static bool g_prev_mouse_down;
 
-/* 文字句柄缓存：SpriteBatch 延迟到 End 才消费，字符串必须存活 */
-static struct {
+/* 文字句柄 LRU 缓存：容量 512，避免无限创建 GCHandle 导致 GC 停顿雪崩 */
+#undef GUI_MAX_TEXT
+#define GUI_MAX_TEXT 512
+
+typedef struct {
+    uint32_t hash;
     char *text;
     patch_handle_t handle;
     void *pin;      /* 托管字符串必须钉住：C 侧的裸指针 GC 看不见 */
-} g_text_cache[GUI_MAX_TEXT];
-static int g_text_count;
+    uint64_t last_used;
+} gui_text_entry_t;
+
+static gui_text_entry_t g_text_cache[GUI_MAX_TEXT];
+static int g_text_count = 0;
+static uint64_t g_lru_clock = 0;
+
+typedef struct {
+    char *text;
+    patch_handle_t handle;
+    void *pin;
+} gui_deferred_release_t;
+
+static tefstd_vector_t g_deferred_releases;
+static bool g_deferred_ready = false;
+
+static inline uint32_t string_hash(const char *str) {
+    uint32_t hash = 5381;
+    int c;
+    while ((c = (unsigned char)*str++))
+        hash = ((hash << 5) + hash) + c;
+    return hash;
+}
 
 /* ------------------------------------------------------------------ */
 /* 取字段 / 属性                                                       */
@@ -251,38 +276,121 @@ static color4 color_of(unsigned rgba) {
     return c;
 }
 
-/* 返回托管字符串；*temp_pin 非空时表示这条没进缓存，调用方画完要释放。 */
+static void terraria_gui_end_frame_cleanup(void) {
+    if (!g_deferred_ready) return;
+    const size_t count = tefstd_vector_size(&g_deferred_releases);
+    if (count == 0) return;
+
+    for (size_t i = 0; i < count; ++i) {
+        gui_deferred_release_t *rel = (gui_deferred_release_t *) tefstd_vector_at(&g_deferred_releases, i);
+        if (rel) {
+#if defined(__ANDROID__)
+            if (rel->pin && il2cpp_gchandle_free) {
+                il2cpp_gchandle_free(rel->pin);
+            }
+#endif
+            if (rel->handle) {
+                patchlib_free(rel->handle);
+            }
+            if (rel->text) {
+                free(rel->text);
+            }
+        }
+    }
+    tefstd_vector_clear(&g_deferred_releases);
+}
+
+/* 返回托管字符串；带有 LRU 淘汰与后置帧生命周期清理机制 */
 static void *text_handle(const char *text, void **temp_pin) {
     if (temp_pin) *temp_pin = NULL;
     if (!text || !*text) return NULL;
-    for (int i = 0; i < g_text_count; ++i)
-        if (g_text_cache[i].text && strcmp(g_text_cache[i].text, text) == 0)
+
+    const uint32_t hval = string_hash(text);
+    g_lru_clock++;
+
+    for (int i = 0; i < g_text_count; ++i) {
+        if (g_text_cache[i].hash == hval && g_text_cache[i].text && strcmp(g_text_cache[i].text, text) == 0) {
+            g_text_cache[i].last_used = g_lru_clock;
             return g_text_cache[i].handle;
+        }
+    }
+
     patch_handle_t h = patchlib_string_create(text);
     if (!h) return NULL;
     void *pin = NULL;
 #if defined(__ANDROID__)
     if (il2cpp_gchandle_new) pin = il2cpp_gchandle_new(h, false);
 #endif
+
+    int slot = -1;
     if (g_text_count < GUI_MAX_TEXT) {
-        size_t n = strlen(text);
-        char *copy = malloc(n + 1);
-        if (copy) {
-            memcpy(copy, text, n + 1);
-            g_text_cache[g_text_count].text = copy;
-            g_text_cache[g_text_count].handle = h;
-            g_text_cache[g_text_count].pin = pin;
-            g_text_count++;
-            if (temp_pin) *temp_pin = NULL;
-            return h;
+        slot = g_text_count++;
+    } else {
+        /* LRU 淘汰：淘汰最久未使用的项，并将其加入当前帧延迟释放列表（避免 SpriteBatch use-after-free） */
+        int lru_idx = 0;
+        uint64_t min_used = g_text_cache[0].last_used;
+        for (int i = 1; i < GUI_MAX_TEXT; ++i) {
+            if (g_text_cache[i].last_used < min_used) {
+                min_used = g_text_cache[i].last_used;
+                lru_idx = i;
+            }
         }
+        if (g_deferred_ready) {
+            gui_deferred_release_t rel = {
+                .text = g_text_cache[lru_idx].text,
+                .handle = g_text_cache[lru_idx].handle,
+                .pin = g_text_cache[lru_idx].pin,
+            };
+            tefstd_vector_push_back(&g_deferred_releases, &rel);
+        } else {
+#if defined(__ANDROID__)
+            if (g_text_cache[lru_idx].pin && il2cpp_gchandle_free)
+                il2cpp_gchandle_free(g_text_cache[lru_idx].pin);
+#endif
+            if (g_text_cache[lru_idx].handle)
+                patchlib_free(g_text_cache[lru_idx].handle);
+            free(g_text_cache[lru_idx].text);
+        }
+        g_text_cache[lru_idx].text = NULL;
+        g_text_cache[lru_idx].handle = PATCH_NULL;
+        g_text_cache[lru_idx].pin = NULL;
+        g_text_cache[lru_idx].hash = 0;
+        slot = lru_idx;
     }
-    if (temp_pin) *temp_pin = pin;
+
+    size_t n = strlen(text);
+    char *copy = malloc(n + 1);
+    if (copy) {
+        memcpy(copy, text, n + 1);
+        g_text_cache[slot].hash = hval;
+        g_text_cache[slot].text = copy;
+        g_text_cache[slot].handle = h;
+        g_text_cache[slot].pin = pin;
+        g_text_cache[slot].last_used = g_lru_clock;
+        return h;
+    }
+
+    /* malloc 失败兜底：作为非缓存临时句柄，画完在帧末回收 */
+    if (g_deferred_ready) {
+        gui_deferred_release_t rel = {.text = NULL, .handle = h, .pin = pin};
+        tefstd_vector_push_back(&g_deferred_releases, &rel);
+    } else {
+        if (temp_pin) *temp_pin = pin;
+    }
     return h;
 }
 
 static void text_release_temp(void *temp_pin) {
-    (void) temp_pin;   /* 不释放：见 text_handle 注释，避免 use-after-free */
+    if (!temp_pin) return;
+    if (g_deferred_ready) {
+        gui_deferred_release_t rel = {.text = NULL, .handle = PATCH_NULL, .pin = temp_pin};
+        tefstd_vector_push_back(&g_deferred_releases, &rel);
+    } else {
+#if defined(__ANDROID__)
+        if (il2cpp_gchandle_free)
+            il2cpp_gchandle_free(temp_pin);
+#endif
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -310,7 +418,10 @@ void terraria_gui_text(const char *text, float x, float y, float scale, unsigned
     void *temp_pin = NULL;
     void *str = text_handle(text, &temp_pin);
     if (!str) return;
-    if (!ensure_batch()) return;
+    if (!ensure_batch()) {
+        text_release_temp(temp_pin);
+        return;
+    }
     v2f pos = {x, y};
     color4 c = premul_color4(color_of(rgba));
     float sc = scale <= 0 ? 1.0f : scale;
@@ -336,7 +447,10 @@ void terraria_gui_draw_string(patch_handle_t font, const char *text, float x, fl
     void *temp_pin = NULL;
     void *str = text_handle(text, &temp_pin);
     if (!str) return;
-    if (!ensure_batch()) return;
+    if (!ensure_batch()) {
+        text_release_temp(temp_pin);
+        return;
+    }
     const color4 c = premul_color4(color_of(rgba));
 #if defined(__ANDROID__)
     const unsigned packed = (unsigned) c.r | ((unsigned) c.g << 8) |
@@ -466,27 +580,39 @@ void terraria_gui_remove_draw(tef_gui_draw_cb cb) {
 static void frame_postfix(patch_handle_t this, void **args, void *result,
                           const patch_method_signature_t *sig) {
     (void) this; (void) args; (void) result; (void) sig;
-    if (g_in_draw || !g_entries_ready || f_sprite_batch == PATCH_NULL)
+    if (g_in_draw) return;
+    if (!g_entries_ready || f_sprite_batch == PATCH_NULL) {
+        terraria_gui_end_frame_cleanup();
         return;
+    }
     const size_t n_entries = tefstd_vector_size(&g_entries);
-    if (n_entries == 0)
+    if (n_entries == 0) {
+        terraria_gui_end_frame_cleanup();
         return;
+    }
     /* 启动画面 / 加载阶段：贴图与字体尚未就绪，此时绘制会抛托管异常；
      * 异常跨 hook 帧无法展开，最终 SIGABRT（闪退）。加载完成后再画。 */
-    if (read_stat_bool(a_show_splash, m_get_show_splash))
+    if (read_stat_bool(a_show_splash, m_get_show_splash)) {
+        terraria_gui_end_frame_cleanup();
         return;
+    }
     /* 和原版 Buff 栏一致：菜单/背包/暂停/特殊 UI 打开时不画 */
     if (read_stat_bool(a_game_menu, m_get_game_menu) ||
         read_stat_bool(a_options_window, m_get_options_window) ||
         read_stat_bool(a_inventory, m_get_inventory) ||
-        read_stat_bool(a_fancy_ui, m_get_fancy_ui))
+        read_stat_bool(a_fancy_ui, m_get_fancy_ui)) {
+        terraria_gui_end_frame_cleanup();
         return;
+    }
 
     void *sb = NULL;
     memset(g_read_buf, 0, sizeof(g_read_buf));
     patchlib_field_get_value(f_sprite_batch, NULL, g_read_buf);
     memcpy(&sb, g_read_buf, sizeof(sb));
-    if (!sb) return;
+    if (!sb) {
+        terraria_gui_end_frame_cleanup();
+        return;
+    }
 
     g_frame.screen_w = read_stat_int(a_screen_w, m_get_screen_w, 0);
     g_frame.screen_h = read_stat_int(a_screen_h, m_get_screen_h, 0);
@@ -521,6 +647,8 @@ static void frame_postfix(patch_handle_t this, void **args, void *result,
     g_batch_open = false;
     g_in_draw = false;
     g_sb = NULL;
+
+    terraria_gui_end_frame_cleanup();
 }
 
 /* ------------------------------------------------------------------ */
@@ -540,6 +668,11 @@ void terraria_gui_init(void) {
         return;
     }
     g_entries_ready = true;
+
+    if (!g_deferred_ready) {
+        tefstd_vector_init(&g_deferred_releases, sizeof(gui_deferred_release_t));
+        g_deferred_ready = true;
+    }
 
     f_sprite_batch = resolve_field(t_main, "spriteBatch");
 
@@ -677,9 +810,13 @@ void terraria_gui_init(void) {
                      f_sprite_batch != PATCH_NULL, m_sb_begin != PATCH_NULL,
                      m_sb_begin8 != PATCH_NULL, m_sb_end != PATCH_NULL,
                      m_inv_bg != PATCH_NULL, m_border_string != PATCH_NULL);
-        /* 后端不可用：回收刚初始化的回调表 */
+        /* 后端不可用：回收刚初始化的回调表与延迟释放队列 */
         tefstd_vector_destroy(&g_entries);
         g_entries_ready = false;
+        if (g_deferred_ready) {
+            tefstd_vector_destroy(&g_deferred_releases);
+            g_deferred_ready = false;
+        }
         return;
     }
 
@@ -695,6 +832,10 @@ void terraria_gui_init(void) {
         g_enabled = false;
         tefstd_vector_destroy(&g_entries);
         g_entries_ready = false;
+        if (g_deferred_ready) {
+            tefstd_vector_destroy(&g_deferred_releases);
+            g_deferred_ready = false;
+        }
     }
 }
 
@@ -707,12 +848,22 @@ void terraria_gui_shutdown(void) {
         tefstd_vector_destroy(&g_entries);
         g_entries_ready = false;
     }
+    terraria_gui_end_frame_cleanup();
+    if (g_deferred_ready) {
+        tefstd_vector_destroy(&g_deferred_releases);
+        g_deferred_ready = false;
+    }
     for (int i = 0; i < g_text_count; ++i) {
-        if (g_text_cache[i].pin) text_release_temp(g_text_cache[i].pin);
+#if defined(__ANDROID__)
+        if (g_text_cache[i].pin && il2cpp_gchandle_free) {
+            il2cpp_gchandle_free(g_text_cache[i].pin);
+        }
+#endif
         if (g_text_cache[i].handle) patchlib_free(g_text_cache[i].handle);
-        free(g_text_cache[i].text);
+        if (g_text_cache[i].text) free(g_text_cache[i].text);
         g_text_cache[i].text = NULL;
         g_text_cache[i].handle = PATCH_NULL;
+        g_text_cache[i].pin = NULL;
     }
     g_text_count = 0;
     g_enabled = false;

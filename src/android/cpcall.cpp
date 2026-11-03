@@ -39,14 +39,61 @@ static JavaVM* g_vm = nullptr;
 static std::mutex g_vm_mutex;
 
 // ContentProvider信息
-static auto AUTHORITY = "eternal.future.tefkernel.fileprovider";
+static const char* AUTHORITY = "eternal.future.tefkernel.fileprovider";
 
-// 初始化
-void cp_call_init(JavaVM* vm) {
-    std::lock_guard lock(g_vm_mutex);
-    g_vm = vm;
-    ALOGD("CPCall initialized");
-}
+// Cached JNI metadata structure
+struct JniCache {
+    std::mutex mtx;
+    bool initialized = false;
+
+    // Global references
+    jclass bundleClass = nullptr;
+    jclass resolverClass = nullptr;
+    jclass uriClass = nullptr;
+    jclass pfdClass = nullptr;
+
+    jobject uri = nullptr;
+    jobject resolver = nullptr;
+
+    // Method IDs
+    jmethodID resolverCall = nullptr;
+
+    jmethodID bundleInit = nullptr;
+    jmethodID bundlePutString = nullptr;
+    jmethodID bundlePutInt = nullptr;
+    jmethodID bundlePutLong = nullptr;
+    jmethodID bundleGetBoolean = nullptr;
+    jmethodID bundleGetInt = nullptr;
+    jmethodID bundleGetLong = nullptr;
+    jmethodID bundleGetString = nullptr;
+    jmethodID bundleGetParcelable = nullptr;
+
+    jmethodID pfdGetFd = nullptr;
+    jmethodID pfdClose = nullptr;
+};
+
+static JniCache g_cache;
+
+// RAII helper for JNI local reference frames
+class JniLocalFrame {
+public:
+    explicit JniLocalFrame(JNIEnv* env, jint capacity = 16) : m_env(env) {
+        if (m_env) {
+            m_pushed = (m_env->PushLocalFrame(capacity) == 0);
+        }
+    }
+    ~JniLocalFrame() {
+        if (m_env && m_pushed) {
+            m_env->PopLocalFrame(nullptr);
+        }
+    }
+    JniLocalFrame(const JniLocalFrame&) = delete;
+    JniLocalFrame& operator=(const JniLocalFrame&) = delete;
+
+private:
+    JNIEnv* m_env;
+    bool m_pushed = false;
+};
 
 // 获取JNIEnv
 /* JNI 铁律：Java 侧抛出异常后，必须先 ExceptionClear 才能继续调用 JNI，
@@ -88,121 +135,260 @@ static JNIEnv* getJNIEnv() {
     return env;
 }
 
-// 工具函数
-static jobject getContentResolver(JNIEnv* env) {
-    jclass activityThread = env->FindClass("android/app/ActivityThread");
-    jmethodID currentActivityThread = env->GetStaticMethodID(
-            activityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
-    jobject at = env->CallStaticObjectMethod(activityThread, currentActivityThread);
+// 缓存 JNI 元数据
+static bool ensure_jni_cache(JNIEnv* env) {
+    if (g_cache.initialized) {
+        return true;
+    }
+    std::lock_guard<std::mutex> lock(g_cache.mtx);
+    if (g_cache.initialized) {
+        return true;
+    }
 
-    jmethodID getApplication = env->GetMethodID(
-            activityThread, "getApplication", "()Landroid/app/Application;");
-    jobject context = env->CallObjectMethod(at, getApplication);
+    // 1. android/os/Bundle
+    jclass localBundle = env->FindClass("android/os/Bundle");
+    if (!localBundle) {
+        clear_pending(env, "FindClass Bundle");
+        return false;
+    }
+    g_cache.bundleClass = (jclass)env->NewGlobalRef(localBundle);
+    env->DeleteLocalRef(localBundle);
 
-    jclass contextClass = env->GetObjectClass(context);
-    jobject resolver = env->CallObjectMethod(context,
-            env->GetMethodID(contextClass, "getContentResolver", "()Landroid/content/ContentResolver;"));
+    g_cache.bundleInit = env->GetMethodID(g_cache.bundleClass, "<init>", "()V");
+    g_cache.bundlePutString = env->GetMethodID(g_cache.bundleClass, "putString", "(Ljava/lang/String;Ljava/lang/String;)V");
+    g_cache.bundlePutInt = env->GetMethodID(g_cache.bundleClass, "putInt", "(Ljava/lang/String;I)V");
+    g_cache.bundlePutLong = env->GetMethodID(g_cache.bundleClass, "putLong", "(Ljava/lang/String;J)V");
+    g_cache.bundleGetBoolean = env->GetMethodID(g_cache.bundleClass, "getBoolean", "(Ljava/lang/String;)Z");
+    g_cache.bundleGetInt = env->GetMethodID(g_cache.bundleClass, "getInt", "(Ljava/lang/String;)I");
+    g_cache.bundleGetLong = env->GetMethodID(g_cache.bundleClass, "getLong", "(Ljava/lang/String;)J");
+    g_cache.bundleGetString = env->GetMethodID(g_cache.bundleClass, "getString", "(Ljava/lang/String;)Ljava/lang/String;");
+    g_cache.bundleGetParcelable = env->GetMethodID(g_cache.bundleClass, "getParcelable", "(Ljava/lang/String;)Landroid/os/Parcelable;");
 
-    env->DeleteLocalRef(activityThread);
-    env->DeleteLocalRef(at);
-    env->DeleteLocalRef(context);
-    env->DeleteLocalRef(contextClass);
+    // 2. android/net/Uri
+    jclass localUriClass = env->FindClass("android/net/Uri");
+    if (!localUriClass) {
+        clear_pending(env, "FindClass Uri");
+        return false;
+    }
+    g_cache.uriClass = (jclass)env->NewGlobalRef(localUriClass);
+    env->DeleteLocalRef(localUriClass);
 
-    return resolver;
+    jmethodID uriParse = env->GetStaticMethodID(g_cache.uriClass, "parse", "(Ljava/lang/String;)Landroid/net/Uri;");
+    std::string uriStr = "content://";
+    uriStr += AUTHORITY;
+    jstring jUriStr = env->NewStringUTF(uriStr.c_str());
+    jobject localUri = env->CallStaticObjectMethod(g_cache.uriClass, uriParse, jUriStr);
+    clear_pending(env, "Uri.parse");
+    env->DeleteLocalRef(jUriStr);
+    if (localUri) {
+        g_cache.uri = env->NewGlobalRef(localUri);
+        env->DeleteLocalRef(localUri);
+    }
+
+    // 3. android/content/ContentResolver
+    jclass localResolverClass = env->FindClass("android/content/ContentResolver");
+    if (!localResolverClass) {
+        clear_pending(env, "FindClass ContentResolver");
+        return false;
+    }
+    g_cache.resolverClass = (jclass)env->NewGlobalRef(localResolverClass);
+    env->DeleteLocalRef(localResolverClass);
+
+    g_cache.resolverCall = env->GetMethodID(g_cache.resolverClass, "call",
+            "(Landroid/net/Uri;Ljava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;");
+
+    // 4. android/os/ParcelFileDescriptor
+    jclass localPfdClass = env->FindClass("android/os/ParcelFileDescriptor");
+    if (localPfdClass) {
+        g_cache.pfdClass = (jclass)env->NewGlobalRef(localPfdClass);
+        env->DeleteLocalRef(localPfdClass);
+
+        g_cache.pfdGetFd = env->GetMethodID(g_cache.pfdClass, "getFd", "()I");
+        g_cache.pfdClose = env->GetMethodID(g_cache.pfdClass, "close", "()V");
+    } else {
+        clear_pending(env, "FindClass ParcelFileDescriptor");
+    }
+
+    if (!g_cache.bundleInit || !g_cache.bundlePutString || !g_cache.bundlePutInt ||
+        !g_cache.bundlePutLong || !g_cache.bundleGetBoolean || !g_cache.bundleGetInt ||
+        !g_cache.bundleGetLong || !g_cache.bundleGetString || !g_cache.bundleGetParcelable ||
+        !g_cache.uri || !g_cache.resolverCall) {
+        clear_pending(env, "ensure_jni_cache verification");
+        ALOGE("cpcall: Failed to resolve all required JNI metadata");
+        return false;
+    }
+
+    clear_pending(env, "ensure_jni_cache");
+    g_cache.initialized = true;
+    ALOGD("cpcall: JNI cache initialized successfully");
+    return true;
 }
 
+// 获取并缓存 ContentResolver 全局引用
+static jobject getContentResolver(JNIEnv* env) {
+    if (g_cache.resolver) {
+        return g_cache.resolver;
+    }
+    std::lock_guard<std::mutex> lock(g_cache.mtx);
+    if (g_cache.resolver) {
+        return g_cache.resolver;
+    }
+
+    jclass activityThread = env->FindClass("android/app/ActivityThread");
+    if (!activityThread) {
+        clear_pending(env, "FindClass ActivityThread");
+        return nullptr;
+    }
+    jmethodID currentActivityThread = env->GetStaticMethodID(
+            activityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
+    if (!currentActivityThread) {
+        clear_pending(env, "GetStaticMethodID currentActivityThread");
+        env->DeleteLocalRef(activityThread);
+        return nullptr;
+    }
+    jobject at = env->CallStaticObjectMethod(activityThread, currentActivityThread);
+    clear_pending(env, "CallStaticObjectMethod currentActivityThread");
+    env->DeleteLocalRef(activityThread);
+    if (!at) {
+        return nullptr;
+    }
+
+    jclass atClass = env->GetObjectClass(at);
+    jmethodID getApplication = env->GetMethodID(
+            atClass, "getApplication", "()Landroid/app/Application;");
+    if (!getApplication) {
+        clear_pending(env, "GetMethodID getApplication");
+        env->DeleteLocalRef(atClass);
+        env->DeleteLocalRef(at);
+        return nullptr;
+    }
+    jobject context = env->CallObjectMethod(at, getApplication);
+    clear_pending(env, "CallObjectMethod getApplication");
+    env->DeleteLocalRef(atClass);
+    env->DeleteLocalRef(at);
+    if (!context) {
+        return nullptr;
+    }
+
+    jclass contextClass = env->GetObjectClass(context);
+    jmethodID getResolverMethod = env->GetMethodID(
+            contextClass, "getContentResolver", "()Landroid/content/ContentResolver;");
+    if (!getResolverMethod) {
+        clear_pending(env, "GetMethodID getContentResolver");
+        env->DeleteLocalRef(contextClass);
+        env->DeleteLocalRef(context);
+        return nullptr;
+    }
+    jobject localResolver = env->CallObjectMethod(context, getResolverMethod);
+    clear_pending(env, "CallObjectMethod getContentResolver");
+    env->DeleteLocalRef(contextClass);
+    env->DeleteLocalRef(context);
+
+    if (localResolver) {
+        g_cache.resolver = env->NewGlobalRef(localResolver);
+        env->DeleteLocalRef(localResolver);
+    }
+    return g_cache.resolver;
+}
+
+// 初始化
+void cp_call_init(JavaVM* vm) {
+    std::lock_guard<std::mutex> lock(g_vm_mutex);
+    g_vm = vm;
+    JNIEnv* env = nullptr;
+    if (g_vm && g_vm->GetEnv((void**)&env, JNI_VERSION_1_6) == JNI_OK) {
+        ensure_jni_cache(env);
+        getContentResolver(env);
+    }
+    ALOGD("CPCall initialized");
+}
+
+// 工具函数
 static jobject createBundle(JNIEnv* env) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID constructor = env->GetMethodID(bundleClass, "<init>", "()V");
-    jobject bundle = env->NewObject(bundleClass, constructor);
-    env->DeleteLocalRef(bundleClass);
-    return bundle;
+    if (!ensure_jni_cache(env) || !g_cache.bundleClass || !g_cache.bundleInit) {
+        return nullptr;
+    }
+    return env->NewObject(g_cache.bundleClass, g_cache.bundleInit);
 }
 
 static void putString(JNIEnv* env, jobject bundle, const char* key, const char* value) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID putString = env->GetMethodID(bundleClass, "putString",
-            "(Ljava/lang/String;Ljava/lang/String;)V");
+    if (!env || !bundle || !key || !value || !ensure_jni_cache(env)) return;
     jstring jKey = env->NewStringUTF(key);
     jstring jValue = env->NewStringUTF(value);
-    env->CallVoidMethod(bundle, putString, jKey, jValue);
+    env->CallVoidMethod(bundle, g_cache.bundlePutString, jKey, jValue);
+    clear_pending(env, "Bundle.putString");
     env->DeleteLocalRef(jKey);
     env->DeleteLocalRef(jValue);
-    env->DeleteLocalRef(bundleClass);
 }
 
 static void putInt(JNIEnv* env, jobject bundle, const char* key, jint value) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID putInt = env->GetMethodID(bundleClass, "putInt", "(Ljava/lang/String;I)V");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return;
     jstring jKey = env->NewStringUTF(key);
-    env->CallVoidMethod(bundle, putInt, jKey, value);
+    env->CallVoidMethod(bundle, g_cache.bundlePutInt, jKey, value);
+    clear_pending(env, "Bundle.putInt");
     env->DeleteLocalRef(jKey);
-    env->DeleteLocalRef(bundleClass);
 }
 
 static void putLong(JNIEnv* env, jobject bundle, const char* key, jlong value) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID putLong = env->GetMethodID(bundleClass, "putLong", "(Ljava/lang/String;J)V");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return;
     jstring jKey = env->NewStringUTF(key);
-    env->CallVoidMethod(bundle, putLong, jKey, value);
+    env->CallVoidMethod(bundle, g_cache.bundlePutLong, jKey, value);
+    clear_pending(env, "Bundle.putLong");
     env->DeleteLocalRef(jKey);
-    env->DeleteLocalRef(bundleClass);
 }
 
 static bool getBoolean(JNIEnv* env, jobject bundle, const char* key) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID getBoolean = env->GetMethodID(bundleClass, "getBoolean", "(Ljava/lang/String;)Z");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return false;
     jstring jKey = env->NewStringUTF(key);
-    jboolean result = env->CallBooleanMethod(bundle, getBoolean, jKey);
+    jboolean result = env->CallBooleanMethod(bundle, g_cache.bundleGetBoolean, jKey);
+    clear_pending(env, "Bundle.getBoolean");
     env->DeleteLocalRef(jKey);
-    env->DeleteLocalRef(bundleClass);
     return result;
 }
 
 static int getInt(JNIEnv* env, jobject bundle, const char* key) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID getInt = env->GetMethodID(bundleClass, "getInt", "(Ljava/lang/String;)I");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return 0;
     jstring jKey = env->NewStringUTF(key);
-    jint result = env->CallIntMethod(bundle, getInt, jKey);
+    jint result = env->CallIntMethod(bundle, g_cache.bundleGetInt, jKey);
+    clear_pending(env, "Bundle.getInt");
     env->DeleteLocalRef(jKey);
-    env->DeleteLocalRef(bundleClass);
     return result;
 }
 
 static int64_t getLong(JNIEnv* env, jobject bundle, const char* key) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID getLong = env->GetMethodID(bundleClass, "getLong", "(Ljava/lang/String;)J");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return 0;
     jstring jKey = env->NewStringUTF(key);
-    jlong result = env->CallLongMethod(bundle, getLong, jKey);
+    jlong result = env->CallLongMethod(bundle, g_cache.bundleGetLong, jKey);
+    clear_pending(env, "Bundle.getLong");
     env->DeleteLocalRef(jKey);
-    env->DeleteLocalRef(bundleClass);
     return (int64_t)result;
 }
 
 static std::string getString(JNIEnv* env, jobject bundle, const char* key) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID getString = env->GetMethodID(bundleClass, "getString", "(Ljava/lang/String;)Ljava/lang/String;");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return "";
     jstring jKey = env->NewStringUTF(key);
-    auto jResult = (jstring)env->CallObjectMethod(bundle, getString, jKey);
+    auto jResult = (jstring)env->CallObjectMethod(bundle, g_cache.bundleGetString, jKey);
+    clear_pending(env, "Bundle.getString");
     env->DeleteLocalRef(jKey);
 
     if (!jResult) return "";
 
     const char* cstr = env->GetStringUTFChars(jResult, nullptr);
-    std::string result(cstr);
-    env->ReleaseStringUTFChars(jResult, cstr);
+    std::string result(cstr ? cstr : "");
+    if (cstr) {
+        env->ReleaseStringUTFChars(jResult, cstr);
+    }
     env->DeleteLocalRef(jResult);
-    env->DeleteLocalRef(bundleClass);
 
     return result;
 }
 
-// 新增：获取字符串并分配内存
+// 获取字符串并分配内存
 static char* getStringAndAllocate(JNIEnv* env, jobject bundle, const char* key) {
-    jclass bundleClass = env->FindClass("android/os/Bundle");
-    jmethodID getString = env->GetMethodID(bundleClass, "getString", "(Ljava/lang/String;)Ljava/lang/String;");
+    if (!env || !bundle || !key || !ensure_jni_cache(env)) return nullptr;
     jstring jKey = env->NewStringUTF(key);
-    auto jResult = (jstring)env->CallObjectMethod(bundle, getString, jKey);
+    auto jResult = (jstring)env->CallObjectMethod(bundle, g_cache.bundleGetString, jKey);
+    clear_pending(env, "Bundle.getString");
     env->DeleteLocalRef(jKey);
 
     if (!jResult) {
@@ -220,7 +406,7 @@ static char* getStringAndAllocate(JNIEnv* env, jobject bundle, const char* key) 
     size_t len = strlen(cstr);
     char* result = (char*)malloc(len + 1);
     if (result) {
-        strcpy(result, cstr);
+        memcpy(result, cstr, len + 1);
     }
 
     env->ReleaseStringUTFChars(jResult, cstr);
@@ -229,65 +415,55 @@ static char* getStringAndAllocate(JNIEnv* env, jobject bundle, const char* key) 
     return result;
 }
 
-// 通用call函数（无extras版本）
-static jobject callJavaMethodNoExtras(const char* method) {
+// 通用call函数
+static jobject callJavaMethod(const char* method, jobject extras) {
     JNIEnv* env = getJNIEnv();
     if (!env) {
         ALOGE("Cannot get JNIEnv for method: %s", method);
         return nullptr;
     }
 
-    // 获取ContentResolver
-    jobject resolver = getContentResolver(env);
-    if (!resolver) {
-        ALOGE("Cannot get ContentResolver");
+    if (!ensure_jni_cache(env)) {
+        ALOGE("Cannot initialize JNI cache for method: %s", method);
         return nullptr;
     }
 
-    // 构建URI
-    jclass uriClass = env->FindClass("android/net/Uri");
-    std::string uriStr = "content://";
-    uriStr += AUTHORITY;
-    jstring jUriStr = env->NewStringUTF(uriStr.c_str());
-    jobject uri = env->CallStaticObjectMethod(uriClass,
-            env->GetStaticMethodID(uriClass, "parse", "(Ljava/lang/String;)Landroid/net/Uri;"), jUriStr);
-    if (env->ExceptionCheck()) {
-        ALOGE("cpcall: Uri.parse 抛出异常，已清理");
-        env->ExceptionClear();
-        uri = nullptr;
+    jobject resolver = getContentResolver(env);
+    if (!resolver) {
+        ALOGE("Cannot get ContentResolver for method: %s", method);
+        return nullptr;
     }
 
-    // 调用call方法
-    jclass resolverClass = env->FindClass("android/content/ContentResolver");
-    jmethodID callMethod = env->GetMethodID(resolverClass, "call",
-            "(Landroid/net/Uri;Ljava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;");
+    if (!g_cache.uri || !g_cache.resolverCall) {
+        ALOGE("JNI metadata missing for uri or call method: %s", method);
+        return nullptr;
+    }
 
     jstring jMethod = env->NewStringUTF(method);
-    jobject result = env->CallObjectMethod(resolver, callMethod, uri, jMethod, nullptr, nullptr);
+    jobject result = env->CallObjectMethod(resolver, g_cache.resolverCall, g_cache.uri, jMethod, nullptr, extras);
     if (env->ExceptionCheck()) {
         ALOGE("cpcall: contentResolver.call(%s) 抛出异常，已清理并返回失败", method);
         env->ExceptionClear();
         result = nullptr;
     }
 
-    // 清理
     env->DeleteLocalRef(jMethod);
-    env->DeleteLocalRef(jUriStr);
-    env->DeleteLocalRef(uri);
-    env->DeleteLocalRef(uriClass);
-    env->DeleteLocalRef(resolverClass);
-    env->DeleteLocalRef(resolver);
-
     return result;
 }
 
-// 新增的路径获取函数实现
+// 通用call函数（无extras版本）
+static jobject callJavaMethodNoExtras(const char* method) {
+    return callJavaMethod(method, nullptr);
+}
+
+// 路径获取函数实现
 char* cp_call_get_internal_dir() {
     JNIEnv* env = getJNIEnv();
     if (!env) {
         ALOGE("Cannot get JNIEnv for getInternalDir");
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject result = callJavaMethodNoExtras("getInternalDir");
     if (!result) {
@@ -320,6 +496,7 @@ char* cp_call_get_external_dir() {
         ALOGE("Cannot get JNIEnv for getExternalDir");
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject result = callJavaMethodNoExtras("getExternalDir");
     if (!result) {
@@ -352,6 +529,7 @@ char* cp_call_get_cache_dir() {
         ALOGE("Cannot get JNIEnv for getCacheDir");
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject result = callJavaMethodNoExtras("getCacheDir");
     if (!result) {
@@ -384,6 +562,7 @@ char* cp_call_get_external_cache_dir() {
         ALOGE("Cannot get JNIEnv for getExternalCacheDir");
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject result = callJavaMethodNoExtras("getExternalCacheDir");
     if (!result) {
@@ -410,56 +589,19 @@ char* cp_call_get_external_cache_dir() {
     return path;
 }
 
-// 通用call函数
-static jobject callJavaMethod(const char* method, jobject extras) {
-    JNIEnv* env = getJNIEnv();
-    if (!env) {
-        ALOGE("Cannot get JNIEnv for method: %s", method);
-        return nullptr;
-    }
-
-    // 获取ContentResolver
-    jobject resolver = getContentResolver(env);
-    if (!resolver) {
-        ALOGE("Cannot get ContentResolver");
-        return nullptr;
-    }
-
-    // 构建URI
-    jclass uriClass = env->FindClass("android/net/Uri");
-    std::string uriStr = "content://";
-    uriStr += AUTHORITY;
-    jstring jUriStr = env->NewStringUTF(uriStr.c_str());
-    jobject uri = env->CallStaticObjectMethod(uriClass,
-            env->GetStaticMethodID(uriClass, "parse", "(Ljava/lang/String;)Landroid/net/Uri;"), jUriStr);
-
-    // 调用call方法
-    jclass resolverClass = env->FindClass("android/content/ContentResolver");
-    jmethodID callMethod = env->GetMethodID(resolverClass, "call",
-            "(Landroid/net/Uri;Ljava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;");
-
-    jstring jMethod = env->NewStringUTF(method);
-    jobject result = env->CallObjectMethod(resolver, callMethod, uri, jMethod, nullptr, extras);
-
-    // 清理
-    env->DeleteLocalRef(jMethod);
-    env->DeleteLocalRef(jUriStr);
-    env->DeleteLocalRef(uri);
-    env->DeleteLocalRef(uriClass);
-    env->DeleteLocalRef(resolverClass);
-    env->DeleteLocalRef(resolver);
-
-    return result;
-}
-
 int cp_call_open(const char* path, int flags, mode_t mode) {
     JNIEnv* env = getJNIEnv();
     if (!env) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
     putInt(env, extras, "flags", flags);
 
@@ -490,27 +632,20 @@ int cp_call_open(const char* path, int flags, mode_t mode) {
 
     if (success) {
         // 从Bundle中获取ParcelFileDescriptor对象
-        jclass bundleClass = env->FindClass("android/os/Bundle");
-        jmethodID getParcelable = env->GetMethodID(bundleClass,
-                "getParcelable", "(Ljava/lang/String;)Landroid/os/Parcelable;");
         jstring fdKey = env->NewStringUTF("fd");
-
-        jobject pfdObj = env->CallObjectMethod(result, getParcelable, fdKey);
+        jobject pfdObj = env->CallObjectMethod(result, g_cache.bundleGetParcelable, fdKey);
+        clear_pending(env, "Bundle.getParcelable");
+        env->DeleteLocalRef(fdKey);
 
         if (pfdObj) {
-            // 获取ParcelFileDescriptor的fd
-            jclass pfdClass = env->FindClass("android/os/ParcelFileDescriptor");
-            jmethodID getFd = env->GetMethodID(pfdClass, "getFd", "()I");
-
             // 获取Java层的文件描述符
-            jint javaFd = env->CallIntMethod(pfdObj, getFd);
+            jint javaFd = env->CallIntMethod(pfdObj, g_cache.pfdGetFd);
+            clear_pending(env, "ParcelFileDescriptor.getFd");
 
             // 复制文件描述符（dup是必要的）
             if (javaFd >= 0) {
                 fd = dup(javaFd);
-
                 if (fd < 0) {
-                    // dup失败
                     ALOGE("dup failed: %s", strerror(errno));
                 }
             } else {
@@ -519,18 +654,14 @@ int cp_call_open(const char* path, int flags, mode_t mode) {
             }
 
             // 关闭Java层的ParcelFileDescriptor
-            jmethodID closeMethod = env->GetMethodID(pfdClass, "close", "()V");
-            env->CallVoidMethod(pfdObj, closeMethod);
+            env->CallVoidMethod(pfdObj, g_cache.pfdClose);
+            clear_pending(env, "ParcelFileDescriptor.close");
 
-            env->DeleteLocalRef(pfdClass);
             env->DeleteLocalRef(pfdObj);
         } else {
             ALOGE("Failed to get ParcelFileDescriptor from bundle");
             errno = EIO;
         }
-
-        env->DeleteLocalRef(fdKey);
-        env->DeleteLocalRef(bundleClass);
     } else {
         int err = getInt(env, result, "errno");
         if (err < 0) err = -err;
@@ -549,8 +680,13 @@ int cp_call_unlink(const char* path) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
 
     jobject result = callJavaMethod("unlink", extras);
@@ -584,8 +720,13 @@ int cp_call_mkdir(const char* path, mode_t mode) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
     putInt(env, extras, "mode", mode);
 
@@ -616,8 +757,13 @@ int cp_call_rename(const char* oldpath, const char* newpath) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", oldpath);
     putString(env, extras, "path2", newpath);
 
@@ -648,8 +794,13 @@ int cp_call_stat(const char* path, struct stat* buf) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
 
     jobject result = callJavaMethod("stat", extras);
@@ -673,8 +824,8 @@ int cp_call_stat(const char* path, struct stat* buf) {
     memset(buf, 0, sizeof(struct stat));
     buf->st_size = getLong(env, result, "file_size");
     buf->st_mtime = getLong(env, result, "last_modified");
-    buf->st_mode = getBoolean(env, result, "is_dir") ? S_IFDIR : S_IFREG;
-    buf->st_mode |= 0644; // 默认权限
+    const bool is_dir = getBoolean(env, result, "is_dir");
+    buf->st_mode = is_dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);
 
     env->DeleteLocalRef(extras);
     env->DeleteLocalRef(result);
@@ -688,8 +839,13 @@ int cp_call_access(const char* path, int mode) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
     putInt(env, extras, "mode", mode);
 
@@ -720,8 +876,13 @@ DIR* cp_call_opendir(const char* name) {
         errno = EIO;
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return nullptr;
+    }
     putString(env, extras, "path", name);
 
     jobject result = callJavaMethod("opendir", extras);
@@ -766,8 +927,13 @@ char* cp_call_realpath(const char* path, char* resolved_path) {
         errno = EIO;
         return nullptr;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return nullptr;
+    }
     putString(env, extras, "path", path);
 
     jobject result = callJavaMethod("realpath", extras);
@@ -810,8 +976,13 @@ int cp_call_truncate(const char* path, off_t length) {
         errno = EIO;
         return -1;
     }
+    JniLocalFrame frame(env, 16);
 
     jobject extras = createBundle(env);
+    if (!extras) {
+        errno = EIO;
+        return -1;
+    }
     putString(env, extras, "path", path);
     putLong(env, extras, "size", length);
 

@@ -76,10 +76,10 @@ void tefkernel_log_cleanup(void);
 
 // 宏
 
-#define TEKLOG(level, ...) tefkernel_log_write_ex((level), __FILE__, __LINE__, __func__, __VA_ARGS__);
 #if !defined(NDEBUG)
+#define TEKLOG(level, ...) tefkernel_log_write_ex((level), __FILE__, __LINE__, __func__, __VA_ARGS__)
 #else
-#define TEKLOG(level, ...) tefkernel_log_write((level), __VA_ARGS__);
+#define TEKLOG(level, ...) tefkernel_log_write((level), __VA_ARGS__)
 #endif
 
 // ==================== 便捷日志宏 ====================

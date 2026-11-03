@@ -553,3 +553,24 @@ bool patchlib_install_typed_hook(patch_handle_t method, void *detour, void **ori
     TEKLOG_INFO("install_typed_hook: installed at %p (original=%p)", address, *original);
     return true;
 }
+
+bool patchlib_uninstall_typed_hook(patch_handle_t method) {
+    if (!patchlib_is_valid(method)) {
+        TEKLOG_ERROR("uninstall_typed_hook: invalid method");
+        return false;
+    }
+
+    void *address = patchlib_method_get_pointer(method);
+    if (!address) {
+        TEKLOG_ERROR("uninstall_typed_hook: method pointer is NULL");
+        return false;
+    }
+
+    const int rc = DobbyDestroy(address);
+    if (rc != 0) {
+        TEKLOG_ERROR("uninstall_typed_hook: DobbyDestroy failed (rc=%d, addr=%p)", rc, address);
+        return false;
+    }
+    TEKLOG_INFO("uninstall_typed_hook: uninstalled at %p", address);
+    return true;
+}

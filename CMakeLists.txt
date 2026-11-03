@@ -121,6 +121,9 @@ if (ANDROID)
     )
 
     list(APPEND TERRARIA_SRC
+            src/terraria/android/content/button_manager.cpp
+            src/terraria/android/content/button_images.cpp
+            src/terraria/android/content/button_image_decode.cpp
             src/terraria/android/texture2d.c
     )
 else ()
@@ -206,6 +209,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
 endif()
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_definitions(tefkernel PRIVATE _DARWIN_C_SOURCE)
+endif()
 
 if (${ANDROID})
     # set(Plugin.SymbolResolver OFF CACHE BOOL "Enable symbol resolver" FORCE)
@@ -313,8 +320,21 @@ elseif(MINGW OR WIN32)
             set(ARCH "x86")
         endif()
     endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # macOS: 优先根据 CMAKE_OSX_ARCHITECTURES 判断目标架构（支持在 ARM64 macOS runner 上编译 x86_64）
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+        set(ARCH "x86_64")
+    elseif(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+        set(ARCH "arm64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        set(ARCH "arm64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
+        set(ARCH "x86_64")
+    else()
+        set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
 else()
-    # 非 Android 平台使用简化的架构名称
+    # 非 Android/Windows/macOS 平台使用系统处理器名称
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
         set(ARCH "arm64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7a|ARMv7|arm")
@@ -353,3 +373,8 @@ if (${TEST})
             test/module.c
     )
 endif ()]]
+
+if(ANDROID)
+    set_property(TARGET tefkernel PROPERTY CXX_STANDARD 17)
+    set_property(TARGET tefkernel PROPERTY CXX_STANDARD_REQUIRED ON)
+endif()

@@ -103,6 +103,14 @@ DEFINE_FUNCTION(void *, patchlib_method_get_pointer, patch_handle_t method)
  * @return 成功返回 true
  */
 DEFINE_FUNCTION(bool, patchlib_install_typed_hook, patch_handle_t method, void *detour, void **original)
+
+/**
+ * @brief 卸载「强类型」hook（仅 Android）
+ *
+ * @param method   方法句柄
+ * @return 成功返回 true
+ */
+DEFINE_FUNCTION(bool, patchlib_uninstall_typed_hook, patch_handle_t method)
 #endif
 
 /**
