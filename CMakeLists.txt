@@ -121,9 +121,6 @@ if (ANDROID)
     )
 
     list(APPEND TERRARIA_SRC
-            src/terraria/android/content/button_manager.cpp
-            src/terraria/android/content/button_images.cpp
-            src/terraria/android/content/button_image_decode.cpp
             src/terraria/android/texture2d.c
     )
 else ()
@@ -377,8 +374,3 @@ if (${TEST})
             test/module.c
     )
 endif ()]]
-
-if(ANDROID)
-    set_property(TARGET tefkernel PROPERTY CXX_STANDARD 17)
-    set_property(TARGET tefkernel PROPERTY CXX_STANDARD_REQUIRED ON)
-endif()
