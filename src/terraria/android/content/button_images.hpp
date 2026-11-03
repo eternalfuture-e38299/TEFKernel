@@ -11,8 +11,8 @@ void draw(void *sprite_batch,const std::string &id,float x,float y,float w,float
 void release(const std::string &id);
 void prune(const std::vector<std::string> &owners);
 void solid(void *sprite_batch,float x,float y,float w,float h,const void *color);
-unsigned int retain_object(void *object);
-void release_object(unsigned int handle);
+void* retain_object(void *object);
+void release_object(void *handle);
 void begin_frame();
 void set_clip(bool enabled,float x,float y,float w,float h);
 void set_budget(size_t bytes);

@@ -14,8 +14,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cmath>
-#include <dlfcn.h>
-#include "xdl.h"
+#include "patchlib/il2cpp_api.h"
 #include "button_image_decode.hpp"
 namespace tefkernel::gui::images {
 void destroy_texture(void *t);
@@ -24,7 +23,7 @@ struct V {float x,y;};
 struct R {int x,y,w,h;};
 struct NR {unsigned char yes;unsigned char pad[3];R value;};
 struct Entry {std::string path,root,error;int w=0,h=0;void *tex=nullptr;bool attempted=false,reported=false;uint64_t last_use=0;size_t resident=0;
-unsigned int pin=0;
+void *pin=nullptr;
 };
 std::unordered_map<std::string,Entry> cache;
 void *draw_method=nullptr;
@@ -53,9 +52,6 @@ bool make_room(size_t bytes,Entry *protect){
 bool can_upload(){return frame==0||(uploads<2 && (uploads==0 || (frame_bytes<4*1024*1024 && std::chrono::steady_clock::now()-frame_start<std::chrono::milliseconds(5))));}
 void uploaded(size_t bytes){++uploads;frame_bytes+=bytes;}
 
-using Pin=unsigned int(*)(void*,bool);
-using Unpin=void(*)(unsigned int);
-Pin pin=nullptr;Unpin unpin=nullptr;
 void resolve(){
  if(resolved)return;resolved=true;
  auto texture=patchlib_type_get_type("Microsoft.Xna.Framework.Graphics","Texture2D");
@@ -69,18 +65,6 @@ void resolve(){
  const char *names[]={"texture","position","srcRect","color","rotation","origin","scale","effects","layerDepth"};
  draw_method=patchlib_type_get_method_by_signature(sb,"Draw",9,types,names);
  if(draw_method)native_draw=patchlib_method_get_pointer(draw_method);
- void *lib=dlopen("libil2cpp.so",RTLD_NOW|RTLD_NOLOAD);
- pin=reinterpret_cast<Pin>(dlsym(lib?lib:RTLD_DEFAULT,"il2cpp_gchandle_new"));
- unpin=reinterpret_cast<Unpin>(dlsym(lib?lib:RTLD_DEFAULT,"il2cpp_gchandle_free"));
- if(lib)dlclose(lib);
- if(!pin || !unpin){
-    void *extended=xdl_open("libil2cpp.so",XDL_DEFAULT);
-    if(extended){
-        pin=reinterpret_cast<Pin>(xdl_sym(extended,"il2cpp_gchandle_new",nullptr));
-        unpin=reinterpret_cast<Unpin>(xdl_sym(extended,"il2cpp_gchandle_free",nullptr));
-        xdl_close(extended);
-    }
- }
  LOG_INFO("[gui-image] draw interface={} texture API={}",draw_method!=nullptr,terraria_texture2d_create!=nullptr);
 }
 bool load(Entry &e){
@@ -88,7 +72,7 @@ bool load(Entry &e){
  if(!can_upload())return false;
  e.attempted=true;resolve();
  if(!draw_method || !terraria_texture2d_create || !terraria_texture2d_get_class || !terraria_texture2d_get_class()){e.error="image API unavailable";return false;}
- if(!pin || !unpin){e.error="IL2CPP GC retention unavailable";return false;}
+ if(!il2cpp_gchandle_new || !il2cpp_gchandle_free){e.error="IL2CPP GC retention unavailable";return false;}
  const auto ut=patchlib_type_get_type("UnityEngine","Texture2D");
  const auto xt=patchlib_type_get_type("Microsoft.Xna.Framework.Graphics","Texture2D");
  const auto texture_base=patchlib_type_get_type("UnityEngine","Texture");
@@ -122,7 +106,7 @@ bool load(Entry &e){
  try { e.tex=terraria_texture2d_create(e.w,e.h,TEXTURE_FORMAT_RGBA32,pixels,count); }
  catch(...){e.error="texture upload exception";}
  if(!e.tex){if(e.error.empty())e.error="texture upload failed";return false;}
- e.pin=pin(e.tex,false);if(!e.pin){destroy_texture(e.tex);e.tex=nullptr;e.error="texture GC retention failed";return false;}
+ e.pin=retain_object(e.tex);if(!e.pin){destroy_texture(e.tex);e.tex=nullptr;e.error="texture GC retention failed";return false;}
  diagnostic(e,"loaded "+std::to_string(e.w)+"x"+std::to_string(e.h));
  e.resident=count;
  texture_bytes+=e.resident;uploaded(count);
@@ -203,17 +187,18 @@ void destroy_texture(void *t){
 namespace {
 void unload(Entry &e){
  destroy_texture(e.tex);
- if(unpin&&e.pin)unpin(e.pin);e.pin=0;
+ release_object(e.pin);e.pin=nullptr;
  texture_bytes=texture_bytes>=e.resident?texture_bytes-e.resident:0;
  e.resident=0;e.tex=nullptr;e.attempted=false;e.reported=false;e.error.clear();
 }
 }
 void release(const std::string &id){auto it=cache.find(id);if(it==cache.end())return;unload(it->second);cache.erase(it);}
-unsigned int retain_object(void *object){
- resolve();return pin?pin(object,false):0;
+void* retain_object(void *object){
+ return object && il2cpp_gchandle_new && il2cpp_gchandle_free
+     ? il2cpp_gchandle_new(object,false) : nullptr;
 }
-void release_object(unsigned int handle){
- if(unpin&&handle)unpin(handle);
+void release_object(void *handle){
+ if(handle && il2cpp_gchandle_free)il2cpp_gchandle_free(handle);
 }
 void begin_frame(){++frame;uploads=0;frame_bytes=0;frame_start=std::chrono::steady_clock::now();clip={};}
 void set_clip(bool enabled,float x,float y,float w,float h){clip={enabled,x,y,w,h};}

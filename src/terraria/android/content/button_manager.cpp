@@ -74,7 +74,7 @@ std::vector<QuickDraw> quick_drawing;
 std::set<std::string> normal_held;
 struct RadialHeld{std::string key;unsigned long long tick;};
 std::map<std::string,RadialHeld> radial_held;
-struct GroupInput{H binding,config;int slot;std::string profile;unsigned long long tick;unsigned binding_pin=0,config_pin=0;};
+struct GroupInput{H binding,config;int slot;std::string profile;unsigned long long tick;H binding_pin=nullptr,config_pin=nullptr;};
 std::map<std::string,GroupInput> group_inputs;
 bool history_transition=false;
 bool selecting=false;
@@ -171,7 +171,7 @@ struct NativeOptions {
  ScrollWindow window;ScrollGesture gesture;
  int built_row=-1,built_columns=-1,built_rows=-1,built_total=-1;bool built_horizontal=false;
  H object=nullptr,original=nullptr,expanded=nullptr;
- unsigned object_pin=0,original_pin=0,expanded_pin=0;
+ H object_pin=nullptr,original_pin=nullptr,expanded_pin=nullptr;
  std::vector<std::string> keys;
  std::vector<Rect> cells;std::vector<int> cell_ids;
  Rect bounds,rail;float pitch=0;
@@ -301,13 +301,13 @@ void scroll_overlay_postfix(H obj,void**,void*,const patch_method_signature_t*){
  e.bounds=bounds;e.last_draw=tick;e.pitch=static_cast<float>(bounds.h)/e.window.rows;
  for(size_t i=1;i<e.cells.size();++i)if(e.cells[i].y>e.cells[0].y&&e.cells[i].x==e.cells[0].x){e.pitch=static_cast<float>(e.cells[i].y-e.cells[0].y);break;}
  if(!e.window.max_row()){e.rail={};return;}
- const int width=std::clamp(bounds.h/e.window.rows/3,14,28);
+ const int width=std::clamp(bounds.h/e.window.rows/5,8,16);
  const int screen=invoke<int>(api.width);
  e.rail={std::clamp(bounds.x+bounds.w+4,0,std::max(0,screen-width)),bounds.y,width,bounds.h};
  rectangle(e.rail,color(28,38,68,235));
  const int thumb=e.window.thumb_size(e.rail.h),travel=e.rail.h-thumb;
  const int y=e.rail.y+static_cast<int>(std::lround(static_cast<float>(travel)*e.window.row/e.window.max_row()));
- rectangle({e.rail.x+2,y,std::max(1,width-4),thumb},e.gesture.active()?color(149,198,245):color(99,146,207));
+ rectangle({e.rail.x+1,y,std::max(1,width-2),thumb},e.gesture.active()?color(149,198,245):color(99,146,207));
 }
 bool scroll_over_prefix(H obj,void** args,const patch_method_signature_t*,void* result){
  auto it=native_options.find(obj);if(it==native_options.end()||!result)return false;
