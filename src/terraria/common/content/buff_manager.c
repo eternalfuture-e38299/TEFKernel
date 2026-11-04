@@ -127,7 +127,7 @@ static void capture_display_text(terraria_buff_handle_t *h) {
     const char *name = h->buff_ops.get_display_name ? h->buff_ops.get_display_name(h) : NULL;
     const char *desc = h->buff_ops.get_display_description
                                ? h->buff_ops.get_display_description(h) : NULL;
-    /* 注册时句柄是全新的（LuaLoader 刚构造），不能 free 未初始化指针 */
+    /* 注册时句柄是全新的（由调用方刚构造），不能 free 未初始化指针 */
     h->display_name = dup_cstr(name ? name : h->internal_name);
     h->display_description = dup_cstr(desc);
 }
