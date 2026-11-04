@@ -23,10 +23,15 @@
 #include "miniaudio.h"
 
 #include "patchlib/type.h"
+#include "patchlib/field.h"
+#include "patchlib/property.h"
+#include "patchlib/method.h"
 #include "terraria/content/audio_manager.h"
 #include "internal/platform_threads.h"
+#include "internal/log.h"
 #include "tefstd/vector.h"
 
+#include <math.h>
 #include <stdatomic.h>
 #include <string.h>
 #include <stdlib.h>
@@ -43,7 +48,7 @@ enum {
 typedef struct {
     _Atomic int               state;
     terraria_audio_t         *audio;
-    _Atomic unsigned long long current_frame;
+    _Atomic double           current_pos;
     _Atomic int               paused;
     _Atomic int               stop_requested;
     _Atomic float             volume;
@@ -162,20 +167,28 @@ static void tef_audio_callback(ma_device *dev, void *out, const void *in,
         float pitch = atomic_load_explicit(&v->pitch, memory_order_relaxed);
         if (pitch <= 0.0f) pitch = 1.0f;
 
-        unsigned long long pos = atomic_load_explicit(&v->current_frame, memory_order_relaxed);
-        const double step = pitch;
+        /* 重采样：源采样率与设备采样率不一致时按比例推进，
+         * 否则 44.1k 的素材在 48k 设备上会整体快 8.8%、音调偏高。
+         * 位置用 double 保存，pitch 为小数时也能平滑推进（整数截断会卡死/无效果）。 */
+        const double rate_scale =
+            (dev->sampleRate > 0) ? (double) a->sample_rate / (double) dev->sampleRate : 1.0;
+        const double step = (double) pitch * rate_scale;
+
+        double pos = atomic_load_explicit(&v->current_pos, memory_order_relaxed);
+        if (pos < 0.0) pos = 0.0;
 
         for (ma_uint32 f = 0; f < frame_count; ++f) {
-            if (pos >= total) {
-                if (a->looping) pos = 0;
-                else {
+            if (pos >= (double) total) {
+                if (a->looping) {
+                    pos = total > 0 ? fmod(pos, (double) total) : 0.0;
+                } else {
                     atomic_store_explicit(&v->state, VOICE_STOPPING, memory_order_release);
                     break;
                 }
             }
-            const unsigned long long p0 = pos;
+            const unsigned long long p0 = (unsigned long long) pos;
             const unsigned long long p1 = p0 + 1 < total ? p0 + 1 : (a->looping ? 0 : p0);
-            const float frac = (float)((double)pos - (double)p0);
+            const float frac = (float) (pos - (double) p0);
 
             for (unsigned int c = 0; c < out_channels; ++c) {
                 const int src_c = c < (unsigned int)in_ch ? (int)c : (in_ch - 1);
@@ -184,11 +197,11 @@ static void tef_audio_callback(ma_device *dev, void *out, const void *in,
                 const float s = s0 + (s1 - s0) * frac;
                 dst[(size_t)f * out_channels + c] += s * vol;
             }
-            pos += (unsigned long long)step;
+            pos += step;
         }
 
         if (atomic_load_explicit(&v->state, memory_order_relaxed) == VOICE_ACTIVE) {
-            atomic_store_explicit(&v->current_frame, pos, memory_order_relaxed);
+            atomic_store_explicit(&v->current_pos, pos, memory_order_relaxed);
         }
     }
 
@@ -270,7 +283,7 @@ static int tef_alloc_voice_slot(void) {
     /* 没有空闲槽位：追加新槽位 */
     tef_voice_t nv = {0};
     atomic_init(&nv.state, VOICE_ACTIVE);
-    atomic_init(&nv.current_frame, 0);
+    atomic_init(&nv.current_pos, 0.0);
     atomic_init(&nv.paused, 0);
     atomic_init(&nv.stop_requested, 0);
     atomic_init(&nv.volume, 1.0f);
@@ -331,7 +344,7 @@ int terraria_audio_manager_play(terraria_audio_t *audio, float volume, float pit
         tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)id);
         if (v) {
             v->audio = audio;
-            atomic_store_explicit(&v->current_frame, 0, memory_order_relaxed);
+            atomic_store_explicit(&v->current_pos, 0.0, memory_order_relaxed);
             atomic_store_explicit(&v->paused, 0, memory_order_relaxed);
             atomic_store_explicit(&v->stop_requested, 0, memory_order_relaxed);
             atomic_store_explicit(&v->volume, volume, memory_order_relaxed);
@@ -342,6 +355,143 @@ int terraria_audio_manager_play(terraria_audio_t *audio, float volume, float pit
     }
     mtx_unlock(&g_sources_mtx);
     return id;
+}
+
+/* ---------------------------------------------------------------------------
+ * 位置衰减（与原版 LegacySoundPlayer.PlaySound 一致）
+ *
+ * 原版在 LegacySoundPlayer.PlaySound 内部按 x/y 与 Main.Camera.Center 的
+ * 距离衰减音量，距离 >= SoundAttenuationDistance(2500) 直接不发声。
+ * 替换音效时跳过了原版，这一段必须由播放方补上，否则全地图都按满音量播放
+ * （多人时尤其明显：其他玩家的走路/挖矿/战斗音效全都听得到）。
+ *
+ * Main.screenPosition / screenWidth / screenHeight 在 PC 上是静态字段，
+ * 在手机端是静态属性，这里字段优先、属性兜底，两个平台都能取到。
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    float x, y;
+} tef_audio_vec2_t;
+
+#define TEF_AUDIO_ATTENUATION_DISTANCE 2500.0f
+
+static patch_handle_t g_f_screen_pos = NULL;
+static patch_handle_t g_f_screen_w = NULL;
+static patch_handle_t g_f_screen_h = NULL;
+static patch_handle_t g_m_screen_pos = NULL;
+static patch_handle_t g_m_screen_w = NULL;
+static patch_handle_t g_m_screen_h = NULL;
+static _Atomic int g_camera_state = 0; /* 0=未解析 1=可用 -1=不可用 */
+
+static void tef_audio_resolve_member(patch_handle_t type, const char *name,
+                                     patch_handle_t *field,
+                                     patch_handle_t *getter) {
+    *field = patchlib_type_get_field(type, name);
+    if (patchlib_is_valid(*field))
+        return;
+
+    patch_handle_t prop = patchlib_type_get_property(type, name);
+    if (patchlib_is_valid(prop)) {
+        *getter = patchlib_property_get_get_method(prop);
+        patchlib_free(prop);
+    }
+}
+
+static bool tef_audio_read_int(patch_handle_t field, patch_handle_t getter,
+                               int *out) {
+    if (patchlib_is_valid(field)) {
+        patchlib_field_get_value(field, NULL, out);
+        return true;
+    }
+    if (patchlib_is_valid(getter)) {
+        int v = 0;
+        if (!patchlib_method_invoke_args(getter, NULL, &v, NULL))
+            return false;
+        *out = v;
+        return true;
+    }
+    return false;
+}
+
+static bool tef_audio_read_vec2(patch_handle_t field, patch_handle_t getter,
+                                tef_audio_vec2_t *out) {
+    if (patchlib_is_valid(field)) {
+        patchlib_field_get_value(field, NULL, out);
+        return true;
+    }
+    if (patchlib_is_valid(getter)) {
+        tef_audio_vec2_t v = {0.0f, 0.0f};
+        if (!patchlib_method_invoke_args(getter, NULL, &v, NULL))
+            return false;
+        *out = v;
+        return true;
+    }
+    return false;
+}
+
+static bool tef_audio_camera_center(float *cx, float *cy) {
+    int state = atomic_load_explicit(&g_camera_state, memory_order_acquire);
+    if (state == 0) {
+        patch_handle_t main_type = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_type)) {
+            tef_audio_resolve_member(main_type, "screenPosition",
+                                     &g_f_screen_pos, &g_m_screen_pos);
+            tef_audio_resolve_member(main_type, "screenWidth",
+                                     &g_f_screen_w, &g_m_screen_w);
+            tef_audio_resolve_member(main_type, "screenHeight",
+                                     &g_f_screen_h, &g_m_screen_h);
+            patchlib_free(main_type);
+        }
+        const bool pos_ok = patchlib_is_valid(g_f_screen_pos) ||
+                            patchlib_is_valid(g_m_screen_pos);
+        const bool w_ok = patchlib_is_valid(g_f_screen_w) ||
+                          patchlib_is_valid(g_m_screen_w);
+        const bool h_ok = patchlib_is_valid(g_f_screen_h) ||
+                          patchlib_is_valid(g_m_screen_h);
+        state = (pos_ok && w_ok && h_ok) ? 1 : -1;
+        atomic_store_explicit(&g_camera_state, state, memory_order_release);
+        TEKLOG_INFO("audio: camera fields pos(f=%d,m=%d) w(f=%d,m=%d) h(f=%d,m=%d) -> %s",
+                    patchlib_is_valid(g_f_screen_pos),
+                    patchlib_is_valid(g_m_screen_pos),
+                    patchlib_is_valid(g_f_screen_w),
+                    patchlib_is_valid(g_m_screen_w),
+                    patchlib_is_valid(g_f_screen_h),
+                    patchlib_is_valid(g_m_screen_h),
+                    state == 1 ? "ok" : "unavailable");
+    }
+    if (state != 1)
+        return false;
+
+    tef_audio_vec2_t pos = {0.0f, 0.0f};
+    int w = 0, h = 0;
+    if (!tef_audio_read_vec2(g_f_screen_pos, g_m_screen_pos, &pos) ||
+        !tef_audio_read_int(g_f_screen_w, g_m_screen_w, &w) ||
+        !tef_audio_read_int(g_f_screen_h, g_m_screen_h, &h))
+        return false;
+
+    *cx = pos.x + (float) w * 0.5f;
+    *cy = pos.y + (float) h * 0.5f;
+    return true;
+}
+
+int terraria_audio_manager_play_at(terraria_audio_t *audio, float volume,
+                                   float pitch, float x, float y) {
+    if (!audio)
+        return -1;
+
+    if (x >= 0.0f && y >= 0.0f) {
+        float cx = 0.0f, cy = 0.0f;
+        if (tef_audio_camera_center(&cx, &cy)) {
+            const float dx = x - cx;
+            const float dy = y - cy;
+            const float distance = sqrtf(dx * dx + dy * dy);
+            if (distance >= TEF_AUDIO_ATTENUATION_DISTANCE)
+                return -1;
+            volume *= 1.0f - distance / TEF_AUDIO_ATTENUATION_DISTANCE;
+        }
+    }
+
+    return terraria_audio_manager_play(audio, volume, pitch);
 }
 
 void terraria_audio_manager_pause(const int voice_id) {

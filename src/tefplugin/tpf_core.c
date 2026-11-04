@@ -1164,6 +1164,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_audio_manager_register);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_unregister);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_play);
+    TPF_KERNEL_SYMBOL(terraria_audio_manager_play_at);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_pause);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_resume);
     TPF_KERNEL_SYMBOL(terraria_audio_manager_stop);
