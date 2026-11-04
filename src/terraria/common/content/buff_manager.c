@@ -203,6 +203,26 @@ bool terraria_buff_manager_unregister_buff_by_id(const int runtime_id) {
     return false;
 }
 
+bool terraria_buff_manager_unregister_buff(terraria_buff_handle_t *buff_handle) {
+    if (!buff_handle)
+        return false;
+    const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_buff_handle_t **pp =
+                tefstd_vector_at(&g_terraria_buff_registry, i);
+        if (!pp || *pp != buff_handle)
+            continue;
+        if ((*pp)->runtime_id >= 0)
+            clear_active_of((*pp)->runtime_id);
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_buff_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_buff_manager_assign_ids(terraria_buff_id_get_count());
+        return removed;
+    }
+    return false;
+}
+
 bool terraria_buff_manager_assign_ids(const int base_id) {
     const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
     if (count == 0) {

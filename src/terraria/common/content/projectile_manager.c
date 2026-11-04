@@ -218,6 +218,26 @@ bool terraria_projectile_manager_unregister_projectile_by_id(
     return false;
 }
 
+bool terraria_projectile_manager_unregister_projectile(
+        terraria_projectile_handle_t *projectile_handle) {
+    if (!projectile_handle)
+        return false;
+    const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_projectile_handle_t **pp =
+                tefstd_vector_at(&g_terraria_projectile_registry, i);
+        if (!pp || *pp != projectile_handle)
+            continue;
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_projectile_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_projectile_manager_assign_ids(
+                    terraria_projectile_id_get_count());
+        return removed;
+    }
+    return false;
+}
+
 bool terraria_projectile_manager_assign_ids(const int base_id) {
     const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
     if (count == 0) {

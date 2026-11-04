@@ -116,6 +116,12 @@ DEFINE_FUNCTION(bool, terraria_projectile_manager_register_projectile,
 DEFINE_FUNCTION(bool, terraria_projectile_manager_unregister_projectile_by_id, int runtime_id)
 
 /**
+ * @brief 通过句柄指针注销弹幕（支持尚未分配 runtime_id 的弹幕）
+ */
+DEFINE_FUNCTION(bool, terraria_projectile_manager_unregister_projectile,
+                terraria_projectile_handle_t* projectile_handle)
+
+/**
  * @brief 取自定义弹幕句柄（越界/未注册返回 NULL）
  */
 DEFINE_FUNCTION(terraria_projectile_handle_t*, terraria_projectile_manager_get_projectile, int runtime_id)

@@ -1050,6 +1050,8 @@ void tpf_init_libtefkernel() {
     // Android平台特定API
 #if __ANDROID__
     TEKLOG_DEBUG("Registering Android-specific symbols");
+    TPF_KERNEL_SYMBOL(patchlib_object_root);
+    TPF_KERNEL_SYMBOL(patchlib_object_unroot);
     TPF_KERNEL_SYMBOL(patchlib_field_get_pointer);
     TPF_KERNEL_SYMBOL(patchlib_field_get_size);
     TPF_KERNEL_SYMBOL(patchlib_method_get_pointer);
@@ -1099,15 +1101,18 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_recipe_set_station);
     TPF_KERNEL_SYMBOL(terraria_recipe_add);
     TPF_KERNEL_SYMBOL(terraria_recipe_manager_register_callback);
+    TPF_KERNEL_SYMBOL(terraria_recipe_manager_unregister_callback);
 
     // language_manager
     TPF_KERNEL_SYMBOL(terraria_language_manager_create_localized_text);
     TPF_KERNEL_SYMBOL(terraria_language_manager_get_localized_text);
     TPF_KERNEL_SYMBOL(terraria_language_manager_register_callback);
+    TPF_KERNEL_SYMBOL(terraria_language_manager_unregister_callback);
 
     // item_manager
     TPF_KERNEL_SYMBOL(terraria_item_manager_register_item);
     TPF_KERNEL_SYMBOL(terraria_item_manager_unregister_item_by_id);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_unregister_item);
     TPF_KERNEL_SYMBOL(terraria_item_manager_get_item);
     TPF_KERNEL_SYMBOL(terraria_item_manager_get_items);
     /* 可重铸类别（Mod 主动声明；不声明即不可重铸） */
@@ -1117,6 +1122,7 @@ void tpf_init_libtefkernel() {
     // projectile_manager
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_register_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_unregister_projectile_by_id);
+    TPF_KERNEL_SYMBOL(terraria_projectile_manager_unregister_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_get_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_get_projectiles);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_find_projectile);
@@ -1125,6 +1131,7 @@ void tpf_init_libtefkernel() {
     // npc_manager
     TPF_KERNEL_SYMBOL(terraria_npc_manager_register_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_unregister_npc_by_id);
+    TPF_KERNEL_SYMBOL(terraria_npc_manager_unregister_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_get_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_get_npcs);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_find_npc);
@@ -1135,6 +1142,7 @@ void tpf_init_libtefkernel() {
     // buff_manager
     TPF_KERNEL_SYMBOL(terraria_buff_manager_register_buff);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_unregister_buff_by_id);
+    TPF_KERNEL_SYMBOL(terraria_buff_manager_unregister_buff);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_get_buff);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_get_buffs);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_find_buff);

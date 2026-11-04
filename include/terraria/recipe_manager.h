@@ -129,6 +129,8 @@ DEFINE_FUNCTION(void, terraria_recipe_add)
  */
 DEFINE_FUNCTION(void, terraria_recipe_manager_register_callback, terraria_recipe_manager_addrecipes_t callback)
 
+DEFINE_FUNCTION(bool, terraria_recipe_manager_unregister_callback, terraria_recipe_manager_addrecipes_t callback)
+
 #ifdef __cplusplus
 }
 #endif

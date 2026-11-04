@@ -76,6 +76,8 @@ DEFINE_FUNCTION(bool, terraria_npc_manager_register_npc,
 
 DEFINE_FUNCTION(bool, terraria_npc_manager_unregister_npc_by_id, int runtime_id)
 
+DEFINE_FUNCTION(bool, terraria_npc_manager_unregister_npc, terraria_npc_handle_t* npc_handle)
+
 DEFINE_FUNCTION(terraria_npc_handle_t*, terraria_npc_manager_get_npc, int runtime_id)
 
 DEFINE_FUNCTION(tefstd_vector_t*, terraria_npc_manager_get_npcs)

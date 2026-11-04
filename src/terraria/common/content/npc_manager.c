@@ -192,6 +192,24 @@ bool terraria_npc_manager_unregister_npc_by_id(const int runtime_id) {
     return false;
 }
 
+bool terraria_npc_manager_unregister_npc(terraria_npc_handle_t *npc_handle) {
+    if (!npc_handle)
+        return false;
+    const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_npc_handle_t **pp =
+                tefstd_vector_at(&g_terraria_npc_registry, i);
+        if (!pp || *pp != npc_handle)
+            continue;
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_npc_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_npc_manager_assign_ids(g_npc_base);
+        return removed;
+    }
+    return false;
+}
+
 bool terraria_npc_manager_assign_ids(const int base_id) {
     const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
     if (count == 0) {

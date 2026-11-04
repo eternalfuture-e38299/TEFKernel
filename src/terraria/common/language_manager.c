@@ -204,3 +204,17 @@ void terraria_language_manager_register_callback(
     terraria_languager_manager_get_localized_text_t callback) {
   tefstd_vector_push_back(&g_callback, &callback);
 }
+
+bool terraria_language_manager_unregister_callback(
+    terraria_languager_manager_get_localized_text_t callback) {
+  if (!callback)
+    return false;
+  const size_t n = tefstd_vector_size(&g_callback);
+  for (size_t i = 0; i < n; ++i) {
+    terraria_languager_manager_get_localized_text_t *p =
+        tefstd_vector_at(&g_callback, i);
+    if (p && *p == callback)
+      return tefstd_vector_erase(&g_callback, i, NULL);
+  }
+  return false;
+}

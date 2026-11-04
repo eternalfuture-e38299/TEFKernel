@@ -119,6 +119,11 @@ DEFINE_FUNCTION(void, terraria_buff_manager_refresh_display_text,
 DEFINE_FUNCTION(bool, terraria_buff_manager_unregister_buff_by_id, int runtime_id)
 
 /**
+ * @brief 通过句柄指针注销（支持尚未分配 runtime_id 的 Buff）
+ */
+DEFINE_FUNCTION(bool, terraria_buff_manager_unregister_buff, terraria_buff_handle_t* buff_handle)
+
+/**
  * @brief 取自定义 Buff 句柄（越界/未注册返回 NULL）
  */
 DEFINE_FUNCTION(terraria_buff_handle_t*, terraria_buff_manager_get_buff, int runtime_id)
