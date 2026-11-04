@@ -54,6 +54,7 @@
 #include "terraria/netmanager.h"
 #include "terraria/content/item_manager.h"
 #include "terraria/recipe_manager.h"
+#include "terraria/language_manager.h"
 #include "terraria/content/buff_manager.h"
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/projectile_manager.h"
