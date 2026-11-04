@@ -47,6 +47,7 @@ enum {
 
 typedef struct {
     _Atomic int               state;
+    _Atomic int               ready;   /* 字段填好后才置 1，回调只在 ready 时读取 */
     terraria_audio_t         *audio;
     _Atomic double           current_pos;
     _Atomic int               paused;
@@ -69,9 +70,11 @@ static bool            g_sources_ready = false;
 static mtx_t           g_sources_mtx;
 static bool            g_mtx_ready = false;
 
-/* voice 表：tefstd_vector_t<tef_voice_t>，voice_id 即下标 */
-static tefstd_vector_t g_voices;
-static bool            g_voices_ready = false;
+/* voice 表：固定槽位数组，voice_id 即下标。
+ * 回调线程无锁遍历，因此数组地址/长度必须恒定：不能扩容 realloc。 */
+#define TEF_AUDIO_MAX_VOICES 48
+static tef_voice_t g_voices[TEF_AUDIO_MAX_VOICES];
+static bool        g_voices_ready = false;
 
 /* ---------------------------------------------------------------------------
  * 格式辅助
@@ -138,17 +141,16 @@ static void tef_audio_callback(ma_device *dev, void *out, const void *in,
     memset(dst, 0, (size_t)frame_count * out_channels * sizeof(float));
 
     if (!g_voices_ready) return;
-    const size_t n = g_voices.size;
-    tef_voice_t *voices = g_voices.data;
 
-    for (size_t i = 0; i < n; ++i) {
-        tef_voice_t *v = &voices[i];
+    for (size_t i = 0; i < TEF_AUDIO_MAX_VOICES; ++i) {
+        tef_voice_t *v = &g_voices[i];
         const int state = atomic_load_explicit(&v->state, memory_order_acquire);
         if (state == VOICE_FREE) continue;
         if (state == VOICE_STOPPING) {
             atomic_store_explicit(&v->state, VOICE_FREE, memory_order_release);
             continue;
         }
+        if (!atomic_load_explicit(&v->ready, memory_order_acquire)) continue;
         if (atomic_load_explicit(&v->stop_requested, memory_order_relaxed) ||
             atomic_load_explicit(&v->paused, memory_order_relaxed)) {
             continue;
@@ -252,7 +254,16 @@ static bool tef_ensure_tables(void) {
         g_sources_ready = true;
     }
     if (!g_voices_ready) {
-        if (!tefstd_vector_init(&g_voices, sizeof(tef_voice_t))) return false;
+        for (size_t i = 0; i < TEF_AUDIO_MAX_VOICES; ++i) {
+            atomic_init(&g_voices[i].state, VOICE_FREE);
+            atomic_init(&g_voices[i].ready, 0);
+            atomic_init(&g_voices[i].current_pos, 0.0);
+            atomic_init(&g_voices[i].paused, 0);
+            atomic_init(&g_voices[i].stop_requested, 0);
+            atomic_init(&g_voices[i].volume, 1.0f);
+            atomic_init(&g_voices[i].pitch, 1.0f);
+            g_voices[i].audio = NULL;
+        }
         g_voices_ready = true;
     }
     return true;
@@ -267,30 +278,19 @@ static int tef_find_source(const terraria_audio_t *audio) {
     return -1;
 }
 
-/* 在 voice 表中分配一个空闲槽位；不够就 push_back 新槽位。
- * 调用方必须持有 g_sources_mtx（用于串行化扩容）。 */
+/* 在固定槽位表中分配一个空闲 voice；满了返回 -1（丢弃本次播放，
+ * 避免无限增长导致 CPU/内存爆掉）。 */
 static int tef_alloc_voice_slot(void) {
-    const size_t n = tefstd_vector_size(&g_voices);
-    tef_voice_t *arr = g_voices.data;
-    for (size_t i = 0; i < n; ++i) {
+    for (size_t i = 0; i < TEF_AUDIO_MAX_VOICES; ++i) {
         int expected = VOICE_FREE;
         if (atomic_compare_exchange_strong_explicit(
-                &arr[i].state, &expected, VOICE_ACTIVE,
+                &g_voices[i].state, &expected, VOICE_ACTIVE,
                 memory_order_acq_rel, memory_order_relaxed)) {
+            atomic_store_explicit(&g_voices[i].ready, 0, memory_order_relaxed);
             return (int)i;
         }
     }
-    /* 没有空闲槽位：追加新槽位 */
-    tef_voice_t nv = {0};
-    atomic_init(&nv.state, VOICE_ACTIVE);
-    atomic_init(&nv.current_pos, 0.0);
-    atomic_init(&nv.paused, 0);
-    atomic_init(&nv.stop_requested, 0);
-    atomic_init(&nv.volume, 1.0f);
-    atomic_init(&nv.pitch, 1.0f);
-    nv.audio = NULL;
-    if (!tefstd_vector_push_back(&g_voices, &nv)) return -1;
-    return (int)(tefstd_vector_size(&g_voices) - 1);
+    return -1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -341,17 +341,14 @@ int terraria_audio_manager_play(terraria_audio_t *audio, float volume, float pit
     mtx_lock(&g_sources_mtx);
     int id = tef_alloc_voice_slot();
     if (id >= 0) {
-        tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)id);
-        if (v) {
-            v->audio = audio;
-            atomic_store_explicit(&v->current_pos, 0.0, memory_order_relaxed);
-            atomic_store_explicit(&v->paused, 0, memory_order_relaxed);
-            atomic_store_explicit(&v->stop_requested, 0, memory_order_relaxed);
-            atomic_store_explicit(&v->volume, volume, memory_order_relaxed);
-            atomic_store_explicit(&v->pitch, pitch, memory_order_relaxed);
-        } else {
-            id = -1;
-        }
+        tef_voice_t *v = &g_voices[id];
+        v->audio = audio;
+        atomic_store_explicit(&v->current_pos, 0.0, memory_order_relaxed);
+        atomic_store_explicit(&v->paused, 0, memory_order_relaxed);
+        atomic_store_explicit(&v->stop_requested, 0, memory_order_relaxed);
+        atomic_store_explicit(&v->volume, volume, memory_order_relaxed);
+        atomic_store_explicit(&v->pitch, pitch, memory_order_relaxed);
+        atomic_store_explicit(&v->ready, 1, memory_order_release);
     }
     mtx_unlock(&g_sources_mtx);
     return id;
@@ -495,41 +492,36 @@ int terraria_audio_manager_play_at(terraria_audio_t *audio, float volume,
 }
 
 void terraria_audio_manager_pause(const int voice_id) {
-    if (voice_id < 0 || !g_voices_ready) return;
-    tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)voice_id);
-    if (!v) return;
+    if (voice_id < 0 || voice_id >= TEF_AUDIO_MAX_VOICES || !g_voices_ready) return;
+    tef_voice_t *v = &g_voices[voice_id];
     if (atomic_load_explicit(&v->state, memory_order_acquire) != VOICE_ACTIVE) return;
     atomic_store_explicit(&v->paused, 1, memory_order_relaxed);
 }
 
 void terraria_audio_manager_resume(const int voice_id) {
-    if (voice_id < 0 || !g_voices_ready) return;
-    tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)voice_id);
-    if (!v) return;
+    if (voice_id < 0 || voice_id >= TEF_AUDIO_MAX_VOICES || !g_voices_ready) return;
+    tef_voice_t *v = &g_voices[voice_id];
     if (atomic_load_explicit(&v->state, memory_order_acquire) != VOICE_ACTIVE) return;
     atomic_store_explicit(&v->paused, 0, memory_order_relaxed);
 }
 
 void terraria_audio_manager_stop(const int voice_id) {
-    if (voice_id < 0 || !g_voices_ready) return;
-    tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)voice_id);
-    if (!v) return;
+    if (voice_id < 0 || voice_id >= TEF_AUDIO_MAX_VOICES || !g_voices_ready) return;
+    tef_voice_t *v = &g_voices[voice_id];
     if (atomic_load_explicit(&v->state, memory_order_acquire) != VOICE_ACTIVE) return;
     atomic_store_explicit(&v->stop_requested, 1, memory_order_relaxed);
 }
 
 void terraria_audio_manager_set_volume(const int voice_id, const float volume) {
-    if (voice_id < 0 || !g_voices_ready) return;
-    tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)voice_id);
-    if (!v) return;
+    if (voice_id < 0 || voice_id >= TEF_AUDIO_MAX_VOICES || !g_voices_ready) return;
+    tef_voice_t *v = &g_voices[voice_id];
     atomic_store_explicit(&v->volume, tef_clampf(volume, 0.0f, 1.0f),
                           memory_order_relaxed);
 }
 
 bool terraria_audio_manager_is_playing(const int voice_id) {
-    if (voice_id < 0 || !g_voices_ready) return false;
-    tef_voice_t *v = tefstd_vector_at(&g_voices, (size_t)voice_id);
-    if (!v) return false;
+    if (voice_id < 0 || voice_id >= TEF_AUDIO_MAX_VOICES || !g_voices_ready) return false;
+    tef_voice_t *v = &g_voices[voice_id];
     if (atomic_load_explicit(&v->state, memory_order_acquire) != VOICE_ACTIVE) return false;
     if (atomic_load_explicit(&v->paused, memory_order_relaxed)) return false;
     if (atomic_load_explicit(&v->stop_requested, memory_order_relaxed)) return false;
@@ -538,10 +530,8 @@ bool terraria_audio_manager_is_playing(const int voice_id) {
 
 void terraria_audio_manager_stop_all(terraria_audio_t *audio) {
     if (!audio || !g_voices_ready) return;
-    const size_t n = tefstd_vector_size(&g_voices);
-    tef_voice_t *arr = g_voices.data;
-    for (size_t i = 0; i < n; ++i) {
-        tef_voice_t *v = &arr[i];
+    for (size_t i = 0; i < TEF_AUDIO_MAX_VOICES; ++i) {
+        tef_voice_t *v = &g_voices[i];
         if (atomic_load_explicit(&v->state, memory_order_acquire) == VOICE_ACTIVE &&
             v->audio == audio) {
             atomic_store_explicit(&v->stop_requested, 1, memory_order_relaxed);
@@ -561,13 +551,11 @@ void terraria_audio_manager_shutdown(void) {
         g_device_ready = false;
     }
     if (g_voices_ready) {
-        const size_t n = tefstd_vector_size(&g_voices);
-        tef_voice_t *arr = g_voices.data;
-        for (size_t i = 0; i < n; ++i) {
-            atomic_store_explicit(&arr[i].state, VOICE_FREE, memory_order_release);
-            arr[i].audio = NULL;
+        for (size_t i = 0; i < TEF_AUDIO_MAX_VOICES; ++i) {
+            atomic_store_explicit(&g_voices[i].state, VOICE_FREE, memory_order_release);
+            atomic_store_explicit(&g_voices[i].ready, 0, memory_order_relaxed);
+            g_voices[i].audio = NULL;
         }
-        tefstd_vector_destroy(&g_voices);
         g_voices_ready = false;
     }
     if (g_sources_ready) {
