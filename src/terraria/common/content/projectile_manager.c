@@ -52,9 +52,13 @@ static int g_proj_type_offset = 0x64;
 
 static inline int get_projectile_type(void *instance) {
     if (!instance) return -1;
+#if defined(__ANDROID__)
+    /* Android 的 patch_handle_t 就是对象指针，可以直接按偏移读 */
     if (g_proj_type_offset >= 0) {
         return *(const int *)((const char *)instance + g_proj_type_offset);
     }
+#endif
+    /* 桌面端是 GCHandle，必须走字段 API 解引用 */
     int type = -1;
     if (patchlib_is_valid(f_type)) {
         patchlib_field_get_value(f_type, instance, &type);
