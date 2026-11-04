@@ -468,6 +468,11 @@ static bool tef_audio_camera_center(float *cx, float *cy) {
 
     *cx = pos.x + (float) w * 0.5f;
     *cy = pos.y + (float) h * 0.5f;
+
+    /* 字段/属性读失败时可能得到 (0,0) 或非法的屏幕尺寸；这时宁可放弃衰减，
+     * 也不要把它当成"在遥远的地图角落"而把所有音效判成超距静音。 */
+    if (w <= 0 || h <= 0) return false;
+    if (*cx == 0.0f && *cy == 0.0f) return false;
     return true;
 }
 
@@ -482,6 +487,10 @@ int terraria_audio_manager_play_at(terraria_audio_t *audio, float volume,
             const float dx = x - cx;
             const float dy = y - cy;
             const float distance = sqrtf(dx * dx + dy * dy);
+            static _Atomic int atten_logged = 0;
+            if (atomic_exchange_explicit(&atten_logged, 1, memory_order_relaxed) == 0)
+                TEKLOG_INFO("audio: first attenuation center=(%.0f,%.0f) pos=(%.0f,%.0f) dist=%.0f",
+                            cx, cy, x, y, distance);
             if (distance >= TEF_AUDIO_ATTENUATION_DISTANCE)
                 return -1;
             volume *= 1.0f - distance / TEF_AUDIO_ATTENUATION_DISTANCE;
