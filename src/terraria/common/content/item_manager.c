@@ -441,7 +441,9 @@ static bool ensure_item_animations_handle(void) {
         return false;
     f_item_animations =
             patchlib_type_get_field(main_cls, "itemAnimations");
-    patchlib_free(main_cls);
+    /* 桌面端 field 句柄依附 class：这里绝不能 free main_cls，
+     * 否则之后使用 f_item_animations 会 SIGSEGV 在 mono_gchandle_is_in_domain。
+     * Android 的 patchlib_free 是空操作，所以历史上没暴露。 */
     return patchlib_is_valid(f_item_animations);
 }
 
