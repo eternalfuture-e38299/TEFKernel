@@ -58,6 +58,7 @@
 #include "internal/terraria/save/tef_world_save.h"
 #include "internal/terraria/recipe_manager.h"
 #include "internal/terraria/language_manager.h"
+#include "terraria/content/button_manager.h"
 
 static patch_handle_t find_and_initialize_make_generic_method_impl() {
     // If already initialized, return immediately
@@ -168,6 +169,7 @@ static int hook_il2cpp_init(const char* domain_name) {
     terraria_buff_manager_init();
     terraria_prefix_manager_init();
     terraria_gui_init();
+    terraria_button_manager_install();
 
     tef_save_game_handles_init();
     tef_player_save_init();

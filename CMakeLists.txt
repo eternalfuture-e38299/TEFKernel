@@ -122,6 +122,13 @@ if (ANDROID)
 
     list(APPEND TERRARIA_SRC
             src/terraria/android/texture2d.c
+            src/terraria/android/content/button_manager.c
+            src/terraria/android/content/button_hook_args.c
+            src/terraria/android/content/button_profile_cache.c
+            src/terraria/android/content/button_state.c
+            src/terraria/android/content/button_scroll.c
+            src/terraria/android/content/button_store.c
+            src/terraria/android/content/button_images.c
     )
 else ()
     list(APPEND INTERNAL_SRC
