@@ -64,3 +64,9 @@
 #if defined(__ANDROID__)
 #include "terraria/content/button_manager.h"
 #endif
+
+#if defined(__ANDROID__)
+#include "terraria/world_entity.h"
+#include "terraria/item_slot.h"
+#include "terraria/recipe_query.h"
+#endif

@@ -21,6 +21,9 @@
  *******************************************************************************/
 
 #include "internal/terraria/recipe_manager.h"
+#if defined(__ANDROID__)
+#include "terraria/recipe_query.h"
+#endif
 #include "internal/log.h"
 
 #include "patchlib/field.h"
@@ -100,6 +103,9 @@ static bool
 setup_recipes_prefix(patch_handle_t this, void **args,
                                    const patch_method_signature_t *sig_info,
                                    void *result) {
+#if defined(__ANDROID__)
+    terraria_recipe_query_invalidate();
+#endif
     for (int i = 0; i < tefstd_vector_size(&g_recipe_callback); ++i) {
         const terraria_recipe_manager_addrecipes_t callback =
                 *(terraria_recipe_manager_addrecipes_t *) tefstd_vector_at(
@@ -110,6 +116,14 @@ setup_recipes_prefix(patch_handle_t this, void **args,
 
     return false;
 }
+
+#if defined(__ANDROID__)
+static void recipe_query_changed(patch_handle_t instance, void **args, void *result,
+                                  const patch_method_signature_t *signature) {
+    (void)instance; (void)args; (void)result; (void)signature;
+    terraria_recipe_query_invalidate();
+}
+#endif
 
 #if defined(__ANDROID__)
 static bool invoke_bool_static(patch_handle_t method, void **args) {
@@ -292,7 +306,13 @@ void terraria_recipe_manager_init() {
     add_recipe =
             patchlib_type_get_method_by_param_count(recipe_cls, "AddRecipe", 0);
     if (patchlib_is_valid(add_recipe)) {
-        patchlib_install_prepost_hook(add_recipe, recipe_add_prefix, NULL);
+        patchlib_install_prepost_hook(add_recipe, recipe_add_prefix,
+#if defined(__ANDROID__)
+                                     recipe_query_changed
+#else
+                                     NULL
+#endif
+        );
         TEKLOG_INFO("recipe: hooked Recipe.AddRecipe");
     }
 
@@ -311,8 +331,13 @@ void terraria_recipe_manager_init() {
     set_defaults =
             patchlib_type_get_method_by_param_count(item_class, "SetDefaults", 2);
 
-    patchlib_install_prepost_hook(setup_recipes,
-                                  setup_recipes_prefix, NULL);
+    patchlib_install_prepost_hook(setup_recipes, setup_recipes_prefix,
+#if defined(__ANDROID__)
+                                  recipe_query_changed
+#else
+                                  NULL
+#endif
+    );
 
     patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
     recipe_f = patchlib_type_get_field(main_cls, "recipe");
@@ -687,12 +712,18 @@ static bool recipe_add_prefix(patch_handle_t this, void **args,
 }
 
 void terraria_recipe_add() {
+#if defined(__ANDROID__)
+    terraria_recipe_query_invalidate();
+#endif
     /* 兜底：直接走 invoke 时也保证容量（如果 hook 没被触发） */
     ensure_recipe_capacity();
 #if __ANDROID__
     ((void (*)()) patchlib_method_get_pointer(add_recipe))();
 #else
     patchlib_method_invoke_args(add_recipe, NULL, NULL, NULL);
+#endif
+#if defined(__ANDROID__)
+    terraria_recipe_query_invalidate();
 #endif
 }
 

@@ -821,6 +821,10 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/gui.h"
 #if defined(__ANDROID__)
 #include "terraria/content/button_manager.h"
+#include "terraria/world_entity.h"
+#include "terraria/item_slot.h"
+#include "terraria/recipe_query.h"
+
 #endif
 
 void tpf_init_libtefkernel() {
@@ -1113,6 +1117,31 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_language_manager_unregister_callback);
 
     #if defined(__ANDROID__)
+    TPF_KERNEL_SYMBOL(terraria_world_entity_subscribe);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_unsubscribe);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_put);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_get);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_remove);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_count);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_at);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_load);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_save);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_active);
+    TPF_KERNEL_SYMBOL(terraria_world_entity_generation);
+    TPF_KERNEL_SYMBOL(terraria_item_container_create);
+    TPF_KERNEL_SYMBOL(terraria_item_container_destroy);
+    TPF_KERNEL_SYMBOL(terraria_item_container_size);
+    TPF_KERNEL_SYMBOL(terraria_item_container_read);
+    TPF_KERNEL_SYMBOL(terraria_item_container_swap);
+    TPF_KERNEL_SYMBOL(terraria_item_container_interact);
+    TPF_KERNEL_SYMBOL(terraria_item_slot_cursor);
+    TPF_KERNEL_SYMBOL(terraria_item_container_array);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_refresh);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_invalidate);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_generation);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_count);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_get);
+    TPF_KERNEL_SYMBOL(terraria_recipe_query_find);
     TPF_KERNEL_SYMBOL(terraria_button_manager_available);
     TPF_KERNEL_SYMBOL(terraria_button_manager_error);
     TPF_KERNEL_SYMBOL(terraria_button_manager_configure_storage);

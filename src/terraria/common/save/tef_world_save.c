@@ -21,6 +21,9 @@
  *******************************************************************************/
 
 #include "internal/terraria/save/tef_world_save.h"
+#if defined(__ANDROID__)
+#include "terraria/world_entity.h"
+#endif
 
 #include <stdio.h>
 
@@ -162,6 +165,10 @@ static void write_chests_seg(tef_save_wbuf_t *seg) {
 static void save_world_chests(void) {
   char *wld = world_tef_save_base();
   if (!wld || !wld[0]) return;
+#if defined(__ANDROID__)
+  if (!terraria_world_entity_save(wld))
+    TEKLOG_WARN("world_entity: companion save failed; previous file retained");
+#endif
   char path[1400];
   if (!tef_save_make_path(wld, path, sizeof path)) return;
 
@@ -349,6 +356,10 @@ static void sanitize_world_chests(void) {
 static void load_world_chests(void) {
   char *wld = world_tef_save_base();
   if (!wld || !wld[0]) return;
+#if defined(__ANDROID__)
+  if (!terraria_world_entity_load(wld))
+    TEKLOG_WARN("world_entity: companion load failed; entity access disabled");
+#endif
   char path[1400];
   if (!tef_save_make_path(wld, path, sizeof path)) return;
 
@@ -374,6 +385,15 @@ static void chest_save_postfix(patch_handle_t this, void **args, void *result,
   (void)this; (void)args; (void)result; (void)sig;
   save_world_chests();
 }
+
+#if defined(__ANDROID__)
+static bool entity_load_prefix(patch_handle_t instance, void **args,
+                                const patch_method_signature_t *signature, void *result) {
+  (void)instance; (void)args; (void)signature; (void)result;
+  terraria_world_entity_load(NULL);
+  return false;
+}
+#endif
 
 static void chest_load_postfix(patch_handle_t this, void **args, void *result,
                                const patch_method_signature_t *sig) {
@@ -402,7 +422,11 @@ void tef_world_save_init(void) {
   }
   patch_handle_t load_chests = patchlib_type_get_method_by_param_count(worldfile_class, "LoadChests", 1);
   if (patchlib_is_valid(load_chests)) {
+#if defined(__ANDROID__)
+    patchlib_install_prepost_hook(load_chests, entity_load_prefix, chest_load_postfix);
+#else
     patchlib_install_prepost_hook(load_chests, NULL, chest_load_postfix);
+#endif
     TEKLOG_INFO("tef_save_world_save: hooked WorldFile.LoadChests");
     patchlib_free(load_chests);
   }

@@ -122,6 +122,10 @@ if (ANDROID)
 
     list(APPEND TERRARIA_SRC
             src/terraria/android/texture2d.c
+            src/terraria/android/content/world_entity.c
+            src/terraria/android/content/world_entity_runtime.c
+            src/terraria/android/content/item_slot.c
+            src/terraria/android/content/recipe_query.c
             src/terraria/android/content/button_manager.c
             src/terraria/android/content/button_hook_args.c
             src/terraria/android/content/button_profile_cache.c
