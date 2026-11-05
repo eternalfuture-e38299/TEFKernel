@@ -22,6 +22,7 @@
 
 #include "internal/terraria/content/item_manager.h"
 #include "internal/terraria/content/npc_manager.h"
+#include "internal/terraria/entity.h"
 #include "terraria/language_manager.h"
 
 #include <stdint.h>
@@ -2610,33 +2611,6 @@ terraria_item_handle_t *terraria_item_manager_unknown_item() {
     return &unknown_item;
 }
 
-static char *generate_key(size_t key_size, const char *prefix, const terraria_item_handle_t *current) {
-    // 计算所需缓冲区大小
-    if (current->parent_modloader_id)
-        key_size += strlen(current->parent_modloader_id);
-    else
-        key_size += 1;
-
-    if (current->parent_id)
-        key_size += strlen(current->parent_id);
-    else
-        key_size += 1;
-
-    if (current->internal_name)
-        key_size += strlen(current->internal_name);
-    else
-        key_size += 1;
-
-    // 分配并拼接键名
-    char *key_buffer = malloc(key_size);
-    snprintf(key_buffer, key_size, "%s_%s_%s.%s", prefix,
-             current->parent_modloader_id ? current->parent_modloader_id : "?",
-             current->parent_id ? current->parent_id : "?",
-             current->internal_name ? current->internal_name : "?");
-
-    return key_buffer;
-}
-
 void terraria_item_manager_init_localized_text() {
     patch_handle_t array_item_name_cache = PATCH_NULL;
     patch_handle_t array_item_tooltip_cache = PATCH_NULL;
@@ -2646,18 +2620,19 @@ void terraria_item_manager_init_localized_text() {
     const int org_count = terraria_item_id_get_count();
 
     for (int i = 0; i < tefstd_vector_size(&g_terraria_item_registry); ++i) {
-        // vector 存的是 terraria_item_handle_t*，所以先取指针，再解引用
         terraria_item_handle_t **pp_current =
-                tefstd_vector_at(&g_terraria_item_registry,
-                                 i);
+                tefstd_vector_at(&g_terraria_item_registry, i);
 
         if (!pp_current || !*pp_current)
             continue;
 
         terraria_item_handle_t *current = *pp_current;
 
-        // 分配并拼接键名
-        char *item_name_key_buffer = generate_key(13, "item_name", current);
+        // 生成 item_name key（大小由函数内部计算，不再手工传基数）
+        char *item_name_key_buffer = terraria_entity_make_key(TEF_ENTITY(current), "item_name");
+        if (!item_name_key_buffer)
+            continue;
+
         int target_index = org_count + i;
 
         patch_handle_t item_name_key =
@@ -2668,11 +2643,10 @@ void terraria_item_manager_init_localized_text() {
         free(item_name_key_buffer);
 
         if (current->has_tooltip && patchlib_is_valid(m_from_language_key)) {
-            // 注意：generate_key 需要包含结尾 '\0'。格式 "%s_%s_%s.%s"
-            // 的分隔符共 3 个，"item_tooltip" 长度为 12，故基数应为 12+3+1=16。
-            char *item_tooltip_key_buffer = generate_key(16, "item_tooltip", current);
+            char *item_tooltip_key_buffer = terraria_entity_make_key(TEF_ENTITY(current), "item_tooltip");
+            if (!item_tooltip_key_buffer)
+                continue;
 
-            // ItemTooltip.FromLanguageKey：桌面为 (string key)；手机为 (short id, string key)。
             patch_handle_t item_tooltip_key_str =
                     patchlib_string_create(item_tooltip_key_buffer);
             patch_handle_t item_tooltip = PATCH_NULL;
@@ -2696,7 +2670,4 @@ void terraria_item_manager_init_localized_text() {
 
     patchlib_free(array_item_tooltip_cache);
     patchlib_free(array_item_name_cache);
-    // 注意：不要释放 f_item_name_cache / f_item_tooltip_cache，
-    // 它们是 item_manager 持有的全局字段句柄，get_item_name_postfix
-    // 等钩子仍会继续使用。
 }

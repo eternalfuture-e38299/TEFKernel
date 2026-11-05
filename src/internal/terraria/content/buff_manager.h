@@ -21,6 +21,9 @@ bool terraria_buff_manager_assign_ids(int base_id);
 /** 为自定义 Buff 创建/写入图标（无图标用占位图） */
 void terraria_buff_manager_init_texture2d(void);
 
+// 初始化本地化文本
+void terraria_buff_manager_init_localized_text(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -195,11 +195,13 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     if (custom_proj > 0) {
         terraria_projectile_manager_resize();
         terraria_projectile_manager_init_texture2d();
+        terraria_projectile_manager_init_localized_text();
         TEKLOG_INFO("Custom projectile arrays resized and textures initialized");
     }
 
     if (custom_buff > 0) {
         terraria_buff_manager_init_texture2d();
+        terraria_buff_manager_init_localized_text();
         TEKLOG_INFO("Custom buff textures initialized");
     }
 

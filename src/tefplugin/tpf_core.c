@@ -1169,14 +1169,14 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_buff_manager_add);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_time);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_remove);
+    TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);
 
     // gui
-    TPF_KERNEL_SYMBOL(terraria_buff_manager_refresh_display_text);
-    TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);
     TPF_KERNEL_SYMBOL(terraria_gui_remove_draw);
     TPF_KERNEL_SYMBOL(terraria_gui_rect);
     TPF_KERNEL_SYMBOL(terraria_gui_text);
+    TPF_KERNEL_SYMBOL(terraria_gui_string_text);
     TPF_KERNEL_SYMBOL(terraria_gui_image);
 
     // audio_manager

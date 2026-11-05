@@ -23,7 +23,6 @@
 #include "internal/terraria/content/buff_manager.h"
 
 #include <stdbool.h>
-#include <stdint.h>
 #include "patchlib/il2cpp_api.h"
 #include "patchlib/struct/string.h"
 #include <stdio.h>
@@ -31,12 +30,14 @@
 #include <string.h>
 
 #include "internal/log.h"
+#include "internal/terraria/entity.h"
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/type.h"
 #include "terraria/gui.h"
+#include "terraria/language_manager.h"
 
 #define BUFF_ACTIVE_MAX 32
 
@@ -76,7 +77,14 @@ static int g_last_tap_buff = -1;      /* 双击取消：上一次点到的 Buff 
 static unsigned g_last_tap_frame;     /* 用绘制帧号近似 */
 static unsigned g_frame_no;
 static bool g_ids_assigned = false;
-static int g_base_count = -1;
+
+/* Lang._buffNameCache / _buffDescriptionCache（定长 BuffID.Count） */
+static patch_handle_t f_buff_name_cache = PATCH_NULL;
+static patch_handle_t f_buff_description_cache = PATCH_NULL;
+/* LocalizedText.FromLanguageKey：桌面 (string)，手机 (short, string) */
+static patch_handle_t m_from_language_key = PATCH_NULL;
+/* 是否已扩容，避免重复扩容 */
+static bool g_buff_cache_expanded = false;
 
 typedef struct {
     patch_handle_t player;   // 玩家对象（不持有；桌面版每次取值是新的 GCHandle，不能用于比较）
@@ -113,31 +121,10 @@ static int compare_buff(const void *a, const void *b) {
     return strcmp(pa->internal_name, pb->internal_name);
 }
 
-static char *dup_cstr(const char *s) {
-    if (!s || !*s) return NULL;
-    const size_t n = strlen(s) + 1;
-    char *p = malloc(n);
-    if (p) memcpy(p, s, n);
-    return p;
-}
-
-/* 注册时把展示文本拷进内核（此时 Lua 的 entry 一定还活着） */
-static void capture_display_text(terraria_buff_handle_t *h) {
-    if (!h) return;
-    const char *name = h->buff_ops.get_display_name ? h->buff_ops.get_display_name(h) : NULL;
-    const char *desc = h->buff_ops.get_display_description
-                               ? h->buff_ops.get_display_description(h) : NULL;
-    /* 注册时句柄是全新的（由调用方刚构造），不能 free 未初始化指针 */
-    h->display_name = dup_cstr(name ? name : h->internal_name);
-    h->display_description = dup_cstr(desc);
-}
-
 bool terraria_buff_manager_register_buff(terraria_buff_handle_t *buff_handle) {
     if (!buff_handle || !buff_handle->parent_modloader_id ||
         !buff_handle->parent_id || !buff_handle->internal_name)
         return false;
-
-    capture_display_text(buff_handle);
 
     const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
     for (size_t i = 0; i < count; ++i) {
@@ -176,10 +163,6 @@ static void clear_active_of(const int runtime_id) {
             i++;
         }
     }
-}
-
-void terraria_buff_manager_refresh_display_text(terraria_buff_handle_t *buff_handle) {
-    capture_display_text(buff_handle);
 }
 
 bool terraria_buff_manager_unregister_buff_by_id(const int runtime_id) {
@@ -441,6 +424,128 @@ void terraria_buff_manager_init_texture2d(void) {
     TEKLOG_INFO("buff textures: %d/%zu set", done, count);
 }
 
+/**
+ * @brief 扩容 Lang._buffNameCache / _buffDescriptionCache 到 base + extra
+ * @param field          字段句柄（f_buff_name_cache / f_buff_description_cache）
+ * @param element_type   LocalizedText 的类型句柄
+ * @param base           原版 BuffID.Count（原数组长度）
+ * @param extra          自定义 buff 数量
+ * @return 扩容后的数组句柄；失败返回 PATCH_NULL
+ * @note 成功后把 field 指向新数组；调用方负责 patchlib_free 旧数组句柄
+ */
+static patch_handle_t expand_lang_cache(patch_handle_t field,
+                                        patch_handle_t element_type,
+                                        int base, int extra) {
+    if (field == PATCH_NULL || element_type == PATCH_NULL || extra <= 0)
+        return PATCH_NULL;
+
+    patch_handle_t old_arr = PATCH_NULL;
+    patchlib_field_get_value(field, PATCH_NULL, &old_arr);
+    if (old_arr == PATCH_NULL)
+        return PATCH_NULL;
+
+    const size_t old_len = patchlib_array_length(old_arr);
+    const size_t new_len = (size_t) base + (size_t) extra;
+    if (new_len <= old_len) {
+        /* 已经够大，不重复扩容 */
+        patchlib_free(old_arr);
+        return old_arr;   /* 注意：这里返回的是同一个句柄，调用方别再 free */
+    }
+
+    patch_handle_t new_arr = patchlib_array_create(new_len, element_type);
+    if (new_arr == PATCH_NULL) {
+        patchlib_free(old_arr);
+        return PATCH_NULL;
+    }
+
+    /* 拷贝原 0..old_len-1 */
+    for (size_t i = 0; i < old_len; ++i) {
+        patch_handle_t elem = PATCH_NULL;
+        if (patchlib_array_at(old_arr, i, &elem) && elem != PATCH_NULL) {
+            patchlib_array_set(new_arr, i, &elem);
+            patchlib_free(elem);
+        }
+    }
+
+    /* 把字段指针改指向新数组 */
+    patchlib_field_set_value(field, PATCH_NULL, &new_arr);
+    patchlib_free(old_arr);
+    return new_arr;
+}
+
+void terraria_buff_manager_init_localized_text(void) {
+    const int base = terraria_buff_id_get_count();
+    const int custom_count = (int) tefstd_vector_size(&g_terraria_buff_registry);
+    if (custom_count <= 0)
+        return;
+
+    /* 1. 拿 LocalizedText 类型句柄 */
+    patch_handle_t localized_text_cls =
+            patchlib_type_get_type("Terraria.Localization", "LocalizedText");
+    if (localized_text_cls == PATCH_NULL) {
+        TEKLOG_WARN("buff l10n: LocalizedText type not found");
+        return;
+    }
+
+    /* 2. 扩容两个缓存数组 */
+    patch_handle_t name_cache = expand_lang_cache(
+            f_buff_name_cache, localized_text_cls, base, custom_count);
+    patch_handle_t desc_cache = expand_lang_cache(
+            f_buff_description_cache, localized_text_cls, base, custom_count);
+
+    if (name_cache == PATCH_NULL && desc_cache == PATCH_NULL) {
+        patchlib_free(localized_text_cls);
+        TEKLOG_WARN("buff l10n: expand failed");
+        return;
+    }
+    g_buff_cache_expanded = true;
+
+    /* 3. 逐个写 name / description */
+    for (int i = 0; i < custom_count; ++i) {
+        terraria_buff_handle_t **pp =
+                tefstd_vector_at(&g_terraria_buff_registry, (size_t) i);
+        if (!pp || !*pp)
+            continue;
+        terraria_buff_handle_t *current = *pp;
+        const int target_index = base + i;
+
+        /* ---- name ---- */
+        if (name_cache != PATCH_NULL) {
+            char *name_key_buf = terraria_entity_make_key(TEF_ENTITY(current), "buff_name");
+            if (name_key_buf) {
+                patch_handle_t name_lt =
+                        terraria_language_manager_get_localized_text(name_key_buf);
+                if (patchlib_is_valid(name_lt))
+                    patchlib_array_set(name_cache, target_index, &name_lt);
+                patchlib_free(name_lt);
+                free(name_key_buf);
+            }
+        }
+
+        /* ---- description ---- */
+        if (desc_cache != PATCH_NULL && current->has_desc &&
+            patchlib_is_valid(m_from_language_key)) {
+            char *desc_key_buf = terraria_entity_make_key(TEF_ENTITY(current), "buff_tooltip");
+            if (desc_key_buf) {
+                patch_handle_t desc_key_str = patchlib_string_create(desc_key_buf);
+                patch_handle_t desc_lt = terraria_language_manager_get_localized_text(desc_key_str);
+                if (patchlib_is_valid(desc_lt))
+                    patchlib_array_set(desc_cache, target_index, &desc_lt);
+                patchlib_free(desc_lt);
+                patchlib_free(desc_key_str);
+                free(desc_key_buf);
+            }
+        }
+    }
+
+    /* 4. 释放数组句柄（字段已指向新数组，句柄只是本地引用） */
+    if (name_cache != PATCH_NULL) patchlib_free(name_cache);
+    if (desc_cache != PATCH_NULL) patchlib_free(desc_cache);
+    patchlib_free(localized_text_cls);
+
+    TEKLOG_INFO("buff l10n: %d custom buffs localized (base=%d)", custom_count, base);
+}
+
 /* ------------------------------------------------------------------ */
 /* 覆盖层：图标 + 倒计时                                                */
 /* ------------------------------------------------------------------ */
@@ -562,15 +667,27 @@ static int g_pe_id = -1;
 
 static void show_tooltip_native(terraria_buff_handle_t *h) {
     if (!h || m_pe_mouse_text == PATCH_NULL) return;
-    const char *name = h->display_name ? h->display_name : h->internal_name;
-    const char *desc = h->display_description;
-    if (!name || !*name) return;
+
+    char *name_key = terraria_entity_make_key(TEF_ENTITY(h), "buff_name");
+    char *desc_key = terraria_entity_make_key(TEF_ENTITY(h), "buff_tooltip");
+
+    patch_handle_t name_lt = PATCH_NULL, desc_lt = PATCH_NULL;
+
+    /* ---- name ---- */
+    if (name_key)
+        name_lt = terraria_language_manager_get_localized_text(name_key);
+
+    /* ---- description ---- */
+    if (desc_key && h->has_desc)
+        desc_lt = terraria_language_manager_get_localized_text(desc_key);
+
+    if (!name_key || !name_lt) return;
     if (g_pe_id != h->runtime_id) {
         if (g_pe_pn && il2cpp_gchandle_free) il2cpp_gchandle_free(g_pe_pn);
         if (g_pe_pd && il2cpp_gchandle_free) il2cpp_gchandle_free(g_pe_pd);
         g_pe_pn = g_pe_pd = NULL;
-        g_pe_sn = patchlib_string_create(name);
-        g_pe_sd = (desc && *desc) ? patchlib_string_create(desc) : PATCH_NULL;
+        g_pe_sn = name_lt;
+        g_pe_sd = (h->has_desc&& desc_key && desc_lt) ? desc_lt : PATCH_NULL;
         if (il2cpp_gchandle_new) {
             if (g_pe_sn) g_pe_pn = il2cpp_gchandle_new(g_pe_sn, false);
             if (g_pe_sd) g_pe_pd = il2cpp_gchandle_new(g_pe_sd, false);
@@ -580,8 +697,7 @@ static void show_tooltip_native(terraria_buff_handle_t *h) {
     if (!g_pe_sn) return;
     patch_handle_t inst = PATCH_NULL;
     if (f_main_inst != PATCH_NULL) {
-        unsigned char ib[64];
-        memset(ib, 0, sizeof(ib));
+        unsigned char ib[64] = {0};
         patchlib_field_get_value(f_main_inst, NULL, ib);
         memcpy(&inst, ib, sizeof(inst));
     }
@@ -596,24 +712,38 @@ static void show_tooltip_native(terraria_buff_handle_t *h) {
 
 static void draw_buff_tooltip(terraria_buff_handle_t *h) {
     if (!h) return;
-    const char *name = h->display_name ? h->display_name : h->internal_name;
-    const char *desc = h->display_description;
-    if (!name || !*name) return;
+
+    char *name_key = terraria_entity_make_key(TEF_ENTITY(h), "buff_name");
+    char *desc_key = terraria_entity_make_key(TEF_ENTITY(h), "buff_tooltip");
+
+    patch_handle_t name_lt = PATCH_NULL, desc_lt = PATCH_NULL;
+
+    /* ---- name ---- */
+    if (name_key)
+        name_lt = terraria_language_manager_get_localized_text(name_key);
+
+    /* ---- description ---- */
+    if (desc_key && h->has_desc)
+        desc_lt = terraria_language_manager_get_localized_text(desc_key);
+
 
 #if defined(__ANDROID__)
     show_tooltip_native(h);
 #else
-    /* PC：原版（Main.MouseText_DrawBuffTooltip）没有底板，只有两行文字，
-     * MouseText 字体、scale 1.0。 */
     const float scale = 1.0f;
     const float line_h = 24.0f;
     const float x = (float) g_mx + 12.0f;
     const float y = (float) g_my + 12.0f;
 
-    terraria_gui_text(name, x, y, scale, 0xFFFFFFFFu);
+    terraria_gui_string_text(name_lt, x, y, scale, 0xFFFFFFFFu);
     if (desc && *desc)
-        terraria_gui_text(desc, x, y + line_h, scale, 0xFFD8D8D8u);
+        terraria_gui_string_text(desc_lt, x, y + line_h, scale, 0xFFD8D8D8u);
 #endif
+
+    if (name_lt != PATCH_NULL) patchlib_free(name_lt);
+    if (desc_lt != PATCH_NULL) patchlib_free(desc_lt);
+    free(name_key);
+    free(desc_key);
 }
 
 static int local_custom_count(void) {
@@ -1224,6 +1354,35 @@ void terraria_buff_manager_init(void) {
             patchlib_free(grid);
         }
     }
+
+    // 初始化本地化相关
+    {
+        /* Lang 静态字段：_buffNameCache / _buffDescriptionCache */
+        patch_handle_t lang_cls = patchlib_type_get_type("Terraria.Localization", "Lang");
+        if (patchlib_is_valid(lang_cls)) {
+            f_buff_name_cache = patchlib_type_get_field(lang_cls, "_buffNameCache");
+            f_buff_description_cache = patchlib_type_get_field(lang_cls, "_buffDescriptionCache");
+
+            /* LocalizedText.FromLanguageKey：桌面/手机签名不同，按参数个数取 */
+#if defined(__ANDROID__)
+            patch_handle_t lt_cls = patchlib_type_get_type("Terraria.Localization", "LocalizedText");
+            if (patchlib_is_valid(lt_cls)) {
+                m_from_language_key = patchlib_type_get_method_by_param_count(lt_cls, "FromLanguageKey", 2);
+                if (!patchlib_is_valid(m_from_language_key))
+                    m_from_language_key = patchlib_type_get_method_by_param_count(lt_cls, "FromLanguageKey", 1);
+                patchlib_free(lt_cls);
+            }
+#else
+            patch_handle_t lt_cls = patchlib_type_get_type("Terraria.Localization", "LocalizedText");
+            if (patchlib_is_valid(lt_cls)) {
+                m_from_language_key = patchlib_type_get_method_by_param_count(lt_cls, "FromLanguageKey", 1);
+                patchlib_free(lt_cls);
+            }
+#endif
+            patchlib_free(lang_cls);
+        }
+    }
+
 TEKLOG_INFO("buff: init done (custom=%zu, does not occupy vanilla BuffID)",
     tefstd_vector_size(&g_terraria_buff_registry));
 }

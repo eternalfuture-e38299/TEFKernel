@@ -24,6 +24,9 @@ void terraria_projectile_manager_resize();
 /** 为自定义弹幕创建/写入纹理（无纹理用占位图） */
 void terraria_projectile_manager_init_texture2d();
 
+// 初始化本地化文本
+void terraria_projectile_manager_init_localized_text(void);
+
 #ifdef __cplusplus
 }
 #endif

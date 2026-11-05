@@ -33,6 +33,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "internal/terraria/entity.h"
+#include "terraria/language_manager.h"
+
 /* 桌面端的 hook 句柄在回调返回后会被自动释放，跨回调保存必须浅拷贝；
  * Android 的句柄是持久引用，patchlib_free 为空操作。 */
 #if __ANDROID__
@@ -46,6 +49,8 @@ tefstd_vector_t g_terraria_projectile_registry;
 static patch_handle_t projectile_class = PATCH_NULL;
 static patch_handle_t f_type = PATCH_NULL;       // Projectile.type (int)
 static patch_handle_t f_active = PATCH_NULL;     // Projectile.active (bool)
+
+static patch_handle_t f_proj_name_cache = PATCH_NULL;      // Lang._projectileNameCache
 
 /* Projectile.type 字段偏移（dump.cs 确认实际偏移为 0x64），初始化时尝试通过 IL2CPP API 动态获取 */
 static int g_proj_type_offset = 0x64;
@@ -652,6 +657,89 @@ void terraria_projectile_manager_init_texture2d() {
     TEKLOG_INFO("projectile textures: %d set (base=%d)", done, base);
 }
 
+static patch_handle_t expand_proj_name_cache(patch_handle_t field,
+                                             patch_handle_t element_type,
+                                             const int base, const int extra) {
+    if (field == PATCH_NULL || element_type == PATCH_NULL || extra <= 0)
+        return PATCH_NULL;
+
+    patch_handle_t old_arr = PATCH_NULL;
+    patchlib_field_get_value(field, PATCH_NULL, &old_arr);
+    if (old_arr == PATCH_NULL)
+        return PATCH_NULL;
+
+    const size_t old_len = patchlib_array_length(old_arr);
+    const size_t new_len = (size_t) base + (size_t) extra;
+    if (new_len <= old_len) {
+        patchlib_free(old_arr);
+        return PATCH_NULL;   /* 已够大，不重复扩容 */
+    }
+
+    patch_handle_t new_arr = patchlib_array_create(new_len, element_type);
+    if (new_arr == PATCH_NULL) {
+        patchlib_free(old_arr);
+        return PATCH_NULL;
+    }
+
+    for (size_t i = 0; i < old_len; ++i) {
+        patch_handle_t elem = PATCH_NULL;
+        if (patchlib_array_at(old_arr, i, &elem) && elem != PATCH_NULL) {
+            patchlib_array_set(new_arr, i, &elem);
+            patchlib_free(elem);
+        }
+    }
+
+    patchlib_field_set_value(field, PATCH_NULL, &new_arr);
+    patchlib_free(old_arr);
+    return new_arr;
+}
+
+void terraria_projectile_manager_init_localized_text(void) {
+    const int base = terraria_projectile_id_get_count();
+    const int custom_count = (int) tefstd_vector_size(&g_terraria_projectile_registry);
+    if (custom_count <= 0 || base <= 0)
+        return;
+
+    patch_handle_t localized_text_cls =
+            patchlib_type_get_type("Terraria.Localization", "LocalizedText");
+    if (localized_text_cls == PATCH_NULL) {
+        TEKLOG_WARN("projectile l10n: LocalizedText type not found");
+        return;
+    }
+
+    patch_handle_t name_cache = expand_proj_name_cache(
+            f_proj_name_cache, localized_text_cls, base, custom_count);
+    patchlib_free(localized_text_cls);
+
+    if (name_cache == PATCH_NULL) {
+        TEKLOG_WARN("projectile l10n: expand _projectileNameCache failed");
+        return;
+    }
+
+    for (int i = 0; i < custom_count; ++i) {
+        terraria_projectile_handle_t **pp =
+                tefstd_vector_at(&g_terraria_projectile_registry, (size_t) i);
+        if (!pp || !*pp)
+            continue;
+        terraria_projectile_handle_t *h = *pp;
+        const int target_index = base + i;
+
+        char *key = terraria_entity_make_key(TEF_ENTITY(h), "proj_name");
+        if (!key)
+            continue;
+
+        patch_handle_t lt = terraria_language_manager_get_localized_text(key);
+        if (patchlib_is_valid(lt))
+            patchlib_array_set(name_cache, target_index, &lt);
+        patchlib_free(lt);
+        free(key);
+    }
+
+    patchlib_free(name_cache);
+    TEKLOG_INFO("projectile l10n: %d custom projectiles localized (base=%d)",
+                custom_count, base);
+}
+
 /* ------------------------------------------------------------------ */
 /* 钩子                                                                */
 /* ------------------------------------------------------------------ */
@@ -1224,6 +1312,12 @@ void terraria_projectile_manager_init() {
             TEKLOG_INFO("projectile: hooked Player.Hurt (%d)", (int) h_hurt);
         }
         patchlib_free(hurt_player_cls);
+    }
+
+    patch_handle_t lang_cls = patchlib_type_get_type("Terraria.Localization", "Lang");
+    if (patchlib_is_valid(lang_cls)) {
+        f_proj_name_cache = patchlib_type_get_field(lang_cls, "_projectileNameCache");
+        patchlib_free(lang_cls);
     }
 
     TEKLOG_INFO("projectile: init done (base=%d, custom=%zu)",

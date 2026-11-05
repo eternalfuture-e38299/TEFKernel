@@ -10,6 +10,7 @@
 #include "../../tef_api.h"
 #include "../../patchlib/type.h"
 #include "../../tefstd/vector.h"
+#include "../entity.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,10 +94,15 @@ typedef struct terraria_projectile_ops_t {
 } terraria_projectile_ops_t;
 
 typedef struct terraria_projectile_handle_t {
-    const char *parent_modloader_id;   //<< 所属 modloader id
-    const char *parent_id;            //<< 所属 mod id
-    const char *internal_name;        //<< 内部名称
-    int runtime_id;                   //<< 由内核分配
+    union {
+        terraria_entity_handle_t base;
+        struct {
+            const char *parent_modloader_id;
+            const char *parent_id;
+            const char *internal_name;
+            int runtime_id;
+        };
+    };
     bool no_ai_hook;                  //<< true = 不接管 AI（沿用原版 aiStyle）
     bool ai_after_vanilla;            //<< true = 原版 AI 先执行，再调用扩展 ai 回调
     int frames;                       //<< 帧图帧数（Main.projFrames[type]）；0 = 单帧整图

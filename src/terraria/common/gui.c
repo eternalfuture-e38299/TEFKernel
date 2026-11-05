@@ -412,7 +412,7 @@ void terraria_gui_rect(float x, float y, float w, float h, unsigned rgba) {
 #endif
 }
 
-void terraria_gui_text(const char *text, float x, float y, float scale, unsigned rgba) {
+void terraria_gui_text(const char *text, const float x, const float y, const float scale, const unsigned rgba) {
     if (!g_in_draw || g_sb == NULL || m_border_string == PATCH_NULL || !text || !*text)
         return;
     void *temp_pin = NULL;
@@ -422,19 +422,38 @@ void terraria_gui_text(const char *text, float x, float y, float scale, unsigned
         text_release_temp(temp_pin);
         return;
     }
-    v2f pos = {x, y};
+    v2f pos = {.x = x, .y = y};
     color4 c = premul_color4(color_of(rgba));
     float sc = scale <= 0 ? 1.0f : scale;
     float ax = 0.0f, ay = 0.0f;
     int32_t max_chars = -1;
 #if defined(__ANDROID__)
-    fn_border_string fn = (fn_border_string) patchlib_method_get_pointer(m_border_string);
+    const fn_border_string fn = patchlib_method_get_pointer(m_border_string);
     if (fn) fn(g_sb, str, pos, c, sc, 0.0f, 0.0f, -1);
 #else
     void *args[8] = {&g_sb, &str, &pos, &c, &sc, &ax, &ay, &max_chars};
     patchlib_method_invoke_args(m_border_string, NULL, NULL, args);
 #endif
     text_release_temp(temp_pin);
+}
+
+void terraria_gui_string_text(patch_handle_t text, const float x, const float y, const float scale,
+                const unsigned rgba) {
+    if (!g_in_draw || g_sb == NULL || m_border_string == PATCH_NULL || !text || !text)
+        return;
+
+    v2f pos = {.x = x, .y = y};
+    color4 c = premul_color4(color_of(rgba));
+    float sc = scale <= 0 ? 1.0f : scale;
+    float ax = 0.0f, ay = 0.0f;
+    int32_t max_chars = -1;
+#if defined(__ANDROID__)
+    const fn_border_string fn = patchlib_method_get_pointer(m_border_string);
+    if (fn) fn(g_sb, text, pos, c, sc, 0.0f, 0.0f, -1);
+#else
+    void *args[8] = {&g_sb, &text, &pos, &c, &sc, &ax, &ay, &max_chars};
+    patchlib_method_invoke_args(m_border_string, NULL, NULL, args);
+#endif
 }
 
 void terraria_gui_draw_string(patch_handle_t font, const char *text, float x, float y,

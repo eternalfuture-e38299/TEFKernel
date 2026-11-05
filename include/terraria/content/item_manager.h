@@ -75,6 +75,7 @@ typedef struct terraria_item_ops_t {
 
     /**
      * @brief 物品被真正使用时回调（每次使用一次，不是每帧）
+     * @param current 当前物品句柄
      * @param player_instance 玩家实例（hook 期间有效）
      * @param item_instance   物品实例（hook 期间有效）
      */
@@ -89,6 +90,7 @@ typedef struct terraria_item_ops_t {
     patch_handle_t(*get_texture)(terraria_item_handle_t* current);
 } terraria_item_ops_t;
 
+// 不兼容terraria_entity_handle_t
 typedef struct terraria_item_handle_t {
     const char* parent_modloader_id; //<< 所属modloader id
     const char* parent_id; //<< 所属mod id

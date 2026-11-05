@@ -23,6 +23,7 @@
 #include "../../tef_api.h"
 #include "../../patchlib/type.h"
 #include "../../tefstd/vector.h"
+#include "../entity.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,23 +65,19 @@ typedef struct terraria_buff_ops_t {
      * @brief 获取图标纹理实例（Asset<Texture2D>），为 NULL 时用占位图
      */
     patch_handle_t (*get_texture)(terraria_buff_handle_t *current);
-
-    /**
-     * @brief 当前语言的显示名称（UTF-8，生命周期由 loader 保证）
-     */
-    const char *(*get_display_name)(terraria_buff_handle_t *current);
-
-    /**
-     * @brief 当前语言的显示说明（UTF-8）
-     */
-    const char *(*get_display_description)(terraria_buff_handle_t *current);
 } terraria_buff_ops_t;
 
 typedef struct terraria_buff_handle_t {
-    const char *parent_modloader_id;   //<< 所属 modloader id
-    const char *parent_id;             //<< 所属 mod id
-    const char *internal_name;         //<< 内部名称
-    int runtime_id;                    //<< 由内核分配
+    union {
+        terraria_entity_handle_t base;
+        // 代码兼容
+        struct {
+            const char *parent_modloader_id;
+            const char *parent_id;
+            const char *internal_name;
+            int runtime_id;
+        };
+    };
 
     /* 显示/行为标志（对应 Main 上的同名静态表） */
     bool debuff;                       //<< 减益：图标红框、优先被顶掉
@@ -94,10 +91,7 @@ typedef struct terraria_buff_handle_t {
 
     terraria_buff_ops_t buff_ops;
 
-    /* 展示文本：注册时从 get_display_* 回调**复制**成内核自有内存，
-     * 悬停时不再跨库取指针（Lua 侧重建/卸载后指针会悬空）。 */
-    char *display_name;
-    char *display_description;
+    bool has_desc; //<< 是否存在介绍
 } terraria_buff_handle_t;
 
 /**
@@ -105,12 +99,6 @@ typedef struct terraria_buff_handle_t {
  * @warning 需在 Main.Initialize 之前调用（否则分配不到有效 runtime_id）
  */
 DEFINE_FUNCTION(bool, terraria_buff_manager_register_buff,
-                terraria_buff_handle_t* buff_handle)
-
-/**
- * @brief 重新捕获显示名/说明（语言切换后调用）
- */
-DEFINE_FUNCTION(void, terraria_buff_manager_refresh_display_text,
                 terraria_buff_handle_t* buff_handle)
 
 /**

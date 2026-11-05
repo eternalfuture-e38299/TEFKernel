@@ -396,20 +396,6 @@ void terraria_prefix_manager_init_localized_text(void) {
 
 /* ==================== 字段读写辅助 ==================== */
 
-static void get_i32(patch_handle_t field, patch_handle_t inst, int *out) {
-    if (patchlib_is_valid(field) && out) patchlib_field_get_value(field, inst, out);
-}
-static void set_i32(patch_handle_t field, patch_handle_t inst, int v) {
-    if (patchlib_is_valid(field)) patchlib_field_set_value(field, inst, &v);
-}
-
-static int get_item_prefix_value(patch_handle_t inst) {
-    if (!patchlib_is_valid(f_item_prefix) || !patchlib_is_valid(inst)) return 0;
-    unsigned char b = 0;
-    patchlib_field_get_value(f_item_prefix, inst, &b);
-    return b;
-}
-
 static void set_item_prefix_value(patch_handle_t inst, int v) {
     if (!patchlib_is_valid(f_item_prefix) || !patchlib_is_valid(inst)) return;
     if (v < 0) v = 0;

@@ -57,6 +57,12 @@ DEFINE_FUNCTION(void, terraria_gui_text, const char *text, float x, float y, flo
                 unsigned rgba)
 
 /**
+ * @brief 画文字（仅在绘制回调内有效）
+ */
+DEFINE_FUNCTION(void, terraria_gui_string_text, patch_handle_t text, float x, float y, float scale,
+                unsigned rgba)
+
+/**
  * @brief 画贴图（Texture2D 句柄，仅在绘制回调内有效）
  */
 DEFINE_FUNCTION(void, terraria_gui_image, patch_handle_t texture, float x, float y,
