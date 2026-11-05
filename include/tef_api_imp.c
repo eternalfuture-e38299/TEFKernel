@@ -60,3 +60,7 @@
 #include "terraria/content/projectile_manager.h"
 #include "terraria/content/audio_manager.h"
 #include "terraria/gui.h"
+
+#if defined(__ANDROID__)
+#include "terraria/content/button_manager.h"
+#endif

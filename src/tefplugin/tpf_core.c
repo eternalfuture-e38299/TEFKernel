@@ -819,6 +819,9 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/content/audio_manager.h"
 #include "terraria/content/prefix_manager.h"
 #include "terraria/gui.h"
+#if defined(__ANDROID__)
+#include "terraria/content/button_manager.h"
+#endif
 
 void tpf_init_libtefkernel() {
     TEKLOG_INFO("Initializing libtefkernel - creating TPF instance");
@@ -1108,6 +1111,22 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_language_manager_get_localized_text);
     TPF_KERNEL_SYMBOL(terraria_language_manager_register_callback);
     TPF_KERNEL_SYMBOL(terraria_language_manager_unregister_callback);
+
+    #if defined(__ANDROID__)
+    TPF_KERNEL_SYMBOL(terraria_button_manager_available);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_error);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_configure_storage);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_install);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_shutdown);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_register);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_unregister);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_unregister_owner);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_down);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_pressed);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_released);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_set_enabled);
+    TPF_KERNEL_SYMBOL(terraria_button_manager_set_visible);
+    #endif
 
     // item_manager
     TPF_KERNEL_SYMBOL(terraria_item_manager_register_item);
