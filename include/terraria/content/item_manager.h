@@ -119,6 +119,13 @@ DEFINE_FUNCTION(bool, terraria_item_manager_register_item, terraria_item_handle_
 DEFINE_FUNCTION(bool, terraria_item_manager_unregister_item_by_id, int runtime_id)
 
 /**
+ * @brief 通过句柄指针注销物品（支持尚未分配 runtime_id 的物品）
+ * @param item_handle 注册时传入的物品句柄
+ * @return 是否成功
+ */
+DEFINE_FUNCTION(bool, terraria_item_manager_unregister_item, terraria_item_handle_t* item_handle)
+
+/**
  * @brief 通过运行时 ID 获取物品句柄
  * @param runtime_id 物品运行时 ID
  * @return 物品句柄指针，不存在返回 NULL

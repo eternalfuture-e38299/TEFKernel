@@ -69,6 +69,17 @@ patch_handle_t patchlib_type_get_mono_type(patch_handle_t type) {
     return result;
 }
 
+void *patchlib_object_root(patch_handle_t object) {
+    if (!object)
+        return NULL;
+    return il2cpp_gchandle_new(object, false);
+}
+
+void patchlib_object_unroot(void *root) {
+    if (root)
+        il2cpp_gchandle_free(root);
+}
+
 bool patchlib_type_is_same(patch_handle_t t1, patch_handle_t t2) {
     return t1 == t2;
 }

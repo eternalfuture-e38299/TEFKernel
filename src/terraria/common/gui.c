@@ -3,7 +3,7 @@
  *
  * 屏幕覆盖层：挂 Main.Draw 后置，用 Main.spriteBatch 自行 Begin / 画 / End。
  *
- * 实现方式与 LuaLoader 的原生 GUI 一致（它在手机上已验证可用）：
+ * 实现方式与已验证可用的手机端原生 GUI 一致：
  *   · Begin 用 8 参重载 + 单位矩阵，避免继承世界相机变换；
  *   · 矩形走 Utils.DrawInvBG(sb, x, y, w, h, Color)；
  *   · 文字走 Utils.DrawBorderString(sb, string, Vector2, Color, scale, 0, 0, -1)；
@@ -56,7 +56,7 @@ typedef struct { int x, y, w, h; } rect4;
 typedef struct { uint8_t has; uint8_t pad[3]; rect4 r; } nrect;
 typedef struct { uint8_t has; uint8_t pad[3]; float m[16]; } nmat;
 
-/* 与 LuaLoader 完全一致的直调签名（这几个重载在手机上验证过） */
+/* 直调签名（这几个重载在手机上验证过） */
 typedef void (*fn_invbg)(void *sb, rect4 r, color4 c);
 typedef v2f (*fn_border_string)(void *sb, void *str, v2f pos, color4 c, float scale,
                                 float ax, float ay, int32_t max_chars);

@@ -272,6 +272,15 @@ static int prefix_decl_lookup(const terraria_item_handle_t *h) {
   return 0;
 }
 
+static void prefix_decl_remove(const terraria_item_handle_t *h) {
+  for (int i = 0; i < g_prefix_decl_count; ++i) {
+    if (g_prefix_decls[i].handle == h) {
+      g_prefix_decls[i] = g_prefix_decls[--g_prefix_decl_count];
+      return;
+    }
+  }
+}
+
 /* 前置声明（定义在下面） */
 static void prefix_set_entry(patch_handle_t field, int type, const char *name);
 
@@ -432,7 +441,9 @@ static bool ensure_item_animations_handle(void) {
         return false;
     f_item_animations =
             patchlib_type_get_field(main_cls, "itemAnimations");
-    patchlib_free(main_cls);
+    /* 桌面端 field 句柄依附 class：这里绝不能 free main_cls，
+     * 否则之后使用 f_item_animations 会 SIGSEGV 在 mono_gchandle_is_in_domain。
+     * Android 的 patchlib_free 是空操作，所以历史上没暴露。 */
     return patchlib_is_valid(f_item_animations);
 }
 
@@ -1865,14 +1876,35 @@ bool terraria_item_manager_unregister_item_by_id(const int runtime_id) {
         if (!pp || !*pp)
             continue;
         if ((*pp)->runtime_id == runtime_id) {
+            prefix_decl_remove(*pp);
             const bool removed =
                     tefstd_vector_erase(&g_terraria_item_registry, i, NULL);
             // registry 按下标紧凑映射 runtime_id，删除后必须重新分配，
             // 否则 get_item / set_defaults_postfix / 存档的索引都会错位。
-            if (removed)
+            if (removed && g_ids_assigned)
                 terraria_item_manager_assign_ids(terraria_item_id_get_count());
             return removed;
         }
+    }
+    return false;
+}
+
+bool terraria_item_manager_unregister_item(terraria_item_handle_t *item_handle) {
+    if (!item_handle)
+        return false;
+
+    const size_t count = tefstd_vector_size(&g_terraria_item_registry);
+    for (size_t i = 0; i < count; i++) {
+        terraria_item_handle_t **pp =
+                tefstd_vector_at(&g_terraria_item_registry, i);
+        if (!pp || *pp != item_handle)
+            continue;
+        prefix_decl_remove(item_handle);
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_item_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_item_manager_assign_ids(terraria_item_id_get_count());
+        return removed;
     }
     return false;
 }

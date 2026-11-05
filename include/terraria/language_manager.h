@@ -118,6 +118,9 @@ typedef const char *(*terraria_languager_manager_get_localized_text_t)(
 DEFINE_FUNCTION(void, terraria_language_manager_register_callback,
                 terraria_languager_manager_get_localized_text_t callback)
 
+DEFINE_FUNCTION(bool, terraria_language_manager_unregister_callback,
+                terraria_languager_manager_get_localized_text_t callback)
+
 #ifdef __cplusplus
 }
 #endif

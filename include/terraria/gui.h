@@ -2,7 +2,7 @@
  * tefkernel - gui
  *
  * 内核级屏幕覆盖层：注册绘制回调，每帧在 Main.Draw 之后用 SpriteBatch 画。
- * 不依赖任何加载器；LuaLoader 的 GUI 与本模块互不影响。
+ * 不依赖任何加载器；其它加载器的 GUI 与本模块互不影响。
  *
  * 用法（原生插件）：
  *   terraria_gui_add_draw(my_draw, user);

@@ -33,9 +33,14 @@ static int g_npc_type_offset = 0x164;
 
 static inline int get_npc_type(void *instance) {
     if (!instance) return -1;
+#if defined(__ANDROID__)
+    /* Android 的 patch_handle_t 就是对象指针，可以直接按偏移读 */
     if (g_npc_type_offset >= 0) {
         return *(const int *)((const char *)instance + g_npc_type_offset);
     }
+#endif
+    /* 桌面端 patch_handle_t 是 GCHandle，必须先解引用成对象再读字段；
+     * 直接算偏移会读到 GCHandle 结构里，fault addr 落在很小的地址上。 */
     int type = -1;
     if (patchlib_is_valid(f_type)) {
         patchlib_field_get_value(f_type, instance, &type);
@@ -188,6 +193,24 @@ bool terraria_npc_manager_unregister_npc_by_id(const int runtime_id) {
                 terraria_npc_manager_assign_ids(g_npc_base);
             return removed;
         }
+    }
+    return false;
+}
+
+bool terraria_npc_manager_unregister_npc(terraria_npc_handle_t *npc_handle) {
+    if (!npc_handle)
+        return false;
+    const size_t count = tefstd_vector_size(&g_terraria_npc_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_npc_handle_t **pp =
+                tefstd_vector_at(&g_terraria_npc_registry, i);
+        if (!pp || *pp != npc_handle)
+            continue;
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_npc_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_npc_manager_assign_ids(g_npc_base);
+        return removed;
     }
     return false;
 }

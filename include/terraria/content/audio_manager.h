@@ -181,6 +181,29 @@ DEFINE_FUNCTION(int, terraria_audio_manager_play, terraria_audio_t *audio,
                 float volume, float pitch)
 
 /**
+ * @brief 按世界坐标播放，并按与原版一致的距离衰减调整音量。
+ *
+ * 衰减规则（与 Terraria 的 LegacySoundPlayer.PlaySound 一致）：
+ *   - `x < 0` 或 `y < 0` 视为无位置，不做衰减；
+ *   - 否则以 `Main.screenPosition + 屏幕尺寸/2` 为中心计算距离；
+ *   - 距离 >= 2500 像素时返回 `-1`（与原版一样不发声）；
+ *   - 否则 `volume *= 1 - distance / 2500`。
+ *
+ * @param audio  音源
+ * @param volume 本次播放音量（0.0 ~ 1.0），会再乘以距离衰减
+ * @param pitch  播放速率/音高
+ * @param x      世界坐标 X（像素），-1 表示无位置
+ * @param y      世界坐标 Y（像素），-1 表示无位置
+ *
+ * @return 成功返回 voice_id；超出衰减距离或失败返回 `-1`。
+ *
+ * @note 中心点的读取同时兼容 PC（静态字段）与手机端（静态属性）。
+ *       线程安全。
+ */
+DEFINE_FUNCTION(int, terraria_audio_manager_play_at, terraria_audio_t *audio,
+                float volume, float pitch, float x, float y)
+
+/**
  * @brief 暂停指定 voice 的播放（保留播放位置）。
  *
  * @param voice_id 由 #terraria_audio_manager_play 返回的 id。

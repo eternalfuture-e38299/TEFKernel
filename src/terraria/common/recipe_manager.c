@@ -700,3 +700,17 @@ void terraria_recipe_manager_register_callback(
     const terraria_recipe_manager_addrecipes_t callback) {
     tefstd_vector_push_back(&g_recipe_callback, &callback);
 }
+
+bool terraria_recipe_manager_unregister_callback(
+    const terraria_recipe_manager_addrecipes_t callback) {
+    if (!callback)
+        return false;
+    const size_t n = tefstd_vector_size(&g_recipe_callback);
+    for (size_t i = 0; i < n; ++i) {
+        terraria_recipe_manager_addrecipes_t *p =
+            tefstd_vector_at(&g_recipe_callback, i);
+        if (p && *p == callback)
+            return tefstd_vector_erase(&g_recipe_callback, i, NULL);
+    }
+    return false;
+}

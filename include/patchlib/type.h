@@ -317,6 +317,19 @@ DEFINE_FUNCTION(patch_handle_t, patchlib_handle_copy, patch_handle_t handle);
 #if __ANDROID__
 #    define patchlib_free(handle) ((void)0)
 #    define patchlib_object_persist(handle) handle
+
+/**
+ * @brief 为托管对象建立 GC 强引用（Android 句柄为裸对象指针，需显式保活）
+ * @param object 托管对象句柄
+ * @return GC 根句柄，object 为空时返回 NULL；用 patchlib_object_unroot 释放
+ */
+DEFINE_FUNCTION(void*, patchlib_object_root, patch_handle_t object)
+
+/**
+ * @brief 解除 patchlib_object_root 建立的 GC 强引用
+ * @param root patchlib_object_root 返回的根句柄
+ */
+DEFINE_FUNCTION(void, patchlib_object_unroot, void* root)
 #else
 #endif
 

@@ -52,9 +52,13 @@ static int g_proj_type_offset = 0x64;
 
 static inline int get_projectile_type(void *instance) {
     if (!instance) return -1;
+#if defined(__ANDROID__)
+    /* Android 的 patch_handle_t 就是对象指针，可以直接按偏移读 */
     if (g_proj_type_offset >= 0) {
         return *(const int *)((const char *)instance + g_proj_type_offset);
     }
+#endif
+    /* 桌面端是 GCHandle，必须走字段 API 解引用 */
     int type = -1;
     if (patchlib_is_valid(f_type)) {
         patchlib_field_get_value(f_type, instance, &type);
@@ -214,6 +218,26 @@ bool terraria_projectile_manager_unregister_projectile_by_id(
                         terraria_projectile_id_get_count());
             return removed;
         }
+    }
+    return false;
+}
+
+bool terraria_projectile_manager_unregister_projectile(
+        terraria_projectile_handle_t *projectile_handle) {
+    if (!projectile_handle)
+        return false;
+    const size_t count = tefstd_vector_size(&g_terraria_projectile_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_projectile_handle_t **pp =
+                tefstd_vector_at(&g_terraria_projectile_registry, i);
+        if (!pp || *pp != projectile_handle)
+            continue;
+        const bool removed =
+                tefstd_vector_erase(&g_terraria_projectile_registry, i, NULL);
+        if (removed && g_ids_assigned)
+            terraria_projectile_manager_assign_ids(
+                    terraria_projectile_id_get_count());
+        return removed;
     }
     return false;
 }

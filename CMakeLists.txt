@@ -242,7 +242,7 @@ if (${ANDROID})
 
     target_link_options(tefkernel PRIVATE -static-libstdc++)
     # 不要导出静态链接进来的 C++ 运行时/libunwind/libffi 符号。
-    # 否则后加载的 LuaLoader 会把它的 __gxx_personality_v0/__cxa_* 绑定到内核这份，
+    # 否则后加载的扩展库会把它的 __gxx_personality_v0/__cxa_* 绑定到内核这份，
     # 与它自己的 unwinder 混用，异常展开时在 unw_get_proc_info 里崩。
     target_link_options(tefkernel PRIVATE -Wl,--exclude-libs,ALL)
 endif ()
