@@ -66,6 +66,7 @@ static int g_npc_base = 697;
  * 小地图/大地图上会画一个 Boss 头像（BossHeadTextures 默认 -1 = 不画）。 */
 static patch_handle_t f_npc_boss = PATCH_NULL;
 static patch_handle_t f_boss_head_textures = PATCH_NULL;
+static patch_handle_t f_npc_head_boss = PATCH_NULL;
 
 #if defined(__ANDROID__)
 /* Android: NPCID.Count 是 const 697，Main.DrawNPCs 的 type < NPCID.Count
@@ -672,6 +673,39 @@ static void resize_town_room_instance(const int base, const int new_size) {
     patchlib_free(tm);
 }
 
+/* NPCID.Sets.Factory._size 是 SetFactory 创建新集合时使用的长度。
+ * 它不会随 Sets 里的静态数组一起被扩到 NPCID.Count + custom，
+ * 所以 Mod 之后用 Factory.Create*Set 自建集合仍只有基础长度。
+ */
+static void resize_npc_set_factory(const int new_size) {
+    patch_handle_t npcid = patchlib_type_get_type("Terraria.ID", "NPCID");
+    if (!patchlib_is_valid(npcid)) return;
+    patch_handle_t sets = patchlib_type_get_inner_type(npcid, "Sets");
+    patchlib_free(npcid);
+    if (!patchlib_is_valid(sets)) return;
+
+    patch_handle_t f_factory = patchlib_type_get_field(sets, "Factory");
+    patchlib_free(sets);
+    if (!patchlib_is_valid(f_factory)) return;
+
+    patch_handle_t factory = PATCH_NULL;
+    patchlib_field_get_value(f_factory, NULL, &factory);
+    patchlib_free(f_factory);
+    if (!patchlib_is_valid(factory)) return;
+
+    patch_handle_t sf = patchlib_type_get_type("Terraria.ID", "SetFactory");
+    if (!patchlib_is_valid(sf)) return;
+    patch_handle_t f_size = patchlib_type_get_field(sf, "_size");
+    patchlib_free(sf);
+    if (!patchlib_is_valid(f_size)) return;
+
+    int size = new_size;
+    patchlib_field_set_value(f_size, factory, &size);
+    patchlib_free(f_size);
+    patchlib_free(factory);
+    TEKLOG_INFO("npc resize: NPCID.Sets.Factory._size -> %d", new_size);
+}
+
 void terraria_npc_manager_resize(void) {
     const size_t custom = tefstd_vector_size(&g_terraria_npc_registry);
     if (custom == 0)
@@ -731,6 +765,9 @@ void terraria_npc_manager_resize(void) {
 
     /* 8) WorldGen.TownManager._hasRoom（.ctor 钩子覆盖不到的既有实例） */
     resize_town_room_instance(base, new_size);
+
+    /* 9) NPCID.Sets.Factory._size（Mod 后续自建按 type 索引的集合用） */
+    resize_npc_set_factory(new_size);
 
 #if !defined(__ANDROID__)
     /* Main.DrawNPCs 的循环条件是 type < NPCID.Count；桌面端 Count 是
@@ -855,6 +892,29 @@ static terraria_npc_handle_t *custom_from_instance(patch_handle_t inst) {
     return (pp && *pp) ? *pp : NULL;
 }
 
+/* 把自定义 Boss 头像 Asset 追加到 TextureAssets.NpcHeadBoss，
+ * 返回新索引；失败返回 -1。 */
+static int append_boss_head_asset(patch_handle_t asset) {
+    if (!patchlib_is_valid(f_npc_head_boss) || !patchlib_is_valid(asset))
+        return -1;
+
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(f_npc_head_boss, NULL, &arr);
+    if (!patchlib_is_valid(arr)) return -1;
+
+    const size_t len = patchlib_array_length(arr);
+    patch_handle_t bigger = patchlib_array_resize(arr, len + 1, NULL);
+    if (!patchlib_is_valid(bigger)) {
+        patchlib_free(arr);
+        return -1;
+    }
+    patchlib_array_set(bigger, len, &asset);
+    patchlib_field_set_value(f_npc_head_boss, NULL, &bigger);
+    patchlib_free(bigger);
+    patchlib_free(arr);
+    return (int) len;
+}
+
 /* NPC.SetDefaults(int Type, NPCSpawnParams) 后置 */
 static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
                                  const patch_method_signature_t *sig_info) {
@@ -892,9 +952,18 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
                 int cur = -1;
                 patchlib_array_at(arr, (size_t) type, &cur);
                 if (cur < 0) {
-                    int head = 0;   /* 0 = 史莱姆王头像 */
+                    int head = 0;   /* 0 = 克苏鲁之眼头像（默认） */
+                    if (h->npc_ops.get_boss_head) {
+                        patch_handle_t asset = h->npc_ops.get_boss_head(h);
+                        if (patchlib_is_valid(asset)) {
+                            int custom = append_boss_head_asset(asset);
+                            if (custom >= 0) head = custom;
+                            patchlib_free(asset);
+                        }
+                    }
                     patchlib_array_set(arr, (size_t) type, &head);
-                    TEKLOG_INFO("npc boss head[%d] = %d", type, head);
+                    TEKLOG_INFO("npc boss head[%d] = %d%s", type, head,
+                                head > 0 ? " (custom)" : "");
                 }
             }
             if (patchlib_is_valid(arr)) patchlib_free(arr);
@@ -1275,6 +1344,7 @@ void terraria_npc_manager_init(void) {
             patchlib_type_get_type("Terraria.GameContent", "TextureAssets");
     if (patchlib_is_valid(tex_cls)) {
         f_texture_npc = patchlib_type_get_field(tex_cls, "Npc");
+        f_npc_head_boss = patchlib_type_get_field(tex_cls, "NpcHeadBoss");
         patchlib_free(tex_cls);
     }
 

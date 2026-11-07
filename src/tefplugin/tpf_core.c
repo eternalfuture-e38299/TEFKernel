@@ -1138,6 +1138,12 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_item_manager_set_prefix_class);
     TPF_KERNEL_SYMBOL(terraria_item_manager_apply_prefix_classes);
 
+    /* 外观饰品：预留 ArmorIDs 槽位并写入 TextureAssets.Acc* 贴图 */
+    TPF_KERNEL_SYMBOL(terraria_item_manager_reserve_accessory_slot);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_set_accessory_texture);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_accessory_texture_ready);
+    TPF_KERNEL_SYMBOL(terraria_item_manager_set_wing_stats);
+
     // projectile_manager
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_register_projectile);
     TPF_KERNEL_SYMBOL(terraria_projectile_manager_unregister_projectile_by_id);

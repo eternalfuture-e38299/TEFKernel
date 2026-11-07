@@ -52,6 +52,7 @@ void il2cpp_api_init(void *handle) {
     LOAD_SYMBOL(il2cpp_class_is_interface);
     LOAD_SYMBOL(il2cpp_class_is_enum);
     LOAD_SYMBOL(il2cpp_class_is_generic);
+    LOAD_SYMBOL(il2cpp_runtime_class_init);
     LOAD_SYMBOL(il2cpp_class_from_system_type);
     LOAD_SYMBOL(il2cpp_class_get_field_from_name);
     LOAD_SYMBOL(il2cpp_class_get_property_from_name);

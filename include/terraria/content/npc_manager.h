@@ -51,6 +51,11 @@ typedef struct terraria_npc_ops_t {
     patch_handle_t (*get_texture)(terraria_npc_handle_t *current);
 
     /**
+     * @brief 获取 Boss 头像 Asset<Texture2D>（仅 boss=true 用），为 NULL 时用默认头像
+     */
+    patch_handle_t (*get_boss_head)(terraria_npc_handle_t *current);
+
+    /**
      * @brief NPC 死亡掉落时回调（NPC.NPCLoot 后置）
      * @warning instance 由 hook 管理器释放，不要持有
      */
