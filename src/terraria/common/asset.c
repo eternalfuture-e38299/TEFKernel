@@ -51,7 +51,9 @@ patch_handle_t terraria_asset_get_generic_class(patch_handle_t element_type) {
     tefstd_vector_init(&generic_types, sizeof(patch_handle_t));
 
 #if defined(__ANDROID__)
-    // Android 上需要获取 mono 类型
+    // Android 上需要获取 mono 类型。这里沿用 Asset<object>：
+    // 物品图标等既有路径已证明可用；真正的问题是挂起期间对象被 GC，
+    // 不是泛型参数。改动泛型参数反而会引入额外风险。
     patch_handle_t obj_type = patchlib_type_get_mono_type(patchlib_get_basic_type(PATCH_OBJECT));
     if (!patchlib_is_valid(obj_type)) {
         TEKLOG_ERROR("Failed to get mono type for element type");
@@ -99,15 +101,40 @@ patch_handle_t terraria_asset_create(patch_handle_t type, patch_handle_t value) 
     asset = patchlib_type_new_instance(asset_generic_class);
 #endif
 
-    if (patchlib_is_valid(value)) patchlib_field_set_value(asset_value, asset, &value);
+    if (patchlib_is_valid(value) && patchlib_is_valid(asset_value))
+        patchlib_field_set_value(asset_value, asset, &value);
 
+    /* Android 上没有走构造函数，Name / State 都需要手动补；
+     * 否则 Main.LoadWings 看到 State==0 会拿空 Name 去 Request。 */
+    patch_handle_t asset_state_field = patchlib_type_get_field(
+            asset_generic_class, "<State>k__BackingField");
+    if (!patchlib_is_valid(asset_state_field))
+        asset_state_field = patchlib_type_get_field(asset_generic_class, "State");
     int asset_state = 2;
-    void* iargs[1] = { &asset_state };
-    patchlib_method_invoke_args(set_state, asset, NULL, iargs);
+    if (patchlib_is_valid(asset_state_field))
+        patchlib_field_set_value(asset_state_field, asset, &asset_state);
+    else if (patchlib_is_valid(set_state)) {
+        void *iargs[1] = { &asset_state };
+        patchlib_method_invoke_args(set_state, asset, NULL, iargs);
+    }
+
+    patch_handle_t asset_name_field = patchlib_type_get_field(
+            asset_generic_class, "<Name>k__BackingField");
+    if (!patchlib_is_valid(asset_name_field))
+        asset_name_field = patchlib_type_get_field(asset_generic_class, "Name");
+    if (patchlib_is_valid(asset_name_field) && patchlib_is_valid(null_str))
+        patchlib_field_set_value(asset_name_field, asset, &null_str);
+
+    TEKLOG_INFO("asset create: class=%p value=%p state=%d name=%p",
+                (void *) asset_generic_class, (void *) value,
+                patchlib_is_valid(asset) ? 2 : -1, (void *) null_str);
 
     patchlib_free(asset_generic_class);
     patchlib_free(asset_ctor);
     patchlib_free(asset_value);
+    patchlib_free(set_state);
+    patchlib_free(asset_state_field);
+    patchlib_free(asset_name_field);
     patchlib_free(null_str);
 
     return asset;

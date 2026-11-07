@@ -736,7 +736,7 @@ static void draw_buff_tooltip(terraria_buff_handle_t *h) {
     const float y = (float) g_my + 12.0f;
 
     terraria_gui_string_text(name_lt, x, y, scale, 0xFFFFFFFFu);
-    if (desc && *desc)
+    if (h->has_desc && desc_lt != PATCH_NULL)
         terraria_gui_string_text(desc_lt, x, y + line_h, scale, 0xFFD8D8D8u);
 #endif
 
