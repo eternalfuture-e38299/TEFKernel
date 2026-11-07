@@ -412,6 +412,12 @@ DEFINE_IL2CPP_API(bool, il2cpp_class_is_interface, const void* klass)
 DEFINE_IL2CPP_API(bool, il2cpp_class_is_enum, const void* klass)
 
 /**
+ * @brief 触发类静态构造函数（确保 static readonly 字段已初始化）
+ * @param klass 类指针(原始类型: Il2CppClass*)
+ */
+DEFINE_IL2CPP_API(void, il2cpp_runtime_class_init, void* klass)
+
+/**
  * @brief 检查类是否是泛型类型
  * @param klass 类指针(原始类型: const Il2CppClass*)
  * @return 是否为泛型类型

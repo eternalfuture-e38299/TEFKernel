@@ -155,6 +155,31 @@ DEFINE_FUNCTION(void, terraria_item_manager_apply_prefix_classes, void)
  */
 DEFINE_FUNCTION(void, terraria_item_manager_set_prefix_class, terraria_item_handle_t* item_handle, int prefix_class)
 
+/**
+ * @brief 预留一个外观饰品槽位
+ * @param slot "back"/"front"/"neck"/"face"/"handOn"/"handOff"/"waist"/"shield"
+ * @return 新槽位索引（ArmorIDs.<X> 的 Count 之后），失败 -1
+ */
+DEFINE_FUNCTION(int, terraria_item_manager_reserve_accessory_slot, const char *slot)
+
+/**
+ * @brief 设置外观饰品槽位的贴图 Asset<Texture2D>
+ */
+DEFINE_FUNCTION(bool, terraria_item_manager_set_accessory_texture,
+                const char *slot, int index, patch_handle_t asset)
+
+/** 外观槽位贴图是否已经写入 TextureAssets（未完成前不要把 Item.<slot>Slot 指过去） */
+DEFINE_FUNCTION(bool, terraria_item_manager_accessory_texture_ready,
+                const char *slot, int index)
+
+/**
+ * @brief 设置自定义翅膀的 WingStats
+ * @param index ArmorIDs.Wing 槽位
+ */
+DEFINE_FUNCTION(bool, terraria_item_manager_set_wing_stats, int index,
+                int fly_time, float fly_speed, float acceleration, bool hover,
+                float hover_speed, float hover_acceleration)
+
 #ifdef __cplusplus
 }
 #endif

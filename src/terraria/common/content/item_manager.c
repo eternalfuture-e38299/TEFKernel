@@ -33,6 +33,7 @@
 #include "internal/crash_handler.h"
 #include "internal/log.h"
 #include "patchlib/field.h"
+#include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/struct/dictionary.h"
@@ -44,6 +45,11 @@
 
 tefstd_vector_t g_terraria_item_registry; // 存储 terraria_item_handle_t*
 static bool g_ids_assigned = false;
+
+/* 外观贴图要等 AssetInitializer.LoadTextures（桌面）/
+ * 资源初始化完成后再写 TextureAssets.Acc*，否则会触发磁盘加载。 */
+static bool g_accessory_assets_loaded = false;
+static void apply_pending_accessories_now(void);
 
 static patch_handle_t item_id_count;
 static terraria_item_handle_t unknown_item;
@@ -1094,6 +1100,11 @@ static void load_textures_postfix(patch_handle_t this, void **args,
     /* LoadTextures 会用 Images/NPC_x / Projectile_x 把整个数组覆盖一遍，
      * 自定义 id 没有对应文件，必须在这里重新写回。 */
     terraria_npc_manager_init_texture2d();
+
+    /* 外观贴图必须等这里结束再写 Acc*，否则 AssetInitializer 会去找
+     * 不存在的 Images/Acc_Back_<i>。 */
+    g_accessory_assets_loaded = true;
+    apply_pending_accessories_now();
 }
 #endif
 
@@ -2051,6 +2062,10 @@ void terraria_item_manager_init_texture2d() {
     patchlib_free(unknow_texture);
     patchlib_free(texture_item_array);
     patchlib_free(texture_item_flame_array);
+
+    /* 此时物品/资源贴图已经初始化完成，可以安全扩 Acc* 数组 */
+    g_accessory_assets_loaded = true;
+    apply_pending_accessories_now();
 }
 
 static void resize_array(const char *ns, const char *cls, const char *fid,
@@ -2670,4 +2685,322 @@ void terraria_item_manager_init_localized_text() {
 
     patchlib_free(array_item_tooltip_cache);
     patchlib_free(array_item_name_cache);
+}
+/* ---------------- 外观饰品槽位 ---------------- */
+
+typedef struct {
+    const char *slot;
+    const char *texture_field;
+    const char *armor_class;
+    int template_index;      /* 复制哪一项的 Sets 数据（-1 = 不复制） */
+} accessory_slot_t;
+
+static const accessory_slot_t g_accessory_slots[] = {
+    {"back",    "AccBack",    "Back",    -1},
+    {"front",   "AccFront",   "Front",   -1},
+    {"neck",    "AccNeck",    "Neck",    -1},
+    {"face",    "AccFace",    "Face",    -1},
+    {"handOn",  "AccHandsOn", "HandOn",  -1},
+    {"handOff", "AccHandsOff","HandOff", -1},
+    {"waist",   "AccWaist",   "Waist",   -1},
+    {"shield",  "AccShield",  "Shield",  -1},
+    {"wing",    "Wings",      "Wing",    46},  /* 默认复制雏翼 CreativeWings */
+};
+
+static const accessory_slot_t *find_accessory_slot(const char *slot) {
+    if (!slot) return NULL;
+    for (size_t i = 0; i < sizeof(g_accessory_slots) / sizeof(g_accessory_slots[0]); ++i)
+        if (strcmp(slot, g_accessory_slots[i].slot) == 0) return &g_accessory_slots[i];
+    return NULL;
+}
+
+static patch_handle_t accessory_texture_array(const accessory_slot_t *s) {
+    if (!s) return PATCH_NULL;
+    patch_handle_t ta = patchlib_type_get_type("Terraria.GameContent", "TextureAssets");
+    if (!patchlib_is_valid(ta)) return PATCH_NULL;
+    patch_handle_t f = patchlib_type_get_field(ta, s->texture_field);
+    patchlib_free(ta);
+    if (!patchlib_is_valid(f)) return PATCH_NULL;
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(f, NULL, &arr);
+    patchlib_free(f);
+    return arr;
+}
+
+int terraria_item_manager_reserve_accessory_slot(const char *slot) {
+    const accessory_slot_t *s = find_accessory_slot(slot);
+    if (!s) return -1;
+
+    patch_handle_t armor = patchlib_type_get_type("Terraria.ID", "ArmorIDs");
+    if (!patchlib_is_valid(armor)) {
+        TEKLOG_ERROR("equip: ArmorIDs type not found");
+        return -1;
+    }
+    patch_handle_t cls = patchlib_type_get_inner_type(armor, s->armor_class);
+    patchlib_free(armor);
+    if (!patchlib_is_valid(cls)) {
+        TEKLOG_ERROR("equip: ArmorIDs.%s not found", s->armor_class);
+        return -1;
+    }
+
+#if __ANDROID__
+    /* ArmorIDs.X.Count 是 static readonly，mod init 阶段类可能还没初始化，
+     * 直接读会得到 0。先触发静态构造，Count/Sets 才是真实值。 */
+    if (il2cpp_runtime_class_init)
+        il2cpp_runtime_class_init((void *) cls);
+#endif
+
+    patch_handle_t f_count = patchlib_type_get_field(cls, "Count");
+    int old = -1;
+    if (patchlib_is_valid(f_count))
+        patchlib_field_get_value(f_count, NULL, &old);
+    if (old <= 0) {
+        TEKLOG_ERROR("equip: ArmorIDs.%s.Count invalid (%d)", s->armor_class, old);
+        patchlib_free(f_count); patchlib_free(cls); return -1;
+    }
+
+    /* 只先抬 Count / Sets，不动 TextureAssets.Acc* 数组。
+     * AssetInitializer.LoadTextures 会按数组长度从磁盘加载
+     * "Images/Acc_Back_<i>"；如果这里先扩容，它会去找不存在的资源。
+     * 真正的贴图数组留给 set_accessory_texture 在游戏资源加载完成后扩容。 */
+    int new_count = old + 1;
+    patchlib_field_set_value(f_count, NULL, &new_count);
+
+    /* ArmorIDs.<X>.Sets 里所有按槽位索引的静态数组，以及 Factory._size */
+    patch_handle_t sets = patchlib_type_get_inner_type(cls, "Sets");
+    if (patchlib_is_valid(sets)) {
+        tefstd_vector_t fields;
+        tefstd_vector_init(&fields, sizeof(patch_handle_t));
+        if (patchlib_type_get_fields(sets, false, &fields)) {
+            for (size_t i = 0; i < tefstd_vector_size(&fields); ++i) {
+                patch_handle_t f = *(patch_handle_t *) tefstd_vector_at(&fields, i);
+                if (!patchlib_is_valid(f)) continue;
+
+                /* 只处理数组字段；Factory 等对象字段不能调 array_length */
+                patch_handle_t ft = patchlib_field_get_type_handle(f);
+                const char *tn = patchlib_is_valid(ft)
+                        ? patchlib_type_get_name(ft) : NULL;
+                const bool is_array = tn && strstr(tn, "[]") != NULL;
+                if (patchlib_is_valid(ft)) patchlib_free(ft);
+                if (!is_array) continue;
+
+                patch_handle_t a = PATCH_NULL;
+                patchlib_field_get_value(f, NULL, &a);
+                if (patchlib_is_valid(a) && patchlib_array_length(a) == (size_t) old) {
+                    patch_handle_t b = patchlib_array_resize(a, (size_t) new_count, NULL);
+                    if (patchlib_is_valid(b)) {
+                        patchlib_field_set_value(f, NULL, &b);
+                        patchlib_free(b);
+                    }
+                }
+                if (patchlib_is_valid(a)) patchlib_free(a);
+            }
+        }
+        tefstd_vector_destroy(&fields);
+
+        /* 自定义翅膀：复制一份已有的 WingStats（默认鸟妖之翼 = 7），
+         * 否则新槽的 FlyTime / 飞行参数全是 0，会出现“有翅膀但不显示/不飞”。 */
+        if (s->template_index >= 0 && s->template_index < old) {
+            patch_handle_t f_stats = patchlib_type_get_field(sets, "Stats");
+            if (patchlib_is_valid(f_stats)) {
+                patch_handle_t stats = PATCH_NULL;
+                patchlib_field_get_value(f_stats, NULL, &stats);
+                if (patchlib_is_valid(stats)) {
+                    const size_t elem = patchlib_array_element_size(stats);
+                    if (elem > 0 && patchlib_array_length(stats) > (size_t) s->template_index) {
+                        void *buf = malloc(elem);
+                        if (buf && patchlib_array_at(stats, (size_t) s->template_index, buf)) {
+                            patchlib_array_set(stats, (size_t) new_count - 1, buf);
+                            TEKLOG_INFO("item equip: %s copied stats from %d",
+                                        slot, s->template_index);
+                        }
+                        free(buf);
+                    }
+                    patchlib_free(stats);
+                }
+                patchlib_free(f_stats);
+            }
+        }
+
+        patch_handle_t f_factory = patchlib_type_get_field(sets, "Factory");
+        if (patchlib_is_valid(f_factory)) {
+            patch_handle_t factory = PATCH_NULL;
+            patchlib_field_get_value(f_factory, NULL, &factory);
+            if (patchlib_is_valid(factory)) {
+                patch_handle_t sf = patchlib_type_get_type("Terraria.ID", "SetFactory");
+                patch_handle_t f_size = patchlib_is_valid(sf)
+                        ? patchlib_type_get_field(sf, "_size") : PATCH_NULL;
+                if (patchlib_is_valid(f_size))
+                    patchlib_field_set_value(f_size, factory, &new_count);
+                if (patchlib_is_valid(f_size)) patchlib_free(f_size);
+                if (patchlib_is_valid(sf)) patchlib_free(sf);
+                patchlib_free(factory);
+            }
+            patchlib_free(f_factory);
+        }
+        patchlib_free(sets);
+    }
+
+    TEKLOG_INFO("item equip: %s slot %d -> %d", slot, old, new_count);
+    patchlib_free(f_count);
+    patchlib_free(cls);
+    return old;
+}
+
+static bool apply_accessory_texture(const accessory_slot_t *s, int index,
+                                   patch_handle_t asset) {
+    if (!s || index < 0 || !patchlib_is_valid(asset)) {
+        TEKLOG_ERROR("equip apply: invalid slot/index/asset");
+        return false;
+    }
+    patch_handle_t arr = accessory_texture_array(s);
+    if (!patchlib_is_valid(arr)) {
+        TEKLOG_ERROR("equip apply: %s array missing", s->texture_field);
+        return false;
+    }
+
+    const size_t len = patchlib_array_length(arr);
+    TEKLOG_INFO("equip apply: %s index=%d len=%zu asset=%p",
+                s->texture_field, index, len, (void *) asset);
+    if (len <= (size_t) index) {
+        patch_handle_t bigger = patchlib_array_resize(arr, (size_t) index + 1, NULL);
+        if (!patchlib_is_valid(bigger)) {
+            patchlib_free(arr);
+            return false;
+        }
+        patch_handle_t ta = patchlib_type_get_type(
+                "Terraria.GameContent", "TextureAssets");
+        patch_handle_t f_tex = patchlib_is_valid(ta)
+                ? patchlib_type_get_field(ta, s->texture_field) : PATCH_NULL;
+        if (patchlib_is_valid(f_tex)) {
+            patchlib_field_set_value(f_tex, NULL, &bigger);
+            patchlib_free(f_tex);
+        }
+        if (patchlib_is_valid(ta)) patchlib_free(ta);
+        patchlib_free(arr);
+        arr = bigger;
+    }
+
+    bool ok = patchlib_array_set(arr, (size_t) index, &asset);
+    TEKLOG_INFO("equip apply result: %s index=%d ok=%d", s->texture_field, index,
+                ok ? 1 : 0);
+
+    /* 回读校验：确认数组元素、Asset.Value、贴图尺寸和 State 都是对的。
+     * 自定义翅膀“看不见”时这行日志能区分是贴图没进数组，还是绘制阶段丢的。 */
+    if (ok) {
+        patch_handle_t elem = PATCH_NULL;
+        if (patchlib_array_at(arr, (size_t) index, &elem) &&
+            patchlib_is_valid(elem)) {
+            patch_handle_t val = terraria_asset_get_value(elem);
+            int tw = patchlib_is_valid(val) ? terraria_texture2d_get_width(val) : -1;
+            int th = patchlib_is_valid(val) ? terraria_texture2d_get_height(val) : -1;
+            int st = -1;
+            patch_handle_t cls = il2cpp_object_get_class(elem);
+            patch_handle_t fs = patchlib_type_get_field(cls, "<State>k__BackingField");
+            if (!patchlib_is_valid(fs))
+                fs = patchlib_type_get_field(cls, "State");
+            if (patchlib_is_valid(fs))
+                patchlib_field_get_value(fs, elem, &st);
+            TEKLOG_INFO("equip verify: %s[%d] elem=%p value=%p %dx%d state=%d",
+                        s->texture_field, index, (void *) elem, (void *) val,
+                        tw, th, st);
+            patchlib_free(fs);
+            patchlib_free(cls);
+        }
+    }
+
+    patchlib_free(arr);
+    return ok;
+}
+
+typedef struct {
+    const accessory_slot_t *slot;
+    int index;
+    patch_handle_t asset;
+} pending_accessory_t;
+
+static pending_accessory_t g_pending_accessories[64];
+static int g_pending_accessory_count;
+
+static void apply_pending_accessories_now(void) {
+    for (int i = 0; i < g_pending_accessory_count; ++i)
+        apply_accessory_texture(g_pending_accessories[i].slot,
+                                g_pending_accessories[i].index,
+                                g_pending_accessories[i].asset);
+    g_pending_accessory_count = 0;
+}
+
+bool terraria_item_manager_set_accessory_texture(const char *slot, int index,
+                                                 patch_handle_t asset) {
+    const accessory_slot_t *s = find_accessory_slot(slot);
+    if (!s || index < 0 || !patchlib_is_valid(asset)) return false;
+
+    if (g_accessory_assets_loaded)
+        return apply_accessory_texture(s, index, asset);
+
+    if (g_pending_accessory_count >=
+        (int) (sizeof(g_pending_accessories) / sizeof(g_pending_accessories[0])))
+        return false;
+    TEKLOG_INFO("equip queue: %s index=%d asset=%p", slot, index, (void *) asset);
+    g_pending_accessories[g_pending_accessory_count++] =
+            (pending_accessory_t){s, index, asset};
+    return true;
+}
+
+typedef struct {
+    int FlyTime;
+    float AccRunSpeedOverride;
+    float AccRunAccelerationMult;
+    bool HasDownHoverStats;
+    float DownHoverSpeedOverride;
+    float DownHoverAccelerationMult;
+} tef_wing_stats_t;
+
+bool terraria_item_manager_set_wing_stats(int index, int fly_time,
+                                          float fly_speed, float acceleration,
+                                          bool hover, float hover_speed,
+                                          float hover_acceleration) {
+    if (index < 0) return false;
+    patch_handle_t armor = patchlib_type_get_type("Terraria.ID", "ArmorIDs");
+    if (!patchlib_is_valid(armor)) return false;
+    patch_handle_t wing = patchlib_type_get_inner_type(armor, "Wing");
+    patchlib_free(armor);
+    if (!patchlib_is_valid(wing)) return false;
+    patch_handle_t sets = patchlib_type_get_inner_type(wing, "Sets");
+    if (!patchlib_is_valid(sets)) { patchlib_free(wing); return false; }
+    patch_handle_t f_stats = patchlib_type_get_field(sets, "Stats");
+    patchlib_free(sets);
+    patchlib_free(wing);
+    if (!patchlib_is_valid(f_stats)) return false;
+    patch_handle_t stats = PATCH_NULL;
+    patchlib_field_get_value(f_stats, NULL, &stats);
+    patchlib_free(f_stats);
+    if (!patchlib_is_valid(stats)) return false;
+    if (patchlib_array_length(stats) <= (size_t) index) {
+        patchlib_free(stats);
+        return false;
+    }
+    tef_wing_stats_t v = {fly_time, fly_speed, acceleration, hover,
+                          hover_speed, hover_acceleration};
+    bool ok = patchlib_array_set(stats, (size_t) index, &v);
+    patchlib_free(stats);
+    TEKLOG_INFO("item equip: wing stats[%d] fly=%d speed=%.2f hover=%d",
+                index, fly_time, fly_speed, hover ? 1 : 0);
+    return ok;
+}
+
+bool terraria_item_manager_accessory_texture_ready(const char *slot, int index) {
+    const accessory_slot_t *s = find_accessory_slot(slot);
+    if (!s || index < 0) return false;
+    patch_handle_t arr = accessory_texture_array(s);
+    if (!patchlib_is_valid(arr)) return false;
+    bool ready = false;
+    if (patchlib_array_length(arr) > (size_t) index) {
+        patch_handle_t asset = PATCH_NULL;
+        if (patchlib_array_at(arr, (size_t) index, &asset))
+            ready = patchlib_is_valid(asset);
+        if (patchlib_is_valid(asset)) patchlib_free(asset);
+    }
+    patchlib_free(arr);
+    return ready;
 }
