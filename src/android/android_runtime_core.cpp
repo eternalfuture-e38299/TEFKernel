@@ -21,542 +21,433 @@
  *******************************************************************************/
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-
-#include <jni.h>
 #include <string>
-#include <unistd.h>
-
 #include <thread>
 #include <atomic>
 #include <sys/stat.h>
+#include <unistd.h>
+
+#include <jni.h>
 
 #include "dobby.h"
 #include "xdl.h"
-#include "internal/log.h"
-#include "patchlib/method.h"
+
+#include "tef/core/log.hpp"
+#include "runtime.hpp"          // tef::runtime::*
+#include "crash_handler.hpp"    // tef::crash::*
+#include "kernel_state.hpp"     // tef::state::*
 #include "patchlib/type.h"
-#include "../patchlib/il2cpp_api.h"
-#include "internal/runtime.h"
-#include "patchlib/android/private.h"
-#include "tefstd/vector.h"
+#include "patchlib/method.h"
+#include "abi_impl/patchlib/android/private.hpp"
+#include "abi_impl/patchlib/il2cpp_api.h"
 
-#include "internal/terraria/netmanager.h"
-#include "internal/kernel_state.h"
-#include "internal/crash_handler.h"
-#include "internal/terraria/asset.h"
-#include "internal/terraria/main.h"
-#include "internal/terraria/texture2d.h"
-#include "internal/terraria/content/item_manager.h"
-#include "internal/terraria/content/projectile_manager.h"
-#include "internal/terraria/content/npc_manager.h"
-#include "internal/terraria/content/buff_manager.h"
-#include "internal/terraria/content/prefix_manager.h"
-#include "internal/terraria/gui.h"
-#include "internal/terraria/save/tef_save_game_handles.h"
-#include "internal/terraria/save/tef_player_save.h"
-#include "internal/terraria/save/tef_world_save.h"
-#include "internal/terraria/recipe_manager.h"
-#include "internal/terraria/language_manager.h"
-#include "terraria/content/button_manager.h"
+// C++ 子系统
+#include "terraria/main_state.hpp"
 
+using tef::log::debug;
+using tef::log::error;
+using tef::log::info;
+using tef::log::warn;
+
+// ============================================================================
+// patchlib 泛型方法初始化
+// ============================================================================
 static patch_handle_t find_and_initialize_make_generic_method_impl() {
-    // If already initialized, return immediately
-    if (patchlib_MakeGenericMethod_impl != nullptr) {
-        return patchlib_MakeGenericMethod_impl;
-    }
+    if (patchlib_make_generic_method_impl != nullptr)
+        return patchlib_make_generic_method_impl;
 
-    patch_handle_t make_generic_method = nullptr;
-    const char* search_classes[] = {
+    const char *search_classes[] = {
         "System.Reflection.RuntimeMethodInfo",
         "System.Reflection.MonoMethod",
-        nullptr
+        nullptr,
     };
 
-    // Search in different classes
-    for (int class_idx = 0; search_classes[class_idx] != nullptr; class_idx++) {
-        const char* class_name = search_classes[class_idx];
+    for (int i = 0; search_classes[i] != nullptr; ++i) {
+        const char *class_name = search_classes[i];
+        const char *dot = std::strrchr(class_name, '.');
+        const char *ns = "System.Reflection";
+        const char *short_name = dot ? dot + 1 : class_name;
 
-        // Extract namespace and class name
-        const char* dot_pos = strrchr(class_name, '.');
-        auto namespace_name = "System.Reflection";
-        const char* short_class_name = dot_pos ? dot_pos + 1 : class_name;
+        patch_handle_t class_handle = patchlib_type_get_type(ns, short_name);
+        if (!class_handle) continue;
 
-        patch_handle_t class_handle = patchlib_type_get_type(namespace_name, short_class_name);
-        if (!class_handle) {
-            continue;
-        }
-
-        // Get methods for this class
         tefstd_vector_t methods;
-        if (!tefstd_vector_init(&methods, sizeof(patch_handle_t))) {
-            continue;
-        }
-
+        if (!tefstd_vector_init(&methods, sizeof(patch_handle_t))) continue;
         if (!patchlib_type_get_methods(class_handle, false, &methods)) {
             tefstd_vector_destroy(&methods);
             continue;
         }
 
-        const size_t method_count = tefstd_vector_size(&methods);
-
-        // Search for MakeGenericMethod_impl
-        for (size_t i = 0; i < method_count; i++) {
-            const auto* method_ptr = static_cast<patch_handle_t *>(tefstd_vector_at(&methods, i));
-
-            if (!patchlib_is_valid(*method_ptr)) {
-                continue;
-            }
-
-            const char* current_name = patchlib_method_get_name(*method_ptr);
-            if (!current_name) {
-                continue;
-            }
-
-            if (strcmp(current_name, "MakeGenericMethod_impl") == 0) {
-                make_generic_method = *method_ptr;
-                patchlib_MakeGenericMethod_impl = make_generic_method;
+        const size_t n = tefstd_vector_size(&methods);
+        for (size_t j = 0; j < n; ++j) {
+            auto *p = static_cast<patch_handle_t *>(tefstd_vector_at(&methods, j));
+            if (!patchlib_is_valid(*p)) continue;
+            const char *name = patchlib_method_get_name(*p);
+            if (name && std::strcmp(name, "MakeGenericMethod_impl") == 0) {
+                patch_handle_t make_generic_method = *p;
+                patchlib_make_generic_method_impl = make_generic_method;
                 tefstd_vector_destroy(&methods);
-
-                TEKLOG_INFO("[MakeGenericMethod] Found MakeGenericMethod_impl in %s", class_name);
+                info("[MakeGenericMethod] Found in {}", class_name);
                 return make_generic_method;
             }
         }
-
-        // Clean up for this class
         tefstd_vector_destroy(&methods);
     }
 
-    TEKLOG_ERROR("[MakeGenericMethod] MakeGenericMethod_impl not found");
+    error("[MakeGenericMethod] MakeGenericMethod_impl not found");
     return nullptr;
 }
 
-void start_test();
+// ============================================================================
+// il2cpp_init hook
+// ============================================================================
+static int (*orig_il2cpp_init)(const char *) = nullptr;
 
-static int (*orig_il2cpp_init)(const char*) = nullptr;
-static int hook_il2cpp_init(const char* domain_name) {
-    // ============ 开始记录日志 ============
-    TEKLOG_INFO("========================================");
-    TEKLOG_INFO("TEFKernel loading...");
-    TEKLOG_INFO("il2cpp_init hook called, domain: %s", domain_name);
+static int hook_il2cpp_init(const char *domain_name) {
+    info("========================================");
+    info("TEFKernel loading...");
+    info("il2cpp_init hook called, domain: {}", domain_name ? domain_name : "(null)");
 
-    if (orig_il2cpp_init == nullptr) {
-        TEKLOG_ERROR("Original function pointer is NULL!");
+    if (!orig_il2cpp_init) {
+        error("Original function pointer is NULL!");
         return -1;
     }
 
-    TEKLOG_DEBUG("Calling original il2cpp_init function");
     const int r = orig_il2cpp_init(domain_name);
-    TEKLOG_INFO("Original il2cpp_init returned: %d", r);
+    info("Original il2cpp_init returned: {}", r);
 
-    TEKLOG_INFO("Starting TEFKernel core initialization");
-
-    // ============ TEFKernel 核心初始化 ============
-    patchlib_MakeGenericType = patchlib_type_get_method_by_param_count(
-        patchlib_type_get_type("System", "RuntimeType"),
-        "MakeGenericType", 2
-    );
+    // patchlib 泛型方法
+    patchlib_make_generic_type = patchlib_type_get_method_by_param_count(
+        patchlib_type_get_type("System", "RuntimeType"), "MakeGenericType", 2);
     find_and_initialize_make_generic_method_impl();
 
-    terraria_main_init(false);
-    terraria_texture2d_init(false);
-    terraria_asset_init();
+    // 所有 C++ 子系统：register_all + Main.Initialize 钩子
+    terraria::main_state::instance().initialize(false);
 
-    terraria_asset_init();
-    terraria_item_manager_init();
-    terraria_projectile_manager_init();
-    terraria_npc_manager_init();
-    terraria_buff_manager_init();
-    terraria_prefix_manager_init();
-    terraria_gui_init();
-    terraria_button_manager_install();
+    // tefkernel 运行时
+    tef::runtime::init();
+    tef::runtime::load();
+    tef::runtime::start();
 
-    tef_save_game_handles_init();
-    tef_player_save_init();
-    tef_world_save_init();
-
-    terraria_recipe_manager_init();
-    terraria_language_manager_init();
-
-    tefkernel_init();
-    tefkernel_load();
-    tefkernel_start();
-    terraria_netmanager_init();
-
-    start_test();
-
-    TEKLOG_INFO("TEFKernel core initialization completed");
-    TEKLOG_INFO("========================================");
-
+    info("TEFKernel core initialization completed");
+    info("========================================");
     return r;
 }
 
-static JavaVM* GetJavaVMViaJNIStandard() {
-    TEKLOG_DEBUG("Attempting to get JavaVM via JNI standard");
-
-    void* jniGetCreatedJavaVMs = DobbySymbolResolver("libart.so", "JNI_GetCreatedJavaVMs");
-    if (!jniGetCreatedJavaVMs) {
-        TEKLOG_ERROR("Could not find JNI_GetCreatedJavaVMs symbol");
+// ============================================================================
+// JavaVM / 数据目录
+// ============================================================================
+static JavaVM *get_java_vm_via_jni_standard() {
+    void *sym = DobbySymbolResolver("libart.so", "JNI_GetCreatedJavaVMs");
+    if (!sym) {
+        error("Could not find JNI_GetCreatedJavaVMs symbol");
         return nullptr;
     }
+    using fn_t = jint (*)(JavaVM **, jsize, jsize *);
+    auto fn = reinterpret_cast<fn_t>(sym);
 
-    typedef jint (*JNI_GetCreatedJavaVMs_t)(JavaVM**, jsize, jsize*);
-    const auto JNI_GetCreatedJavaVMs = reinterpret_cast<JNI_GetCreatedJavaVMs_t>(jniGetCreatedJavaVMs);
-
-    JavaVM* vm = nullptr;
-    jsize numVMs = 0;
-
-    const jint result = JNI_GetCreatedJavaVMs(&vm, 1, &numVMs);
-    if (result == JNI_OK && numVMs > 0 && vm != nullptr) {
-        TEKLOG_INFO("Successfully obtained JavaVM: %p (number of VMs: %d)", vm, numVMs);
+    JavaVM *vm = nullptr;
+    jsize n = 0;
+    const jint result = fn(&vm, 1, &n);
+    if (result == JNI_OK && n > 0 && vm) {
+        info("Successfully obtained JavaVM: {} (VMs: {})",
+             static_cast<void *>(vm), n);
         return vm;
     }
-
-    TEKLOG_ERROR("JNI_GetCreatedJavaVMs failed: result=%d, number of VMs=%d", result, numVMs);
+    error("JNI_GetCreatedJavaVMs failed: result={} VMs={}", result, n);
     return nullptr;
 }
 
-void init_iohook(JavaVM* vm);
-
-// 辅助函数：读取文件的第一行
-static char* read_first_line(const char* filepath) {
-    FILE* file = fopen(filepath, "r");
-    if (!file) {
-        TEKLOG_DEBUG("Cannot open file: %s", filepath);
-        return nullptr;
-    }
-
-    char* line = nullptr;
-    size_t len = 0;
-    ssize_t read = getline(&line, &len, file);
-
-    fclose(file);
-
-    if (read <= 0) {
-        free(line);
-        return nullptr;
-    }
-
-    // 去除换行符
-    if (line[read - 1] == '\n') {
-        line[read - 1] = '\0';
-    }
-
-    return line;
-}
-
-// 获取当前应用的数据目录
-/* JNI 铁律：Java 抛出异常后必须先 ExceptionClear 再继续调用 JNI，
- * 否则 ART 会在下一次 JNI 调用时 AssertNoPendingException → abort(SIGABRT)。
- * 本文件原先 9 处 JNI 调用、0 处异常检查。 */
+// Java 抛异常后必须先 ExceptionClear 再继续 JNI，否则 ART abort
 static void tef_jni_clear_pending(JNIEnv *env, const char *where) {
-  if (!env)
-    return;
-  if (env->ExceptionCheck()) {
-    TEKLOG_WARN("jni: 检测到未清理的异常(%s)，已 ExceptionClear", where);
-    env->ExceptionClear();
-  }
+    if (!env) return;
+    if (env->ExceptionCheck()) {
+        warn("jni: 检测到未清理的异常({})，已 ExceptionClear", where);
+        env->ExceptionClear();
+    }
 }
 
-static char* get_current_app_data_dir(JavaVM* vm) {
-    JNIEnv* env = nullptr;
-
+static char *get_current_app_data_dir(JavaVM *vm) {
+    JNIEnv *env = nullptr;
     const jint result = vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6);
     tef_jni_clear_pending(env, "GetEnv");
-
+    bool attached = false;
     if (result == JNI_EDETACHED) {
-        vm->AttachCurrentThread(&env, nullptr);
+        if (vm->AttachCurrentThread(&env, nullptr) != JNI_OK || !env) {
+            error("Failed to attach current thread");
+            return nullptr;
+        }
+        attached = true;
     }
-
     if (!env) {
-        TEKLOG_ERROR("Failed to get JNIEnv");
+        error("Failed to get JNIEnv");
+        if (attached) vm->DetachCurrentThread();
         return nullptr;
     }
 
-    jclass activity_thread_class = env->FindClass("android/app/ActivityThread");
-    if (!activity_thread_class) {
-        TEKLOG_ERROR("Failed to find ActivityThread class");
+    auto detach_if_needed = [&] {
+        if (attached) vm->DetachCurrentThread();
+    };
+
+    auto cleanup = [&](jclass at, jobject cat, jobject app, jclass ctx,
+                       jobject files, jclass fc, jstring path) {
+        if (path) env->DeleteLocalRef(path);
+        if (fc) env->DeleteLocalRef(fc);
+        if (files) env->DeleteLocalRef(files);
+        if (ctx) env->DeleteLocalRef(ctx);
+        if (app) env->DeleteLocalRef(app);
+        if (cat) env->DeleteLocalRef(cat);
+        if (at) env->DeleteLocalRef(at);
+    };
+
+    jclass at_cls = env->FindClass("android/app/ActivityThread");
+    if (!at_cls) {
+        cleanup(at_cls, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jmethodID current_activity_thread_method = env->GetStaticMethodID(
-        activity_thread_class, "currentActivityThread", "()Landroid/app/ActivityThread;");
-    if (!current_activity_thread_method) {
-        TEKLOG_ERROR("Failed to get currentActivityThread method");
-        env->DeleteLocalRef(activity_thread_class);
+    jmethodID cur_at = env->GetStaticMethodID(
+        at_cls, "currentActivityThread", "()Landroid/app/ActivityThread;");
+    if (!cur_at) {
+        cleanup(at_cls, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jobject current_activity_thread = env->CallStaticObjectMethod(
-        activity_thread_class, current_activity_thread_method);
-    if (!current_activity_thread) {
-        TEKLOG_ERROR("Failed to get current ActivityThread");
-        env->DeleteLocalRef(activity_thread_class);
+    jobject at = env->CallStaticObjectMethod(at_cls, cur_at);
+    if (!at) {
+        cleanup(at_cls, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jmethodID get_application_method = env->GetMethodID(
-        activity_thread_class, "getApplication", "()Landroid/app/Application;");
-    if (!get_application_method) {
-        TEKLOG_ERROR("Failed to get getApplication method");
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    jmethodID get_app = env->GetMethodID(at_cls, "getApplication", "()Landroid/app/Application;");
+    if (!get_app) {
+        cleanup(at_cls, at, nullptr, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jobject application = env->CallObjectMethod(current_activity_thread, get_application_method);
+    jobject app = env->CallObjectMethod(at, get_app);
     tef_jni_clear_pending(env, "getApplication");
-    if (!application) {
-        TEKLOG_ERROR("Failed to get Application");
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    if (!app) {
+        cleanup(at_cls, at, nullptr, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jclass context_class = env->FindClass("android/content/Context");
-    if (!context_class) {
-        TEKLOG_ERROR("Failed to find Context class");
-        env->DeleteLocalRef(application);
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    jclass ctx_cls = env->FindClass("android/content/Context");
+    if (!ctx_cls) {
+        cleanup(at_cls, at, app, nullptr, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jmethodID get_files_dir_method = env->GetMethodID(
-        context_class, "getFilesDir", "()Ljava/io/File;");
-    if (!get_files_dir_method) {
-        TEKLOG_ERROR("Failed to get getFilesDir method");
-        env->DeleteLocalRef(context_class);
-        env->DeleteLocalRef(application);
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    jmethodID get_files = env->GetMethodID(ctx_cls, "getFilesDir", "()Ljava/io/File;");
+    if (!get_files) {
+        cleanup(at_cls, at, app, ctx_cls, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jobject files_dir_obj = env->CallObjectMethod(application, get_files_dir_method);
+    jobject files = env->CallObjectMethod(app, get_files);
     tef_jni_clear_pending(env, "getFilesDir");
-    if (!files_dir_obj) {
-        TEKLOG_ERROR("Failed to get files directory");
-        env->DeleteLocalRef(context_class);
-        env->DeleteLocalRef(application);
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    if (!files) {
+        cleanup(at_cls, at, app, ctx_cls, nullptr, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jclass file_class = env->FindClass("java/io/File");
-    if (!file_class) {
-        TEKLOG_ERROR("Failed to find File class");
-        env->DeleteLocalRef(files_dir_obj);
-        env->DeleteLocalRef(context_class);
-        env->DeleteLocalRef(application);
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    jclass fc = env->FindClass("java/io/File");
+    if (!fc) {
+        cleanup(at_cls, at, app, ctx_cls, files, nullptr, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    jmethodID get_absolute_path_method = env->GetMethodID(
-        file_class, "getAbsolutePath", "()Ljava/lang/String;");
-    if (!get_absolute_path_method) {
-        TEKLOG_ERROR("Failed to get getAbsolutePath method");
-        env->DeleteLocalRef(file_class);
-        env->DeleteLocalRef(files_dir_obj);
-        env->DeleteLocalRef(context_class);
-        env->DeleteLocalRef(application);
-        env->DeleteLocalRef(current_activity_thread);
-        env->DeleteLocalRef(activity_thread_class);
+    jmethodID get_abs = env->GetMethodID(fc, "getAbsolutePath", "()Ljava/lang/String;");
+    if (!get_abs) {
+        cleanup(at_cls, at, app, ctx_cls, files, fc, nullptr);
+        detach_if_needed();
         return nullptr;
     }
 
-    const auto path_str = reinterpret_cast<jstring>(env->CallObjectMethod(files_dir_obj, get_absolute_path_method));
+    auto path_str = reinterpret_cast<jstring>(env->CallObjectMethod(files, get_abs));
     tef_jni_clear_pending(env, "getAbsolutePath");
-    const char* path = env->GetStringUTFChars(path_str, nullptr);
-
-    // 复制到C字符串
-    char* data_dir = strdup(path);
-
-    // 释放资源
-    env->ReleaseStringUTFChars(path_str, path);
-    env->DeleteLocalRef(path_str);
-    env->DeleteLocalRef(file_class);
-    env->DeleteLocalRef(files_dir_obj);
-    env->DeleteLocalRef(context_class);
-    env->DeleteLocalRef(application);
-    env->DeleteLocalRef(current_activity_thread);
-    env->DeleteLocalRef(activity_thread_class);
-
-    if (result == JNI_EDETACHED) {
-        vm->DetachCurrentThread();
+    if (!path_str) {
+        cleanup(at_cls, at, app, ctx_cls, files, fc, nullptr);
+        detach_if_needed();
+        return nullptr;
     }
 
+    const char *path = env->GetStringUTFChars(path_str, nullptr);
+    char *data_dir = path ? strdup(path) : nullptr;
+    if (path) env->ReleaseStringUTFChars(path_str, path);
+
+    cleanup(at_cls, at, app, ctx_cls, files, fc, path_str);
+    detach_if_needed();
     return data_dir;
 }
 
-char* tefkernel_working_dir = nullptr;
+// ============================================================================
+// 配置文件
+// ============================================================================
+static char *tefkernel_working_dir = nullptr;
 
-static std::atomic il2cpp_loaded{false};
-static std::atomic<void*> il2cpp_handle{nullptr};
+static char *read_first_line(const char *filepath) {
+    FILE *f = std::fopen(filepath, "r");
+    if (!f) return nullptr;
+    char *line = nullptr;
+    size_t len = 0;
+    const ssize_t n = getline(&line, &len, f);
+    std::fclose(f);
+    if (n <= 0) { std::free(line); return nullptr; }
+    if (line[n - 1] == '\n') line[n - 1] = '\0';
+    return line;
+}
+
+// ============================================================================
+// iohook
+// ============================================================================
+void init_iohook(JavaVM *vm);
+
+// ============================================================================
+// IL2CPP 监听
+// ============================================================================
+static std::atomic<bool> il2cpp_loaded{false};
+static std::atomic<void *> il2cpp_handle{nullptr};
 static std::thread il2cpp_watcher_thread;
-static std::atomic il2cpp_watcher_running{false};
+static std::atomic<bool> il2cpp_watcher_running{false};
 
-// 修改WaitForIL2CppLib，不再阻塞主线程
-static void* WaitForIL2CppLib(const int timeout_seconds = 30) {
-    TEKLOG_INFO("[xDL] Starting IL2CPP watcher, timeout: %d seconds", timeout_seconds);
+static void *wait_for_il2cpp_lib(const int timeout_seconds = 30) {
+    info("[xDL] Waiting for IL2CPP, timeout {}s", timeout_seconds);
+    int waited = 0;
+    const int max_wait = timeout_seconds * 1000;
 
-    int total_wait_time = 0;
-    const int max_wait_time = timeout_seconds * 1000;
-
-    while (total_wait_time < max_wait_time && il2cpp_watcher_running.load()) {
-        constexpr int check_interval_ms = 100;
-        // 使用xdl_open查找已加载的il2cpp库
-
-        if (void* handle = xdl_open("libil2cpp.so", XDL_DEFAULT); handle != nullptr) {
-            // 验证确实是il2cpp库
-            if (void* test_symbol = xdl_sym(handle, "il2cpp_init", nullptr); test_symbol != nullptr) {
-                TEKLOG_INFO("[xDL] Found valid IL2CPP library: %p (il2cpp_init at %p)", handle, test_symbol);
-                return handle;
+    while (waited < max_wait && il2cpp_watcher_running.load()) {
+        constexpr int step = 100;
+        if (void *h = xdl_open("libil2cpp.so", XDL_DEFAULT); h) {
+            if (void *sym = xdl_sym(h, "il2cpp_init", nullptr); sym) {
+                info("[xDL] Found IL2CPP: {} (il2cpp_init at {})", h, sym);
+                return h;
             }
-            TEKLOG_DEBUG("[xDL] Library found but not IL2CPP (no il2cpp_init symbol)");;
         }
-
-        // 等待下一次检查
-        usleep(check_interval_ms * 1000);
-        total_wait_time += check_interval_ms;
-
-        // 每5秒打印一次等待状态
-        if (total_wait_time % 5000 == 0) {
-            TEKLOG_DEBUG("[xDL] Still waiting for IL2CPP... (%dms/%dms)",
-                        total_wait_time, max_wait_time);
-        }
+        usleep(step * 1000);
+        waited += step;
+        if (waited % 5000 == 0)
+            debug("[xDL] Still waiting... ({}/{}ms)", waited, max_wait);
     }
-
-    TEKLOG_WARN("[xDL] Timeout waiting for IL2CPP library");
+    warn("[xDL] Timeout waiting for IL2CPP");
     return nullptr;
 }
 
-static void IL2CppWatcherThreadFunc() {
-    TEKLOG_INFO("[IL2CPP-Watcher] Starting IL2CPP watcher thread");
-
-    // 等待IL2CPP库加载
-    void* handle = WaitForIL2CppLib(30); // 30秒超时
-
-    if (handle == nullptr) {
-        TEKLOG_ERROR("[IL2CPP-Watcher] Failed to find IL2CPP library");
+static void il2cpp_watcher_thread_func() {
+    info("[IL2CPP-Watcher] Started");
+    void *h = wait_for_il2cpp_lib(30);
+    if (!h) {
+        error("[IL2CPP-Watcher] Failed");
         il2cpp_watcher_running.store(false);
         return;
     }
 
-    il2cpp_handle.store(handle);
+    il2cpp_handle.store(h);
     il2cpp_loaded.store(true);
 
-    TEKLOG_INFO("[IL2CPP-Watcher] IL2CPP library found, handle: %p", handle);
+    debug("[IL2CPP-Watcher] Initializing il2cpp API");
+    il2cpp_api_init(h);
 
-    // 初始化il2cpp API
-    TEKLOG_DEBUG("[IL2CPP-Watcher] Initializing IL2CPP API");
-    il2cpp_api_init(handle);
-
-    // Hook il2cpp_init
-    TEKLOG_DEBUG("[IL2CPP-Watcher] Installing il2cpp_init hook");
-    if (!DobbyHook(reinterpret_cast<void*>(il2cpp_init),
-                   reinterpret_cast<void*>(hook_il2cpp_init),
-                   reinterpret_cast<void**>(&orig_il2cpp_init))) {
-        TEKLOG_INFO("[IL2CPP-Watcher] il2cpp_init hook installed successfully");
+    debug("[IL2CPP-Watcher] Installing il2cpp_init hook");
+    if (!DobbyHook(reinterpret_cast<void *>(il2cpp_init),
+                   reinterpret_cast<void *>(hook_il2cpp_init),
+                   reinterpret_cast<void **>(&orig_il2cpp_init))) {
+        info("[IL2CPP-Watcher] il2cpp_init hook installed");
     } else {
-        TEKLOG_ERROR("[IL2CPP-Watcher] Failed to install il2cpp_init hook");
+        error("[IL2CPP-Watcher] Failed to install il2cpp_init hook");
     }
 
     il2cpp_watcher_running.store(false);
-    TEKLOG_INFO("[IL2CPP-Watcher] IL2CPP watcher thread completed");
 }
 
-static void StartIL2CppWatcher() {
-    if (il2cpp_watcher_running.load() || il2cpp_loaded.load()) {
-        TEKLOG_DEBUG("[Main] IL2CPP watcher already running or IL2CPP already loaded");
-        return;
-    }
-
-    TEKLOG_INFO("[Main] Starting IL2CPP watcher in background thread");
+static void start_il2cpp_watcher() {
+    if (il2cpp_watcher_running.load() || il2cpp_loaded.load()) return;
     il2cpp_watcher_running.store(true);
-    il2cpp_watcher_thread = std::thread(IL2CppWatcherThreadFunc);
+    il2cpp_watcher_thread = std::thread(il2cpp_watcher_thread_func);
     il2cpp_watcher_thread.detach();
 }
 
+// ============================================================================
+// 入口
+//
+// 注意：__attribute__((constructor)) 在 dlopen 的 call_constructors 阶段执行，
+// 此时 ART 尚未就绪，任何 FindClass / CallObjectMethod 等会触发 Java 栈遍历的
+// JNI 调用都会导致 "null art-method found ... Visiting Method.invoke" 并 abort
+// （见 stack.cc:825 / runtime.cc:769）。因此：
+//   - 构造器里只做纯 native 工作（log / crash handler）；
+//   - JNI 与依赖 ART 的逻辑全部延迟到独立线程，等 VM 可用后再执行。
+// ============================================================================
 __attribute__((constructor))
-static int init_ary() {
-    TEKLOG_INFO("TEFKernel initializing");
+static int tefkernel_entry() {
+    tef::log::init(nullptr);
+    tef::crash::init();
 
-    // 获取JavaVM
-    JavaVM* vm = GetJavaVMViaJNIStandard();
-    if (!vm) {
-        TEKLOG_ERROR("Failed to get JavaVM");
-        return -1;
-    }
+    std::thread([] {
+        info("TEFKernel initializing");
 
-    // 检查是否已经有配置文件
-    if (char* data_dir = get_current_app_data_dir(vm)) {
-        char config_path[512];
-        snprintf(config_path, sizeof(config_path), "%s/tefkernel_working_dir", data_dir);
-
-        TEKLOG_DEBUG("Checking config file: %s", config_path);
-
-        if (access(config_path, F_OK) == 0) {
-            // 文件存在，读取第一行
-            if (char* line = read_first_line(config_path)) {
-                TEKLOG_INFO("Found config file, working dir: %s", line);
-
-                // 释放之前的内存（如果有）
-                if (tefkernel_working_dir) {
-                    free(tefkernel_working_dir);
-                }
-
-                // 分配内存并保存
-                tefkernel_working_dir = strdup(line);
-                TEKLOG_INFO("Skipping iohook as config file exists");
-                free(line);
-                free(data_dir);
-            }
-            TEKLOG_WARN("Config file exists but cannot read");
-        } else {
-            TEKLOG_DEBUG("Config file does not exist, will perform iohook");
-
-            // 初始化IO hook
-            TEKLOG_DEBUG("Initializing IO hooks");
-            init_iohook(vm);
-            free(data_dir);
+        // 轮询等待 ART 就绪（只调 JNI_GetCreatedJavaVMs，不触发栈遍历）
+        JavaVM *vm = nullptr;
+        for (int i = 0; i < 300 && !vm; ++i) {
+            vm = get_java_vm_via_jni_standard();
+            if (!vm) usleep(100 * 1000);
         }
-    } else {
-        TEKLOG_WARN("Failed to get data directory, will continue with iohook");
+        if (!vm) { error("Failed to obtain JavaVM"); return; }
 
-        // 初始化IO hook
-        TEKLOG_DEBUG("Initializing IO hooks");
-        init_iohook(vm);
-    }
+        if (char *data_dir = get_current_app_data_dir(vm)) {
+            char config_path[512];
+            std::snprintf(config_path, sizeof(config_path),
+                          "%s/tefkernel_working_dir", data_dir);
 
-    // ============ 构建日志目录路径 ============
-    char log_dir[512];
-    char log_config_filename[512] = {};
-    snprintf(log_dir, sizeof(log_dir), "%s/logs/tefkernel", tefkernel_working_dir);
+            if (access(config_path, F_OK) == 0) {
+                if (char *line = read_first_line(config_path)) {
+                    info("Found config, working dir: {}", line);
+                    if (tefkernel_working_dir) std::free(tefkernel_working_dir);
+                    tefkernel_working_dir = strdup(line);
+                    std::free(line);
+                } else {
+                    warn("Config exists but cannot read");
+                }
+            } else {
+                debug("Config missing, running iohook");
+                init_iohook(vm);
+            }
+            std::free(data_dir);
+        } else {
+            warn("Failed to get data dir, running iohook");
+            init_iohook(vm);
+        }
 
-    struct stat st{};
-    if (stat(log_dir, &st) == 0 && S_ISDIR(st.st_mode)) {
-        // 目录存在
-        snprintf(log_config_filename, sizeof(log_config_filename),
-                "%s/runtime", log_dir);
-        fprintf(stderr, "[LOG] Log directory found: %s\n", log_dir);
-    }
+        // 把工作目录交给 tef::state 管理（接管所有权）
+        tef::state::set_working_dir(tefkernel_working_dir);
 
-    // ============ 初始化日志系统 ============
-    if (log_config_filename[0] != '\0') {
-        tefkernel_log_init(log_config_filename);
-    } else {
-        tefkernel_log_init(nullptr);
-    }
+        // 日志目录（若工作目录已知则切换到文件日志）
+        char log_dir[512];
+        char log_cfg[512] = {};
+        std::snprintf(log_dir, sizeof(log_dir), "%s/logs/tefkernel",
+                      tefkernel_working_dir ? tefkernel_working_dir : "");
 
-    TEKLOG_DEBUG("Setting up crash signal handlers");
-    tefkernel_crash_handler_init();
+        struct stat st{};
+        if (stat(log_dir, &st) == 0 && S_ISDIR(st.st_mode)) {
+            std::snprintf(log_cfg, sizeof(log_cfg), "%s/runtime", log_dir);
+            std::fprintf(stderr, "[LOG] Log directory found: %s\n", log_dir);
+        }
 
-    StartIL2CppWatcher();
+        if (log_cfg[0] != '\0') tef::log::init(log_cfg);
 
-    TEKLOG_INFO("TEFKernel initialization completed successfully");
+        start_il2cpp_watcher();
+        info("TEFKernel initialization completed");
+    }).detach();
+
     return 0;
 }

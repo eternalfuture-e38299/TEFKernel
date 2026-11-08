@@ -1,128 +1,126 @@
 cmake_minimum_required(VERSION 3.28.3)
 project(tefkernel C CXX)
 
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(NDEBUG)
-    set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE   "-O2 -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 else()
-    set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+    set(CMAKE_C_FLAGS_DEBUG   "-g -O0")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 endif()
 
-# 全局强制 PIC，所有子目录都生效
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-
-# 如果还有汇编文件也需要 PIC
-set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -DPIC")
-set(CMAKE_ASM_FLAGS "-x assembler-with-cpp")
-
+# ---------------------------------------------------------------------------
+# 平台判定
+# ---------------------------------------------------------------------------
 set(ANDROID_MODE OFF)
-if (${ANDROID_MODE})
+if(ANDROID_MODE)
     set(ANDROID ON)
     add_compile_definitions(__ANDROID__)
-    set(CMAKE_SYSROOT /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/)
-endif ()
+    set(CMAKE_SYSROOT
+            /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+    )
+endif()
 
-set(PATCHLIB_SRC src/patchlib/common/type.c
-        src/patchlib/common/method.c
-        src/patchlib/common/property.c
-        src/patchlib/common/field.c
-        src/patchlib/common/struct/dictionary.c
-        src/patchlib/common/struct/list.c
-        src/patchlib/common/struct/string.c
-        src/patchlib/common/struct/array.c
+add_subdirectory(libs/spdlog)
+
+add_library(miniaudio_config INTERFACE)
+target_include_directories(miniaudio_config INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniaudio)
+target_compile_definitions(miniaudio_config INTERFACE
+        MA_NO_DECODING MA_NO_ENCODING MA_NO_ENGINE MA_NO_RESOURCE_MANAGER MA_NO_GENERATION)
+
+# ---------------------------------------------------------------------------
+# 源文件分组
+# ---------------------------------------------------------------------------
+set(PATCHLIB_SRC
+        src/abi_impl/patchlib/common/type.cpp
+        src/abi_impl/patchlib/common/method.cpp
+        src/abi_impl/patchlib/common/property.cpp
+        src/abi_impl/patchlib/common/field.cpp
+        src/abi_impl/patchlib/common/struct/array.cpp
+        src/abi_impl/patchlib/common/struct/string.cpp
+        src/abi_impl/patchlib/common/struct/dictionary.cpp
+        src/abi_impl/patchlib/common/struct/list.cpp
 )
-if (ANDROID)
+if(ANDROID)
     list(APPEND PATCHLIB_SRC
-            src/patchlib/android/type.c
-            src/patchlib/android/field.c
-            src/patchlib/android/method.c
-            src/patchlib/android/thread.c
-            src/patchlib/android/il2cpp_api.c
-            src/patchlib/android/private.c
-            src/patchlib/android/method_hook.c
-            src/patchlib/android/ffi_guard.cpp
-            src/patchlib/android/struct/array.c
-            src/patchlib/android/struct/string.c
+            src/abi_impl/patchlib/android/type.cpp
+            src/abi_impl/patchlib/android/thread.cpp
+            src/abi_impl/patchlib/android/private.cpp
+            src/abi_impl/patchlib/android/field.cpp
+            src/abi_impl/patchlib/android/method.cpp
+            src/abi_impl/patchlib/android/struct/string.cpp
+            src/abi_impl/patchlib/android/struct/array.cpp
+            src/abi_impl/patchlib/android/method_hook.cpp
+            src/abi_impl/patchlib/android/il2cpp_api.c
     )
-else ()
+else()
     list(APPEND PATCHLIB_SRC
-            src/patchlib/desktop/type.c
-            src/patchlib/desktop/field.c
-            src/patchlib/desktop/method.c
-            src/patchlib/desktop/il2cpp_api.c
-            src/patchlib/desktop/struct/array.c
-            src/patchlib/desktop/struct/string.c
+            src/abi_impl/patchlib/desktop/type.cpp
+            src/abi_impl/patchlib/desktop/field.cpp
+            src/abi_impl/patchlib/desktop/method.cpp
+            src/abi_impl/patchlib/desktop/il2cpp_api.c
+            src/abi_impl/patchlib/desktop/struct/array.cpp
+            src/abi_impl/patchlib/desktop/struct/string.cpp
     )
-endif ()
+endif()
 
 set(TEFSTD_SRC
-        src/tefstd/vector.c
-        src/tefstd/hashmap.c
-        src/tefstd/skipmap.c
-        src/tefstd/log.c
+        src/abi_impl/tefstd/vector.c
+        src/abi_impl/tefstd/hashmap.c
+        src/abi_impl/tefstd/skipmap.c
+        src/abi_impl/tefstd/log.cpp
 )
 
-set(TEFPLUGIN_SRC
-        src/tefplugin/tpf_core.c
-)
-
-set(MODLOADER_SRC src/modloader/modloader_core.c)
-
-set(MODULE_SRC src/module/module_core_imp.c)
-
-set(MEMDL_SRC
-        src/memdl/memdl.c
-)
-
-set(INTERNAL_SRC
-        src/log.c
-        src/runtime.c
-        src/mod_core.c
-        src/crash_handler.c
-)
-
+# 内部 C++ 实现（不含 abi_impl/terraria）
 set(TERRARIA_SRC
-        src/terraria/common/netmanager.c
-        src/terraria/common/main.c
-        src/terraria/common/asset.c
-        src/terraria/common/content/item_manager.c
-        src/terraria/common/content/projectile_manager.c
-        src/terraria/common/content/npc_manager.c
-        src/terraria/common/content/buff_manager.c
-        src/terraria/common/gui.c
-        src/terraria/common/recipe_manager.c
-        src/terraria/common/language_manager.c
-        src/terraria/common/save/tef_save_format.c
-        src/terraria/common/save/tef_save_game_handles.c
-        src/terraria/common/save/tef_player_save.c
-        src/terraria/common/save/tef_world_save.c
-        src/terraria/common/content/audio_manager.c
-        src/terraria/common/content/prefix_manager.c
-        src/terraria/common/entity.c
+        src/terraria/common/init/bootstrap.cpp
+        src/terraria/common/init/register_all.cpp
+        src/terraria/common/content/item_registry.cpp
+        src/terraria/common/content/prefix_registry.cpp
+        src/terraria/common/content/projectile_registry.cpp
+        src/terraria/common/content/npc_registry.cpp
+        src/terraria/common/content/buff_registry.cpp
+        src/terraria/common/content/texture2d.cpp
+        src/terraria/common/content/asset_factory.cpp
+        src/terraria/common/content/recipe_manager.cpp
+        src/terraria/common/content/language_manager.cpp
+        src/terraria/common/content/gui_overlay.cpp
+        src/terraria/common/content/net_engine.cpp
+        src/terraria/main_state.cpp
+        src/terraria/common/save/tef_save_format.cpp
+        src/terraria/common/save/tef_save_game_handles.cpp
+        src/terraria/common/save/tef_player_save.cpp
+        src/terraria/common/save/tef_world_save.cpp
 )
 
 set(TEFPACKAGE_SRC
-        src/tefpackage/compressor.c
-        src/tefpackage/lz4.c
-        src/tefpackage/lz4hc.c
-        src/tefpackage/siphash.c
-        src/tefpackage/tefpkg.c
+        src/abi_impl/tefpackage/compressor.c
+        src/abi_impl/tefpackage/lz4.c
+        src/abi_impl/tefpackage/lz4hc.c
+        src/abi_impl/tefpackage/siphash.c
+        src/abi_impl/tefpackage/tefpkg.cpp
+        src/abi_impl/tefpackage/tefpkg_export.cpp
 )
 
-if (ANDROID)
+set(INTERNAL_SRC)
+if(ANDROID)
     list(APPEND INTERNAL_SRC
             src/android/android_runtime_core.cpp
             src/android/android_test.cpp
             src/android/cpcall.cpp
             src/android/iohook.cpp
     )
-
-    list(APPEND TERRARIA_SRC
-            src/terraria/android/texture2d.c
+    ## 暂不支持
+    #[[list(APPEND TERRARIA_SRC
             src/terraria/android/content/button_manager.c
             src/terraria/android/content/button_hook_args.c
             src/terraria/android/content/button_profile_cache.c
@@ -130,168 +128,155 @@ if (ANDROID)
             src/terraria/android/content/button_scroll.c
             src/terraria/android/content/button_store.c
             src/terraria/android/content/button_images.c
-    )
-else ()
-    list(APPEND INTERNAL_SRC
-            src/desktop/desktop_runtime_core.c
-            src/desktop/desktop_test.c
-    )
+    )]]
+else()
+    list(APPEND INTERNAL_SRC src/desktop/desktop_runtime_core.cpp)
+endif()
 
-    list(APPEND TERRARIA_SRC
-            src/terraria/desktop/texture2d.c
-    )
-endif ()
-
-
-# miniaudio_config
-add_library(miniaudio_config INTERFACE)
-
-target_include_directories(miniaudio_config INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniaudio
+# ---------------------------------------------------------------------------
+# ABI 转发静态库：abi_impl/terraria
+# ---------------------------------------------------------------------------
+set(ABI_TERRARIA_SRC
+        src/abi_impl/terraria/asset.cpp
+        src/abi_impl/terraria/gui.cpp
+        src/abi_impl/terraria/language_manager.cpp
+        src/abi_impl/terraria/main.cpp
+        src/abi_impl/terraria/netmanager.cpp
+        src/abi_impl/terraria/recipe_manager.cpp
+        src/abi_impl/terraria/texture2d.cpp
+        src/abi_impl/terraria/content/audio_manager.c
+        src/abi_impl/terraria/content/buff_manager.cpp
+        src/abi_impl/terraria/content/item_manager.cpp
+        src/abi_impl/terraria/content/npc_manager.cpp
+        src/abi_impl/terraria/content/prefix_manager.cpp
+        src/abi_impl/terraria/content/projectile_manager.cpp
 )
 
-# 你之前确定的极简宏：禁用解码、编码、高级引擎、资源管理器、生成器
-# 注意：不要定义 MA_NO_THREADING，ma_device 回调依赖线程
-target_compile_definitions(miniaudio_config INTERFACE
-        MA_NO_DECODING
-        MA_NO_ENCODING
-        MA_NO_ENGINE
-        MA_NO_RESOURCE_MANAGER
-        MA_NO_GENERATION
-)
+add_library(tefkernel_abi_terraria STATIC ${ABI_TERRARIA_SRC})
 
+target_include_directories(tefkernel_abi_terraria
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/includes
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include_abi
+)
+target_compile_definitions(tefkernel_abi_terraria PUBLIC IS_TEFKERNEL_BUILD)
+set_target_properties(tefkernel_abi_terraria PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# audio_manager.c 需要 miniaudio.h + MA_NO_* 宏
+target_link_libraries(tefkernel_abi_terraria PRIVATE miniaudio_config)
+
+# ---------------------------------------------------------------------------
+# 主 target：内部实现 + 链接 ABI 静态库
+# ---------------------------------------------------------------------------
 add_library(tefkernel SHARED
-        #miniaudio 实现文件
         libs/miniaudio/miniaudio.c
 
-        # 内核代码
         ${PATCHLIB_SRC}
         ${INTERNAL_SRC}
         ${TEFSTD_SRC}
-        ${TEFPLUGIN_SRC}
-        ${MEMDL_SRC}
-        ${MODLOADER_SRC}
-        ${MODULE_SRC}
         ${TEFPACKAGE_SRC}
         ${TERRARIA_SRC}
+
+        src/abi_impl/memdl/memdl.c
+        src/tef/core/log.cpp
+        src/tef/core/log_bridge.cpp
+        src/tpf_core.cpp
+        src/module_core.cpp
+        src/modloader_core.cpp
+        src/mod_core.cpp
+        src/crash_handler.cpp
+        src/kernel_state.cpp
+        src/runtime.cpp
+        src/tef/patchlib/type.cpp
+        src/tef/patchlib/handle.cpp
+        src/tef/patchlib/field.cpp
+        src/tef/patchlib/method.cpp
+        src/tef/patchlib/property.cpp
+        src/tef/patchlib/struct/string.cpp
 )
 
-target_link_libraries(tefkernel PRIVATE miniaudio_config)
-
-if(ANDROID)
-    target_link_libraries(tefkernel PRIVATE OpenSLES)
-    # AAudio 在 NDK 中通常由 libaaudio 提供，较新 NDK 可显式链接
-    # target_link_libraries(tefkernel PRIVATE aaudio)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(tefkernel PRIVATE dl m pthread)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_link_libraries(tefkernel PRIVATE "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox")
-endif()
-
-# Windows 动态库：强制导出所有符号
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
-    # 启用自动导出所有符号
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    set_target_properties(tefkernel PROPERTIES
-            WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-    )
-
-    # 方法2：链接器选项强制导出
-    target_link_options(tefkernel PRIVATE
-            -Wl,--export-all-symbols
-            -Wl,--enable-auto-import
-            -Wl,--whole-archive
-            -Wl,--kill-at
-    )
-
-    # 链接 Windows 系统库
-    target_link_libraries(tefkernel PRIVATE
-            ws2_32
-            bcrypt
-            winmm
-            dbghelp
-    )
-endif()
-
+target_include_directories(tefkernel
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/includes
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include_abi
+)
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_compile_definitions(tefkernel PRIVATE _DARWIN_C_SOURCE)
-endif()
+# 链接 ABI 静态库 + 依赖
+target_link_libraries(tefkernel PRIVATE
+        tefkernel_abi_terraria
+        miniaudio_config
+        spdlog::spdlog
+)
 
-if (${ANDROID})
-    # set(Plugin.SymbolResolver OFF CACHE BOOL "Enable symbol resolver" FORCE)
+# ---------------------------------------------------------------------------
+# 平台链接
+# ---------------------------------------------------------------------------
+if(ANDROID)
+    target_link_libraries(tefkernel PRIVATE OpenSLES android log)
 
-    set(Plugin.ImportTableReplace OFF CACHE BOOL "Enable import table replace" FORCE)
-    set(Plugin.Android.BionicLinkerUtil OFF CACHE BOOL "Enable android bionic linker util" FORCE)
-    set(DOBBY_BUILD_EXAMPLE OFF CACHE BOOL "Build example" FORCE)
-    set(DOBBY_BUILD_TEST OFF CACHE BOOL "Build test" FORCE)
-    set(DOBBY_BUILD_KERNEL_MODE OFF CACHE BOOL "Build xnu kernel mode" FORCE)
-    set(Private.Obfuscation OFF CACHE BOOL "Enable llvm obfuscation" FORCE)
-    set(FullFloatingPointRegisterPack OFF CACHE BOOL "Save and pack all floating-point registers" FORCE)
-    set(DOBBY_DEBUG OFF CACHE BOOL "Enable debug logging" FORCE) # 生产环境建议关闭
+    set(Plugin.ImportTableReplace OFF CACHE BOOL "" FORCE)
+    set(Plugin.Android.BionicLinkerUtil OFF CACHE BOOL "" FORCE)
+    set(DOBBY_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+    set(DOBBY_BUILD_TEST OFF CACHE BOOL "" FORCE)
+    set(DOBBY_BUILD_KERNEL_MODE OFF CACHE BOOL "" FORCE)
+    set(Private.Obfuscation OFF CACHE BOOL "" FORCE)
+    set(FullFloatingPointRegisterPack OFF CACHE BOOL "" FORCE)
+    set(DOBBY_DEBUG OFF CACHE BOOL "" FORCE)
 
     add_subdirectory(libs/libffi)
     add_subdirectory(libs/xdl)
     add_subdirectory(libs/dobby)
-    target_link_libraries(tefkernel
-            PUBLIC
-            android
-            log
-            dobby_static
-            xdl
-            libffi
-    )
 
+    target_link_libraries(tefkernel PUBLIC dobby_static xdl libffi)
     target_include_directories(tefkernel PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/libs/libffi/include
             ${CMAKE_CURRENT_BINARY_DIR}/libs/libffi/include
     )
+    target_link_options(tefkernel PRIVATE
+            -static-libstdc++
+            -Wl,--exclude-libs,ALL
+    )
 
-    target_link_options(tefkernel PRIVATE -static-libstdc++)
-    # 不要导出静态链接进来的 C++ 运行时/libunwind/libffi 符号。
-    # 否则后加载的扩展库会把它的 __gxx_personality_v0/__cxa_* 绑定到内核这份，
-    # 与它自己的 unwinder 混用，异常展开时在 unw_get_proc_info 里崩。
-    target_link_options(tefkernel PRIVATE -Wl,--exclude-libs,ALL)
-endif ()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(tefkernel PRIVATE dl m pthread)
+    target_link_options(tefkernel PRIVATE
+            -static-libstdc++
+            -static-libgcc
+    )
 
-# Windows(MinGW) 下把 gcc/winpthread 运行时也静态链接进 DLL，
-# 否则产物会依赖 libwinpthread-1.dll —— 玩家机器上没有就会加载失败。
-if(MINGW OR (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND CMAKE_C_COMPILER_ID STREQUAL "GNU"))
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(tefkernel PRIVATE
+            "-framework CoreFoundation"
+            "-framework CoreAudio"
+            "-framework AudioToolbox"
+    )
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set_target_properties(tefkernel PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    target_link_libraries(tefkernel PRIVATE ws2_32 bcrypt winmm dbghelp)
     target_link_options(tefkernel PRIVATE
             -static-libgcc
+            -static-libstdc++
             -Wl,-Bstatic
             -lwinpthread
             -Wl,-Bdynamic
     )
 endif()
 
-target_include_directories(tefkernel
-        PUBLIC
-        include
-        src
-)
-
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
-        add_custom_command(TARGET tefkernel POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
-                COMMAND ${CMAKE_STRIP} --strip-all $<TARGET_FILE:tefkernel>
-                COMMENT "Stripping symbols from tefkernel library using strip command"
-                VERBATIM
-        )
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        # macOS 使用不同的 strip 选项
-        add_custom_command(TARGET tefkernel POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
-                COMMAND ${CMAKE_STRIP} -S $<TARGET_FILE:tefkernel>
-                COMMENT "Stripping symbols from tefkernel library using strip command"
-                VERBATIM
-        )
-    endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_definitions(tefkernel PRIVATE _DARWIN_C_SOURCE)
 endif()
 
-# 获取系统名称和架构
+# ---------------------------------------------------------------------------
+# 输出名
+# ---------------------------------------------------------------------------
 if(ANDROID)
     set(SYSTEM_NAME "android")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -304,46 +289,25 @@ else()
     set(SYSTEM_NAME "unknown")
 endif()
 
-# 获取架构
-
 if(ANDROID)
-    # Android 使用 NDK 的 ABI 名称
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
-        set(ARCH "arm64-v8a")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        set(ARCH "armeabi-v7a")
-    else()
-        set(ARCH "${ANDROID_ABI}")
-    endif()
+    set(ARCH "${ANDROID_ABI}")
 elseif(MINGW OR WIN32)
-    # Windows: 通过编译器名称判断架构
-    if(CMAKE_C_COMPILER MATCHES "x86_64-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "x86_64-w64-mingw32")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(ARCH "x86_64")
-    elseif(CMAKE_C_COMPILER MATCHES "i686-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "i686-w64-mingw32")
-        set(ARCH "x86")
     else()
-        # 备用方案：通过指针大小判断
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(ARCH "x86_64")
-        else()
-            set(ARCH "x86")
-        endif()
+        set(ARCH "x86")
     endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    # macOS: 优先根据 CMAKE_OSX_ARCHITECTURES 判断目标架构（支持在 ARM64 macOS runner 上编译 x86_64）
     if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
         set(ARCH "x86_64")
     elseif(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
         set(ARCH "arm64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
         set(ARCH "arm64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
-        set(ARCH "x86_64")
     else()
-        set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+        set(ARCH "x86_64")
     endif()
 else()
-    # 非 Android/Windows/macOS 平台使用系统处理器名称
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
         set(ARCH "arm64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7a|ARMv7|arm")
@@ -357,28 +321,23 @@ else()
     endif()
 endif()
 
-#[[
-message(STATUS "========== DEBUG ==========")
-message(STATUS "SYSTEM_NAME: ${SYSTEM_NAME}")
-message(STATUS "ARCH: ${ARCH}")
-message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
-message(STATUS "WIN32: ${WIN32}")
-message(STATUS "MINGW: ${MINGW}")
-message(STATUS "============================")]]
+set_target_properties(tefkernel PROPERTIES OUTPUT_NAME "tefkernel.${SYSTEM_NAME}.${ARCH}")
 
-
-# 设置输出文件名
-set_target_properties(tefkernel PROPERTIES
-    OUTPUT_NAME "tefkernel.${SYSTEM_NAME}.${ARCH}"
-)
-#[[
-
-set(TEST ON)
-if (${TEST})
-    include_directories(include)
-
-    add_library(test_module SHARED
-            test/module.c
-    )
-endif ()]]
+# ---------------------------------------------------------------------------
+# Release strip
+# ---------------------------------------------------------------------------
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
+        add_custom_command(TARGET tefkernel POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
+                COMMAND ${CMAKE_STRIP} --strip-all $<TARGET_FILE:tefkernel>
+                VERBATIM
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        add_custom_command(TARGET tefkernel POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
+                COMMAND ${CMAKE_STRIP} -S $<TARGET_FILE:tefkernel>
+                VERBATIM
+        )
+    endif()
+endif()
