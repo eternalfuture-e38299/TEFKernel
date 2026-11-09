@@ -82,6 +82,8 @@ namespace terraria::content {
                                         int base, int new_size, bool modal,
                                         int int_fill, bool fill_with_int);
 
+        void resize_projectile_set_factory(int new_size);
+
         void register_item_animation(const terraria_projectile_handle_t *h, int type) const;
 
         // ---- 钩子（static 自由函数） ----

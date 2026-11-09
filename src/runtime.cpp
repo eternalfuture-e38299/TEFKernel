@@ -302,6 +302,12 @@ namespace tef::runtime {
         plugin::plugin_registry::init_kernel();
         debug("Initialized libtefkernel");
 
+        const char *wd = state::working_dir();
+        if (!wd || !*wd) {
+            error("runtime init: working dir is not set, skip package loading");
+            return;
+        }
+
         load_single_pkg_type("modloader", g_modloader_pkgs);
         scan_pkg_dir("plugin", g_plugin_pkgs);
         load_single_pkg_type("module", g_module_pkgs);

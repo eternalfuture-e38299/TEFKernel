@@ -309,6 +309,36 @@ static char *read_first_line(const char *filepath) {
     return line;
 }
 
+/* 纯 native 读取 tefkernel_working_dir。
+ *
+ * 这个配置文件是“一次性”的：游戏启动后很快会被加载器/管理器删掉。
+ * 重构前是在 constructor 里同步读取，所以几乎不会错过；重构后如果放进
+ * 后台线程、等 JavaVM / JNI 就绪再读，就可能已经被删除，导致工作目录为空、
+ * 跳过所有包加载，甚至后续黑屏。
+ *
+ * 这里直接用 /proc/self/cmdline 推出 /data/data/<pkg>/files，完全不碰 JNI，
+ * 可以在 constructor 里安全地第一时间读取。 */
+static char *read_config_working_dir_native() {
+    char cmdline[256] = {};
+    FILE *f = std::fopen("/proc/self/cmdline", "rb");
+    if (!f) return nullptr;
+    const size_t n = std::fread(cmdline, 1, sizeof(cmdline) - 1, f);
+    std::fclose(f);
+    if (n == 0) return nullptr;
+
+    char pkg[256];
+    size_t i = 0;
+    for (; i + 1 < sizeof(pkg) && i < n && cmdline[i] != '\0'; ++i)
+        pkg[i] = cmdline[i];
+    pkg[i] = '\0';
+    if (pkg[0] == '\0') return nullptr;
+
+    char path[512];
+    std::snprintf(path, sizeof(path),
+                  "/data/data/%s/files/tefkernel_working_dir", pkg);
+    return read_first_line(path);
+}
+
 // ============================================================================
 // iohook
 // ============================================================================
@@ -393,6 +423,13 @@ static int tefkernel_entry() {
     tef::log::init(nullptr);
     tef::crash::init();
 
+    /* 先同步抢读一次性配置（纯 native，不依赖 ART），与重构前的行为一致。 */
+    if (char *native_dir = read_config_working_dir_native()) {
+        info("Found config (native), working dir: {}", native_dir);
+        tef::state::set_working_dir(native_dir);
+        std::free(native_dir);
+    }
+
     std::thread([] {
         info("TEFKernel initializing");
 
@@ -405,37 +442,52 @@ static int tefkernel_entry() {
         if (!vm) { error("Failed to obtain JavaVM"); return; }
 
         if (char *data_dir = get_current_app_data_dir(vm)) {
-            char config_path[512];
-            std::snprintf(config_path, sizeof(config_path),
-                          "%s/tefkernel_working_dir", data_dir);
-
-            if (access(config_path, F_OK) == 0) {
-                if (char *line = read_first_line(config_path)) {
-                    info("Found config, working dir: {}", line);
-                    if (tefkernel_working_dir) std::free(tefkernel_working_dir);
-                    tefkernel_working_dir = strdup(line);
-                    std::free(line);
-                } else {
-                    warn("Config exists but cannot read");
-                }
+            if (tef::state::working_dir()) {
+                /* constructor 里已经用 /proc/self/cmdline 抢读到配置，
+                 * 这里不要再碰一次性配置文件。 */
+                debug("Working dir already resolved in constructor");
             } else {
-                debug("Config missing, running iohook");
-                init_iohook(vm);
+                char config_path[512];
+                std::snprintf(config_path, sizeof(config_path),
+                              "%s/tefkernel_working_dir", data_dir);
+
+                if (access(config_path, F_OK) == 0) {
+                    if (char *line = read_first_line(config_path)) {
+                        info("Found config, working dir: {}", line);
+                        if (tefkernel_working_dir) std::free(tefkernel_working_dir);
+                        tefkernel_working_dir = strdup(line);
+                        std::free(line);
+                    } else {
+                        warn("Config exists but cannot read");
+                    }
+                } else {
+                    debug("Config missing, running iohook");
+                    init_iohook(vm);
+                }
             }
             std::free(data_dir);
-        } else {
+        } else if (!tef::state::working_dir()) {
             warn("Failed to get data dir, running iohook");
             init_iohook(vm);
         }
 
-        // 把工作目录交给 tef::state 管理（接管所有权）
-        tef::state::set_working_dir(tefkernel_working_dir);
+        // 把工作目录交给 tef::state 管理（接管所有权）。
+        // 注意：走 iohook 路径时，working dir 已由 init_iohook() 通过
+        // cp_call_get_external_dir() 写进 tef::state；此时
+        // tefkernel_working_dir 仍为 null。若无条件再传一次 null，
+        // 会把刚设置好的路径清空，随后 runtime init 里
+        // std::string(working_dir()) 会 strlen(NULL) 崩溃。
+        if (tefkernel_working_dir) {
+            tef::state::set_working_dir(tefkernel_working_dir);
+            tefkernel_working_dir = nullptr; // 所有权已转移给 tef::state
+        }
 
         // 日志目录（若工作目录已知则切换到文件日志）
+        const char *working_dir = tef::state::working_dir();
         char log_dir[512];
         char log_cfg[512] = {};
         std::snprintf(log_dir, sizeof(log_dir), "%s/logs/tefkernel",
-                      tefkernel_working_dir ? tefkernel_working_dir : "");
+                      working_dir ? working_dir : "");
 
         struct stat st{};
         if (stat(log_dir, &st) == 0 && S_ISDIR(st.st_mode)) {

@@ -54,8 +54,13 @@ namespace terraria {
         static void initialize_postfix(patch_handle_t this_, void **args, void *result,
                                        const patch_method_signature_t *sig);
 
+        static void almost_everything_postfix(patch_handle_t this_, void **args,
+                                              void *result,
+                                              const patch_method_signature_t *sig);
+
         // hook 不卸载，仅保留 id 供诊断
         patch_hook_id_t h_initialize_ = PATCH_HOOK_INVALID_ID;
+        patch_hook_id_t h_almost_everything_ = PATCH_HOOK_INVALID_ID;
 
         patchlib::field f_cur_release_;
         patchlib::field f_instance_;

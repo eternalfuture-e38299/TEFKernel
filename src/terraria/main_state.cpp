@@ -60,6 +60,16 @@ namespace terraria {
                 initialize_postfix);
         }
 
+        /* 内容/贴图/静态表在 Main.Initialize 结束时还没准备好，必须等
+         * Initialize_AlmostEverything 之后再注入；否则会黑屏或贴图丢失。
+         * 这与重构前的 hook 时机保持一致。 */
+        if (const auto m = main_cls.get_method("Initialize_AlmostEverything", 0)) {
+            h_almost_everything_ = patchlib_install_prepost_hook(
+                m.raw(),
+                nullptr,
+                almost_everything_postfix);
+        }
+
         init::register_all(is_server);
     }
 
@@ -69,6 +79,12 @@ namespace terraria {
     }
 
     void main_state::initialize_postfix(patch_handle_t, void **, void *, const patch_method_signature_t *) {
+        /* Main.Initialize 结束时贴图/内容表还没就绪，这里不做注入。
+         * 真正的 resize / init_texture2d / init_static 放到
+         * Initialize_AlmostEverything 之后执行。 */
+    }
+
+    void main_state::almost_everything_postfix(patch_handle_t, void **, void *, const patch_method_signature_t *) {
         init::bootstrap::instance().run_main_initialize_postfix();
     }
 

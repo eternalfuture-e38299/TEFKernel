@@ -403,6 +403,23 @@ namespace terraria::content {
         log::info("projectile resize: {} {} -> {}", name, len, new_size);
     }
 
+    void projectile_registry::resize_projectile_set_factory(int new_size) {
+        const auto pid = patchlib::type("Terraria.ID", "ProjectileID");
+        if (!pid) return;
+        const auto sets = pid.get_inner_type("Sets");
+        if (!sets) return;
+        const auto f_factory = sets.get_field("Factory");
+        if (!f_factory) return;
+        const auto factory = f_factory.get_value<patchlib::handle>();
+        if (!factory) return;
+        const auto sf = patchlib::type("Terraria.ID", "SetFactory");
+        if (!sf) return;
+        auto f_size = sf.get_field("_size");
+        if (!f_size) return;
+        f_size.set_value(factory, new_size);
+        log::info("projectile resize: ProjectileID.Sets.Factory._size -> {}", new_size);
+    }
+
     void projectile_registry::resize() {
         const int base = id_count();
         if (base <= 0) return;
@@ -430,6 +447,7 @@ namespace terraria::content {
                     f.set_value(patchlib::handle(bigger));
                 }
             }
+            resize_projectile_set_factory(new_size);
         }
 
         // Main.projFrames/projPet/projHook/projHostile
