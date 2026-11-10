@@ -37,6 +37,7 @@
 #include "internal/terraria/content/buff_manager.h"
 #include "internal/terraria/content/prefix_manager.h"
 #include "internal/terraria/gui.h"
+#include "internal/terraria/content/keybind_manager.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
 #include "internal/terraria/save/tef_player_save.h"
 #include "internal/terraria/save/tef_world_save.h"
@@ -132,6 +133,7 @@ API_EXPORT int init_tefkernel(const char *workdir, bool is_server) {
   terraria_buff_manager_init();
   terraria_prefix_manager_init();
   terraria_gui_init();
+  terraria_keybind_manager_init();
   tef_save_game_handles_init();
   tef_player_save_init();
   tef_world_save_init();
