@@ -54,7 +54,20 @@ typedef struct terraria_keybind_desc_t {
 
 玩家在菜单里改键后，`KeyStatus` 更新，`PlayerInput.Triggers` 自动反映新键，Mod 无需重新注册。
 
-## 测试模块
+## 持久化
+
+键位配置独立保存为 **`<tefkernel_working_dir>/tefkernel.keybinds.tef`**（TEFSAVE 格式，kind=3）。
+
+- 写入时机：
+  - 游戏 `PlayerInput.Save()` 后（即「设置 → 控制」保存/退出时）；
+  - 内核 `terraria_keybind_manager_shutdown()`（游戏退出 / 加载器卸载）。
+- 读取时机：`terraria_keybind_manager_init()`，按 `(modloader_id, mod_id, id)` 匹配；
+  注册时用保存的键覆盖 `default_key`（空字符串表示玩家主动取消绑定）。
+- 玩家在原生菜单改键后，下次启动会自动恢复。
+- 如果当前 Profile 不可用，保存会跳过而不是用默认键覆盖已有配置。
+
+> 配置文件只保存 Mod 自定义键位；原版键位仍由游戏自己的 `input profiles` 管理。
+
 
 `test/keybind_test.c`：
 
