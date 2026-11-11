@@ -63,4 +63,6 @@
 
 #if defined(__ANDROID__)
 #include "terraria/content/button_manager.h"
+#else
+#include "terraria/content/keybind_manager.h"
 #endif

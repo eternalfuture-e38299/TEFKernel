@@ -13,6 +13,7 @@
 #include "button_scroll.h"
 #include "button_state.h"
 #include "button_store.h"
+#include "internal/kernel_state.h"
 #include "patchlib/field.h"
 #include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
@@ -60,6 +61,8 @@ typedef struct button_api_t {
     patch_handle_t panel;
     patch_handle_t setting;
     patch_handle_t quick;
+    patch_handle_t quick_force;
+    patch_handle_t quick_state;
     patch_handle_t editor;
     patch_handle_t interface_edit;
     patch_handle_t cursor;
@@ -174,6 +177,9 @@ typedef struct button_quick_draw_t {
     button_draw_context_t context;
     bool radial;
     bool pressed;
+    bool state_forced;
+    bool old_force;
+    int old_state;
 } button_quick_draw_t;
 
 typedef struct button_group_draw_t {
@@ -220,7 +226,11 @@ static patch_hook_id_t hooks[BUTTON_MAX_HOOKS];
 static size_t hook_count;
 static bool ready;
 static char reason[256] = "native touch bindings require Android arm64";
-static char storage_directory[1024];
+/* 槽位 -> 动作的映射不能存在游戏存档里（原生布局每个槽位只记录一个动作 id），
+ * 否则重启后槽位会变成空壳。这份映射由内核自己管理、保存在工作目录下，
+ * Mod 只需要注册按键和使用按键。 */
+static bool store_loaded;
+static bool bindings_dirty;
 static unsigned long long image_serial;
 static unsigned long long tick;
 static int action_generation;
@@ -422,6 +432,50 @@ static bool ui_blocked(void) {
     return !controller || invoke_bool(api.ui_open, controller, NULL);
 }
 
+/* 内核自己决定存档位置：工作目录下的 controls_bindings.dat，
+ * 与桌面端键位存档同一个约定，Mod 和加载器都不用操心。 */
+static const char *storage_root(void) {
+    return (tefkernel_working_dir && tefkernel_working_dir[0])
+               ? tefkernel_working_dir
+               : "";
+}
+
+/* 启动时读一次。工作目录由库构造器在 il2cpp_init 之前发布，
+ * 万一还没就绪就先返回，下一帧再试。 */
+static void load_store(void) {
+    if (store_loaded) return;
+    const char *root = storage_root();
+    if (!root[0]) return;
+    store_loaded = true;
+    if (!button_store_load(&state, root)) {
+        BUTTON_LOG_WARN("[button-manager] binding configuration ignored");
+        return;
+    }
+    BUTTON_LOG_INFO("[button-manager] store '%s': %zu bindings loaded", root,
+                    state.bindings.count);
+}
+
+/* 编辑后落盘：安卓直接杀进程时游戏不会走保存回调，
+ * 所以不等 VirtualControlsStyles_Layout.SaveConfiguration，每帧最多写一次。 */
+static void save_store(void) {
+    if (!bindings_dirty) return;
+    load_store();
+    const char *root = storage_root();
+    if (!root[0]) return; /* 目录还没就绪，保留脏标记下次再写 */
+    if (!button_store_save(&state, root)) {
+        BUTTON_LOG_WARN("[button-manager] binding save failed");
+        return;
+    }
+    bindings_dirty = false;
+}
+
+/* 只在数量真的变了时打一行，方便发现"谁把映射抹了"。 */
+static void report_binding_delta(const char *what, size_t before) {
+    if (state.bindings.count == before) return;
+    BUTTON_LOG_INFO("[button-manager] %s: %zu -> %zu bindings", what, before,
+                    state.bindings.count);
+}
+
 static bool contains(button_rect_t rect, float x, float y) {
     return rect.width > 0 && rect.height > 0 && x >= (float)rect.x &&
            y >= (float)rect.y && x < (float)(rect.x + rect.width) &&
@@ -508,6 +562,7 @@ static void custom_binding(patch_handle_t binding, int group_index, char *output
     if (slot[0] == '\0') return;
 
     int action = unbound_action;
+    bool temporary = false;
     char lookup_slot[1024];
     if (group_index >= 0) {
         patch_handle_t groups =
@@ -517,26 +572,27 @@ static void custom_binding(patch_handle_t binding, int group_index, char *output
             !patchlib_array_at(groups, (size_t)group_index, &action)) {
             return;
         }
-        const bool temporary =
+        if (action != unbound_action && action != carrier_action) return;
+        temporary =
+            action == carrier_action &&
             render_group_contains(groups, (size_t)group_index);
-        if (action != unbound_action &&
-            !(temporary && action == carrier_action)) {
-            return;
-        }
         group_slot(slot, group_index, lookup_slot, sizeof(lookup_slot));
     } else {
         action = field_read_int(api.binding_action, binding);
-        if (action != unbound_action &&
-            !(action == carrier_action && render_binding_contains(binding))) {
-            return;
-        }
+        if (action != unbound_action && action != carrier_action) return;
+        temporary =
+            action == carrier_action && render_binding_contains(binding);
         copy_text(lookup_slot, sizeof(lookup_slot), slot);
     }
 
     char profile[1024];
     profile_key(profile, sizeof(profile));
-    copy_text(output, size,
-              button_state_get_binding(&state, profile, lookup_slot));
+    const char *key = button_state_get_binding(&state, profile, lookup_slot);
+    /* 不在本帧替换窗口里的 carrier 只可能是保存时恰好写进去的残留值。
+     * 有映射说明这个槽位是我们的，保持按钮可用，
+     * 下一帧 runtime 替换会把它改回未绑定。 */
+    if (action == carrier_action && !temporary && key[0] == '\0') return;
+    copy_text(output, size, key);
 }
 
 static void custom_slot(patch_handle_t slot, char *output, size_t size) {
@@ -582,6 +638,59 @@ static void setting_slot(patch_handle_t setting, char *output, size_t size) {
         group_slot(slot, index, output, size);
     } else {
         copy_text(output, size, slot);
+    }
+}
+
+/* 空壳诊断：编辑菜单打开时，把当前 profile 的原生槽位（SlotId + 动作值 + 命中
+ * 到的映射）和已注册动作 key 打一次日志。用来区分三种情况：
+ *   1. 存档没读到（看 store 那行的条数）；
+ *   2. profile Id / SlotId 重启后变了（对比 mapped 与 slot 两行的字符串）；
+ *   3. 槽位动作值被游戏改写（action 不是 28/27）。
+ * 每个 profile 只打一次，正常游玩不会刷屏。 */
+static char reported_profile[1024];
+
+static void report_layout_once(void) {
+    char profile[1024];
+    profile_key(profile, sizeof(profile));
+    if (profile[0] == '\0' || strcmp(profile, reported_profile) == 0) return;
+    patch_handle_t handle = profile_handle();
+    patch_handle_t controls =
+        handle ? field_read_handle(api.profile_controls, handle) : PATCH_NULL;
+    if (!controls) return;
+    copy_text(reported_profile, sizeof(reported_profile), profile);
+
+    const size_t count = patchlib_array_length(controls);
+    size_t mapped = 0;
+    for (size_t i = 0; i < state.bindings.count; ++i) {
+        if (strcmp(state.bindings.items[i].profile, profile) == 0) ++mapped;
+    }
+    BUTTON_LOG_INFO(
+        "[button-manager] profile '%s': %zu slots, %zu mappings, %zu actions",
+        profile, count, mapped, state.action_count);
+
+    for (size_t i = 0; i < count && i < 16; ++i) {
+        patch_handle_t binding = PATCH_NULL;
+        if (!patchlib_array_at(controls, i, &binding) || !binding) continue;
+        const int action = field_read_int(api.binding_action, binding);
+        if (action != unbound_action && action != carrier_action) continue;
+        char slot[1024];
+        copy_managed_string(slot, sizeof(slot),
+                            field_read_handle(api.binding_slot, binding));
+        char key[513];
+        custom_binding(binding, -1, key, sizeof(key));
+        BUTTON_LOG_INFO("[button-manager]   slot '%s' action %d -> '%s'", slot,
+                        action, key);
+    }
+    for (size_t i = 0, shown = 0;
+         i < state.bindings.count && shown < 16; ++i) {
+        if (strcmp(state.bindings.items[i].profile, profile) != 0) continue;
+        BUTTON_LOG_INFO("[button-manager]   mapped '%s' -> '%s'",
+                        state.bindings.items[i].slot,
+                        state.bindings.items[i].key);
+        ++shown;
+    }
+    for (size_t i = 0; i < state.action_count && i < 16; ++i) {
+        BUTTON_LOG_INFO("[button-manager]   action '%s'", state.actions[i].key);
     }
 }
 
@@ -1059,6 +1168,9 @@ static bool resolve_api(void) {
     api.rect = method_handle(utils, "DrawInvBG", 3);
     api.text = method_handle(utils, "DrawBorderString", 8);
     api.get_region = method_handle(api.quick, "GetRegionWithoutPicking", 1);
+    /* 原生按钮的按下/禁用外观由静态强制状态驱动 */
+    api.quick_force = field_handle(api.quick, "ForceOverrideState");
+    api.quick_state = field_handle(api.quick, "ForcedState");
     patch_handle_t transaction = type_handle("GUITransactionButton", "");
     if (!transaction) return false;
     api.transaction_region = method_handle(transaction, "GetRegion", 1);
@@ -1190,14 +1302,34 @@ static void push_change(const char *profile, const char *slot) {
     copy_text(change->slot, sizeof(change->slot), slot);
 }
 
+/* 读原生槽位当前的动作值，用来判断 UpdateValue 是真的改键，
+ * 还是游戏把现有值重新写一遍。 */
+static int current_native_value(int index) {
+    patch_handle_t binding = active_control();
+    if (!binding) return empty_option;
+    if (index >= 0) {
+        patch_handle_t groups =
+            field_read_handle(api.binding_groups, binding);
+        int value = unbound_action;
+        if (!groups || index >= 4 ||
+            (size_t)index >= patchlib_array_length(groups) ||
+            !patchlib_array_at(groups, (size_t)index, &value)) {
+            return empty_option;
+        }
+        return value;
+    }
+    return field_read_int(api.binding_action, binding);
+}
+
 static bool update_prefix(patch_handle_t setting, void **arguments,
                           const patch_method_signature_t *signature,
                           void *result) {
     (void)signature;
     (void)result;
+    const int requested =
+        arguments && arguments[0] ? *(int *)arguments[0] : empty_option;
     if (arguments && arguments[0]) {
-        button_action_t *action =
-            action_from_native_id(*(int *)arguments[0]);
+        button_action_t *action = action_from_native_id(requested);
         if (action) {
             char profile[1024];
             char slot[1024];
@@ -1213,11 +1345,13 @@ static bool update_prefix(patch_handle_t setting, void **arguments,
             invoke_void(api.update_value, setting, &nested);
             selecting = false;
             button_state_set_binding(&state, profile, slot, action->key);
+            bindings_dirty = true;
             return true;
         }
     }
 
-    if (!selecting && setting_index(setting) != -2) {
+    const int index = setting_index(setting);
+    if (!selecting && editing() && index != -2 && requested != current_native_value(index)) {
         char profile[1024];
         char slot[1024];
         profile_key(profile, sizeof(profile));
@@ -1237,12 +1371,19 @@ static void change_postfix(patch_handle_t instance, void **arguments,
     if (change_count == 0) return;
     const button_change_t change = changes[--change_count];
     if (change.profile[0] == '\0') return;
+    const bool had_mapping =
+        button_state_get_binding(&state, change.profile, change.slot)[0] != '\0';
     button_state_erase_binding(&state, change.profile, change.slot);
     for (int i = 0; i < 4; ++i) {
         char slot[1024];
         group_slot(change.slot, i, slot, sizeof(slot));
         button_state_erase_binding(&state, change.profile, slot);
     }
+    if (had_mapping) {
+        BUTTON_LOG_INFO("[button-manager] unbind '%s' slot '%s'",
+                        change.profile, change.slot);
+    }
+    bindings_dirty = true;
 }
 
 static bool remove_slot_prefix(patch_handle_t instance, void **arguments,
@@ -1295,7 +1436,9 @@ static bool undo_prefix(patch_handle_t instance, void **arguments,
     (void)signature;
     (void)result;
     history_transition = true;
+    const size_t before = state.bindings.count;
     if (invoke_bool(api.has_undo, instance, NULL)) button_state_undo(&state);
+    report_binding_delta("undo", before);
     return false;
 }
 
@@ -1305,7 +1448,9 @@ static bool redo_prefix(patch_handle_t instance, void **arguments,
     (void)signature;
     (void)result;
     history_transition = true;
+    const size_t before = state.bindings.count;
     if (invoke_bool(api.has_redo, instance, NULL)) button_state_redo(&state);
+    report_binding_delta("redo", before);
     return false;
 }
 
@@ -1316,6 +1461,7 @@ static void history_done(patch_handle_t instance, void **arguments, void *result
     (void)result;
     (void)signature;
     history_transition = false;
+    bindings_dirty = true;
 }
 
 static void redo_clear(patch_handle_t instance, void **arguments, void *result,
@@ -1345,8 +1491,11 @@ static void cancel_postfix(patch_handle_t instance, void **arguments,
     (void)arguments;
     (void)result;
     (void)signature;
+    const size_t before = state.bindings.count;
     button_state_cancel_edit(&state);
     clear_input();
+    bindings_dirty = true;
+    report_binding_delta("cancel edit", before);
 }
 
 static void history_postfix(patch_handle_t instance, void **arguments,
@@ -1375,13 +1524,15 @@ static void save_postfix(patch_handle_t instance, void **arguments, void *result
     (void)arguments;
     (void)result;
     (void)signature;
-    if (storage_directory[0] &&
-        !button_store_save(&state, storage_directory)) {
-        BUTTON_LOG_WARN("[button-manager] binding save failed");
-    }
+    bindings_dirty = true;
+    save_store();
     button_profile_cache_invalidate(&profile_cache);
 }
 
+/* 游戏每次启动都会自己调用 SetAllConfigurationsToDefault 重建内置默认配置，
+ * 那不是玩家操作，所以这里不能动 Mod 的槽位映射 —— 否则每次启动都会把映射抹掉。
+ * 玩家真正能清掉映射的路径是：编辑器里的 RestoreDefaults（default_postfix）、
+ * 删除槽位（remove_slot_prefix）、给槽位改绑原生动作（change_postfix）。 */
 static void reset_postfix(patch_handle_t instance, void **arguments,
                           void *result,
                           const patch_method_signature_t *signature) {
@@ -1389,10 +1540,11 @@ static void reset_postfix(patch_handle_t instance, void **arguments,
     (void)arguments;
     (void)result;
     (void)signature;
-    button_state_clear_bindings(&state);
-    button_state_clear_history(&state);
+    if (editing()) {
+        BUTTON_LOG_INFO(
+            "[button-manager] layout reset while editing, bindings kept");
+    }
     clear_input();
-    if (storage_directory[0]) button_store_save(&state, storage_directory);
     button_profile_cache_invalidate(&profile_cache);
 }
 
@@ -1417,8 +1569,11 @@ static void paste_postfix(patch_handle_t instance, void **arguments,
     (void)signature;
     char profile[1024];
     profile_key(profile, sizeof(profile));
+    const size_t before = state.bindings.count;
     button_state_paste_profile(&state, profile);
     clear_input();
+    bindings_dirty = true;
+    report_binding_delta("paste profile", before);
     button_profile_cache_invalidate(&profile_cache);
 }
 
@@ -1431,8 +1586,11 @@ static void default_postfix(patch_handle_t instance, void **arguments,
     (void)signature;
     char profile[1024];
     profile_key(profile, sizeof(profile));
+    const size_t before = state.bindings.count;
     button_state_clear_profile(&state, profile);
     clear_input();
+    bindings_dirty = true;
+    report_binding_delta("restore defaults", before);
     button_profile_cache_invalidate(&profile_cache);
 }
 
@@ -1550,6 +1708,7 @@ static void install_manager(void) {
     }
     ready = true;
     reason[0] = '\0';
+    load_store();
     BUTTON_LOG_INFO("[button-manager] installed %zu native hooks", hook_count);
 #endif
 }
@@ -1566,21 +1725,27 @@ static void shutdown_manager(void) {
     runtime_depth = 0;
     history_transition = false;
     selecting = false;
+    save_store();
     button_profile_cache_invalidate(&profile_cache);
     button_image_clear();
     reason[0] = '\0';
     copy_text(reason, sizeof(reason), "native touch bindings are shut down");
+    store_loaded = false;
+    bindings_dirty = false;
+    reported_profile[0] = '\0';
     button_state_destroy(&state);
     button_state_init(&state);
 }
 
+/* 存档位置由内核统一管理（工作目录），这里保留入口只是为了让既有加载器的
+ * 接口探测不失败；传入的目录会被忽略，绑定的生命周期不归 Mod 管。 */
 static void configure_storage(const char *directory) {
-    if (!directory || *directory == '\0') return;
-    copy_text(storage_directory, sizeof(storage_directory), directory);
-    button_state_clear_interaction_state(&state);
-    if (!button_store_load(&state, storage_directory)) {
-        BUTTON_LOG_WARN("[button-manager] binding configuration ignored");
-    }
+    (void)directory;
+    static bool reported;
+    if (reported) return;
+    reported = true;
+    BUTTON_LOG_INFO(
+        "[button-manager] storage is managed by the kernel; directory ignored");
 }
 
 bool terraria_button_manager_available(void) {
@@ -2228,6 +2393,28 @@ static bool slot_prefix(patch_handle_t instance, void **arguments,
     return false;
 }
 
+/* 画一颗 Mod 按钮的图标/文字。必须在批处理有效期间调用
+ * （GUIQuickActionButton.Draw 内部），否则画不进去。 */
+static void draw_mod_button_face(const button_action_t *action,
+                                 button_rect_t bounds) {
+    if (!action || bounds.width <= 0 || bounds.height <= 0) return;
+    patch_handle_t batch = sprite_batch();
+    if (!batch) return;
+
+    const int size = bounds.width < bounds.height ? bounds.width : bounds.height;
+    const int icon_size = size * 3 / 4;
+    const button_rect_t icon = {
+        bounds.x + (bounds.width - icon_size) / 2,
+        bounds.y + (bounds.height - icon_size) / 2, icon_size, icon_size};
+    const bool has_icon = draw_action_icon(action, icon);
+    if (!has_icon && action->show_label) {
+        draw_text(action->name, bounds,
+                  action->enabled ? make_color(245, 247, 255, 255)
+                                  : make_color(130, 135, 150, 255),
+                  true);
+    }
+}
+
 static void slot_postfix(patch_handle_t instance, void **arguments, void *result,
                          const patch_method_signature_t *signature) {
     (void)instance;
@@ -2473,6 +2660,35 @@ static bool group_cursor_prefix(patch_handle_t controller, void **arguments,
     return false;
 }
 
+/* 让原生按钮按我们按键的状态来画：按下 -> Pressed，禁用 -> Disabled，其余 Normal。
+ * InteractionState 枚举顺序是 Disabled=0, Pressed=1, Normal=2。
+ * 值保存在 draw->old_* 里，postfix 立刻恢复，原生按钮不受影响。 */
+static void force_draw_state(button_quick_draw_t *draw,
+                             const button_action_t *action) {
+    if (!api.quick_force || !api.quick_state) return;
+    draw->old_force = field_read_bool(api.quick_force, PATCH_NULL);
+    draw->old_state = field_read_int(api.quick_state, PATCH_NULL);
+    const int forced = !action->enabled ? 0 : (draw->pressed ? 1 : 2);
+    const bool enable = true;
+    if (!field_write(api.quick_force, PATCH_NULL, &enable, sizeof(enable)) ||
+        !field_write(api.quick_state, PATCH_NULL, &forced, sizeof(forced))) {
+        field_write(api.quick_force, PATCH_NULL, &draw->old_force,
+                    sizeof(draw->old_force));
+        field_write(api.quick_state, PATCH_NULL, &draw->old_state,
+                    sizeof(draw->old_state));
+        return;
+    }
+    draw->state_forced = true;
+}
+
+static void restore_draw_state(const button_quick_draw_t *draw) {
+    if (!draw->state_forced || !api.quick_force || !api.quick_state) return;
+    field_write(api.quick_force, PATCH_NULL, &draw->old_force,
+                sizeof(draw->old_force));
+    field_write(api.quick_state, PATCH_NULL, &draw->old_state,
+                sizeof(draw->old_state));
+}
+
 static bool quick_prefix(patch_handle_t instance, void **arguments,
                          const patch_method_signature_t *signature,
                          void *result) {
@@ -2492,15 +2708,21 @@ static bool quick_prefix(patch_handle_t instance, void **arguments,
     button_action_t *action =
         button_state_find_action_by_key(&state, draw->context.key);
     if (!action || !arguments) return false;
+    /* 原生 Draw 用跳转表按 actionType 逐个动作画图标（carrier 27 会画盔甲套装图），
+     * ignoreIcon 管不到那些 case。传一个越界值（> Unbound=35）让它走 default：
+     * 只画按钮底、不画任何图标，图标由 quick_postfix 自己画。 */
+    if (arguments[0]) *(int *)arguments[0] = 36;
+    draw->pressed = action->held;
     if (arguments[2]) {
         if (draw->radial) {
             draw->pressed = *(bool *)arguments[2];
         } else {
-            *(bool *)arguments[2] = action->held;
+            *(bool *)arguments[2] = draw->pressed;
         }
     }
     if (arguments[4]) *(bool *)arguments[4] = true;
     if (arguments[5]) *(bool *)arguments[5] = true;
+    force_draw_state(draw, action);
     return false;
 }
 
@@ -2512,6 +2734,7 @@ static void quick_postfix(patch_handle_t instance, void **arguments,
     (void)signature;
     if (quick_drawing_count == 0) return;
     button_quick_draw_t draw = quick_drawing[--quick_drawing_count];
+    restore_draw_state(&draw);
     if (!ready || !arguments || !arguments[1]) return;
     button_action_t *action =
         button_state_find_action_by_key(&state, draw.context.key);
@@ -2520,18 +2743,8 @@ static void quick_postfix(patch_handle_t instance, void **arguments,
         region_from_layout(*(patch_handle_t *)arguments[1]);
     if (bounds.width <= 0 || bounds.height <= 0) return;
 
-    const int icon_size =
-        (bounds.width < bounds.height ? bounds.width : bounds.height) * 3 / 4;
-    button_rect_t icon = {
-        bounds.x + (bounds.width - icon_size) / 2,
-        bounds.y + (bounds.height - icon_size) / 2, icon_size, icon_size};
-    const bool has_icon = draw_action_icon(action, icon);
-    if (!has_icon && action->show_label) {
-        draw_text(action->name, bounds,
-                  action->enabled ? make_color(245, 247, 255, 255)
-                                  : make_color(130, 135, 150, 255),
-                  true);
-    }
+    /* 原生只画按钮底（我们把自身图标换成了透明图），脸和图标由这里画 */
+    draw_mod_button_face(action, bounds);
 
     char profile[1024];
     profile_key(profile, sizeof(profile));
@@ -2609,6 +2822,8 @@ static void tick_postfix(patch_handle_t instance, void **arguments, void *result
     (void)result;
     (void)signature;
     ++tick;
+    load_store();
+    save_store();
     button_image_begin_frame();
     for (size_t i = 0; i < region_count;) {
         if (tick - regions[i].tick > 2) {
@@ -2622,6 +2837,7 @@ static void tick_postfix(patch_handle_t instance, void **arguments, void *result
             release_group_input(&group_inputs[i]);
         }
     }
+    if (editing()) report_layout_once();
     if (in_menu() || editing()) button_state_sync_input(&state, NULL);
 }
 

@@ -37,6 +37,7 @@ extern "C" {
 #define TEF_SAVE_VERSION        1u
 #define TEF_SAVE_KIND_PLAYER    1u
 #define TEF_SAVE_KIND_WORLD     2u
+#define TEF_SAVE_KIND_KEYBINDS  3u
 #define TEF_SAVE_HEADER_SIZE    32u
 #define TEF_SAVE_SEG_ENTRY_SIZE 16u
 #define TEF_SAVE_MAX_SEGS       16u
@@ -69,6 +70,7 @@ typedef enum : uint8_t {
 #define TEF_SAVE_SEG_BUFFS     0x03u
 #define TEF_SAVE_SEG_RESEARCH  0x04u
 #define TEF_SAVE_SEG_CHESTS    0x05u
+#define TEF_SAVE_SEG_KEYBINDS  0x06u
 
 /* ---- tag 构造 ---- */
 #define TEF_SAVE_TAG(seg, sub, field) \
@@ -116,6 +118,14 @@ typedef enum : uint8_t {
 #define TEF_SAVE_CHEST_PREFIX_LOADER TEF_SAVE_TAG(TEF_SAVE_SEG_CHESTS, 0x01, 0x0009)
 #define TEF_SAVE_CHEST_PREFIX_MOD    TEF_SAVE_TAG(TEF_SAVE_SEG_CHESTS, 0x01, 0x000A)
 #define TEF_SAVE_CHEST_PREFIX_NAME   TEF_SAVE_TAG(TEF_SAVE_SEG_CHESTS, 0x01, 0x000B)
+
+/* ---- KEYBINDS（全局键位配置） ---- */
+#define TEF_SAVE_KEYBINDS_ARRAY  TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x00, 0x0100)
+#define TEF_SAVE_KEYBIND_LOADER  TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x01, 0x0001)
+#define TEF_SAVE_KEYBIND_MOD     TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x01, 0x0002)
+#define TEF_SAVE_KEYBIND_ID      TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x01, 0x0003)
+#define TEF_SAVE_KEYBIND_NAME    TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x01, 0x0004)
+#define TEF_SAVE_KEYBIND_KEY     TEF_SAVE_TAG(TEF_SAVE_SEG_KEYBINDS, 0x01, 0x0005)
 /* ================================================================
  * 写入器
  * ================================================================ */

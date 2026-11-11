@@ -139,6 +139,7 @@ else ()
 
     list(APPEND TERRARIA_SRC
             src/terraria/desktop/texture2d.c
+            src/terraria/desktop/content/keybind_manager.c
     )
 endif ()
 
