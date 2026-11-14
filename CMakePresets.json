@@ -7,7 +7,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "OFF",
+        "IDE_ANDROID_MODE": "OFF",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++"
       }
@@ -18,7 +18,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "OFF"
+        "IDE_ANDROID_MODE": "OFF"
       }
     },
     {
@@ -28,7 +28,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_SYSTEM_NAME": "Windows",
-        "ANDROID_MODE": "OFF"
+        "IDE_ANDROID_MODE": "OFF"
       }
     },
     {
@@ -37,7 +37,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "OFF",
+        "IDE_ANDROID_MODE": "OFF",
         "CMAKE_C_FLAGS": "-D_XOPEN_SOURCE=700"
       }
     },
@@ -47,7 +47,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "ON",
+        "IDE_ANDROID_MODE": "ON",
         "CMAKE_TOOLCHAIN_FILE": "/home/eternalfuture/Android/Sdk/ndk/28.0.13004108/build/cmake/android.toolchain.cmake"
       }
     },
@@ -231,7 +231,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "ANDROID_MODE": "OFF"
+        "IDE_ANDROID_MODE": "OFF"
       }
     },
     {

@@ -35,6 +35,7 @@
 #include "patchlib/field.h"
 #include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
+#include "patchlib/scope.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/struct/dictionary.h"
 #include "patchlib/struct/list.h"
@@ -93,22 +94,23 @@ static void unknown_item_early_init(terraria_item_handle_t *current) {
 // 未知物品的属性设置
 static void unknown_item_set_defaults(terraria_item_handle_t *current,
                                       patch_handle_t instance) {
-    patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
-    if (patchlib_is_valid(item_class)) {
-        patch_handle_t f_name_override =
-                patchlib_type_get_field(item_class, "_nameOverride");
-        patch_handle_t f_bestiary_notes =
-                patchlib_type_get_field(item_class, "BestiaryNotes");
-        if (patchlib_is_valid(f_name_override)) {
-            patch_handle_t name = patchlib_string_create("UNKNOWN");
-            patchlib_field_set_value(f_name_override, instance, &name);
-            patchlib_field_set_value(f_bestiary_notes, instance, &name);
+    (void)current;
+    patch_scope {
+        patch_own(item_class, patchlib_type_get_type("Terraria", "Item"));
+        if (!patchlib_is_valid(item_class))
+            break;
 
-            patchlib_free(name);
-            patchlib_free(f_name_override);
-            patchlib_free(f_bestiary_notes);
-        }
-        patchlib_free(item_class);
+        patch_own(f_name_override,
+                  patchlib_type_get_field(item_class, "_nameOverride"));
+        patch_own(f_bestiary_notes,
+                  patchlib_type_get_field(item_class, "BestiaryNotes"));
+        if (!patchlib_is_valid(f_name_override))
+            break;
+
+        patch_own(name, patchlib_string_create("UNKNOWN"));
+        patchlib_field_set_value(f_name_override, instance, &name);
+        if (patchlib_is_valid(f_bestiary_notes))
+            patchlib_field_set_value(f_bestiary_notes, instance, &name);
     }
 }
 
@@ -326,56 +328,47 @@ void terraria_item_manager_set_prefix_class(terraria_item_handle_t *item_handle,
 
 
 static int resolve_prefix_sets(void) {
-  if (g_prefix_sets_state >= 0)
+    if (g_prefix_sets_state >= 0)
+        return g_prefix_sets_state;
+    g_prefix_sets_state = 0;
+
+    patch_scope {
+        patch_own(pl, patchlib_type_get_type("Terraria.GameContent.Prefixes", "PrefixLegacy"));
+        if (!patchlib_is_valid(pl)) {
+            TEKLOG_WARN("prefix: PrefixLegacy not found");
+            break;
+        }
+
+        patch_own(sets, patchlib_type_get_inner_type(pl, "ItemSets"));
+        if (!patchlib_is_valid(sets)) {
+            TEKLOG_WARN("prefix: PrefixLegacy+ItemSets not found");
+            break;
+        }
+
+        f_pref_swords = patchlib_type_get_field(sets, "SwordsHammersAxesPicks");
+        f_pref_spears = patchlib_type_get_field(sets, "SpearsMacesChainsawsDrillsPunchCannon");
+        f_pref_guns = patchlib_type_get_field(sets, "GunsBows");
+        f_pref_magic = patchlib_type_get_field(sets, "Magic");
+        f_pref_summon = patchlib_type_get_field(sets, "Summon");
+        f_pref_boomerang = patchlib_type_get_field(sets, "BoomerangsChakrams");
+        f_pref_legendary2 = patchlib_type_get_field(sets, "ItemsThatCanHaveLegendary2");
+
+        patch_own(itemid, patchlib_type_get_type("Terraria.ID", "ItemID"));
+        if (patchlib_is_valid(itemid)) {
+            patch_own(idsets, patchlib_type_get_inner_type(itemid, "Sets"));
+            if (patchlib_is_valid(idsets))
+                f_can_get_prefixes = patchlib_type_get_field(idsets, "CanGetPrefixes");
+        }
+
+        if (!patchlib_is_valid(f_pref_swords) || !patchlib_is_valid(f_can_get_prefixes)) {
+            TEKLOG_WARN("prefix: cannot resolve prefix sets (swords=%p canGetPrefixes=%p)",
+                        (void *)f_pref_swords, (void *)f_can_get_prefixes);
+            break;
+        }
+        g_prefix_sets_state = 1;
+        TEKLOG_INFO("prefix: rollable-prefix sets resolved");
+    }
     return g_prefix_sets_state;
-  g_prefix_sets_state = 0;
-
-  /* ⚠ 句柄生命周期（桌面 Mono 上踩过崩溃）：
-   * 内核约定是"field 句柄必须在 class 句柄之前释放"，因为桌面端
-   * field 句柄是依附 class 弱句柄的。这里这些 field 句柄要**长期缓存**，
-   * 所以它们所属的 class 句柄绝对不能提前 free ——
-   * 否则之后 field_get_value() 会让 loader 的托管包装去校验已失效的
-   * GCHandle，直接 SIGSEGV 在 mono_gchandle_is_in_domain。
-   * 这些句柄只在启动时取一次，常驻即可（泄漏量可忽略）。 */
-  patch_handle_t pl =
-      patchlib_type_get_type("Terraria.GameContent.Prefixes", "PrefixLegacy");
-  if (!patchlib_is_valid(pl)) {
-    TEKLOG_WARN("prefix: PrefixLegacy not found");
-    return 0;
-  }
-  patch_handle_t sets = patchlib_type_get_inner_type(pl, "ItemSets");
-  if (!patchlib_is_valid(sets)) {
-    TEKLOG_WARN("prefix: PrefixLegacy+ItemSets not found");
-    return 0;
-  }
-  f_pref_swords = patchlib_type_get_field(sets, "SwordsHammersAxesPicks");
-  f_pref_spears =
-      patchlib_type_get_field(sets, "SpearsMacesChainsawsDrillsPunchCannon");
-  f_pref_guns = patchlib_type_get_field(sets, "GunsBows");
-  f_pref_magic = patchlib_type_get_field(sets, "Magic");
-  f_pref_summon = patchlib_type_get_field(sets, "Summon");
-  f_pref_boomerang = patchlib_type_get_field(sets, "BoomerangsChakrams");
-  f_pref_legendary2 =
-      patchlib_type_get_field(sets, "ItemsThatCanHaveLegendary2");
-
-  patch_handle_t itemid = patchlib_type_get_type("Terraria.ID", "ItemID");
-  patch_handle_t idsets = PATCH_NULL;
-  if (patchlib_is_valid(itemid)) {
-    idsets = patchlib_type_get_inner_type(itemid, "Sets");
-    if (patchlib_is_valid(idsets))
-      f_can_get_prefixes = patchlib_type_get_field(idsets, "CanGetPrefixes");
-  }
-
-  if (!patchlib_is_valid(f_pref_swords) ||
-      !patchlib_is_valid(f_can_get_prefixes)) {
-    TEKLOG_WARN("prefix: cannot resolve prefix sets "
-                "(swords=%p canGetPrefixes=%p)",
-                (void *)f_pref_swords, (void *)f_can_get_prefixes);
-    return 0;
-  }
-  g_prefix_sets_state = 1;
-  TEKLOG_INFO("prefix: rollable-prefix sets resolved");
-  return 1;
 }
 
 /* 静态 bool[] 字段的第 type 位置 true（每次现取数组对象：
@@ -568,9 +561,6 @@ static void initialize_item_animations_postfix(patch_handle_t this, void **args,
     }
 }
 
-/* 每个类型只打一次归类日志（set_defaults 会被频繁调用） */
-static unsigned char g_prefix_logged[8192];
-
 /* 按物品属性决定它能掷出哪一类词缀；对自定义物品幂等（重复调用无害） */
 
 /* 按需归类（唯一的归类入口）：
@@ -592,56 +582,56 @@ static unsigned char g_prefix_logged[8192];
  * 调 array_length 会崩，所以必须先用一次真实调用强制它完成初始化。
  */
 void terraria_item_manager_apply_prefix_classes(void) {
-  static int applied = 0;
-  if (applied)
-    return;
-  applied = 1;
+    static int applied = 0;
+    if (applied)
+        return;
+    applied = 1;
 
-  const size_t count = tefstd_vector_size(&g_terraria_item_registry);
-  if (count == 0)
-    return;
-  if (g_prefix_decl_count == 0) {
-    TEKLOG_INFO("prefix: no item declared a prefix class, nothing to do");
-    return;
-  }
-  if (resolve_prefix_sets() != 1) {
-    TEKLOG_WARN("prefix: sets unresolved, skip classification");
-    return;
-  }
-
-  /* PrefixLegacy 静态类在首次被访问前 ItemSets.* 是 null（桌面端对 null 字段
-   * 取出的句柄调 array_length 会崩）→ 造一个临时物品主动调一次
-   * GetRollablePrefixes 强制它完成初始化。 */
-  patch_handle_t item_cls = patchlib_type_get_type("Terraria", "Item");
-  if (patchlib_is_valid(item_cls) && patchlib_is_valid(m_get_rollable)) {
-    patch_handle_t ctor =
-        patchlib_type_get_method_by_param_count(item_cls, ".ctor", 2);
-    if (patchlib_is_valid(ctor)) {
-      int any_id = 0;
-      patch_handle_t item = PATCH_NULL, variant = PATCH_NULL;
-      void *ca[2] = { (void *)&any_id, &variant };
-      patchlib_constructor_invoke(ctor, &item, ca);
-      if (patchlib_is_valid(item)) {
-        patch_handle_t ro = PATCH_NULL;
-        patchlib_method_invoke_args(m_get_rollable, item, &ro, NULL);
-        if (patchlib_is_valid(ro)) patchlib_free(ro);
-        patchlib_free(item);
-      }
+    const size_t count = tefstd_vector_size(&g_terraria_item_registry);
+    if (count == 0)
+        return;
+    if (g_prefix_decl_count == 0) {
+        TEKLOG_INFO("prefix: no item declared a prefix class, nothing to do");
+        return;
     }
-  }
+    if (resolve_prefix_sets() != 1) {
+        TEKLOG_WARN("prefix: sets unresolved, skip classification");
+        return;
+    }
 
-  int done = 0;
-  for (size_t i = 0; i < count; ++i) {
-    terraria_item_handle_t **pp = tefstd_vector_at(&g_terraria_item_registry, i);
-    if (!pp || !*pp) continue;
-    terraria_item_handle_t *h = *pp;
-    if (h->runtime_id < 0) continue;
-    const int cls = prefix_decl_lookup(h);
-    if (cls <= 0) continue;
-    prefix_set_by_class(cls, h->runtime_id, h->internal_name);
-    done++;
-  }
-  TEKLOG_INFO("prefix: %d declared item(s) classified", done);
+    patch_scope {
+        patch_own(item_cls, patchlib_type_get_type("Terraria", "Item"));
+        if (!patchlib_is_valid(item_cls) || !patchlib_is_valid(m_get_rollable))
+            break;
+
+        patch_own(ctor, patchlib_type_get_method_by_param_count(item_cls, ".ctor", 2));
+        if (!patchlib_is_valid(ctor))
+            break;
+
+        int any_id = 0;
+        patch_own(item, PATCH_NULL);
+
+        patch_handle_t variant = PATCH_NULL;
+        void *ca[2] = {(void *)&any_id, &variant};
+        patchlib_constructor_invoke(ctor, &item, ca);
+        if (patchlib_is_valid(item)) {
+            patch_own(ro, PATCH_NULL);
+            patchlib_method_invoke_args(m_get_rollable, item, &ro, NULL);
+        }
+    }
+
+    int done = 0;
+    for (size_t i = 0; i < count; ++i) {
+        terraria_item_handle_t **pp = tefstd_vector_at(&g_terraria_item_registry, i);
+        if (!pp || !*pp) continue;
+        const terraria_item_handle_t *h = *pp;
+        if (h->runtime_id < 0) continue;
+        const int cls = prefix_decl_lookup(h);
+        if (cls <= 0) continue;
+        prefix_set_by_class(cls, h->runtime_id, h->internal_name);
+        done++;
+    }
+    TEKLOG_INFO("prefix: %d declared item(s) classified", done);
 }
 
 static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
@@ -795,190 +785,153 @@ static void content_samples_initialize_postfix(patch_handle_t this, void **args,
                                                const patch_method_signature_t *sig_info) {
     (void)this; (void)args; (void)result; (void)sig_info;
 
-    patch_handle_t item_type = patchlib_type_get_type("Terraria", "Item");
-    patch_handle_t cs_type =
-            patchlib_type_get_type("Terraria.ID", "ContentSamples");
-    if (!patchlib_is_valid(item_type) || !patchlib_is_valid(cs_type)) {
-        TEKLOG_ERROR("ContentSamples/Item type not found");
-        if (patchlib_is_valid(item_type)) patchlib_free(item_type);
-        if (patchlib_is_valid(cs_type))   patchlib_free(cs_type);
-        return;
-    }
-
-    /* ---------- 取三个字典实例 ---------- */
-    patch_handle_t dict_by_type = PATCH_NULL;
-    patch_handle_t dict_net_ids = PATCH_NULL;
-    patch_handle_t dict_persist_ids = PATCH_NULL;
-    // 字典的闭合泛型类型句柄（用于 set_Item，避免走 il2cpp_object_get_class）
-    patch_handle_t t_by_type = PATCH_NULL;
-    patch_handle_t t_net_ids = PATCH_NULL;
-    patch_handle_t t_persist_ids = PATCH_NULL;
-
-    patch_handle_t f1 = patchlib_type_get_field(cs_type, "ItemsByType");
-    if (patchlib_is_valid(f1)) {
-        patchlib_field_get_value(f1, PATCH_NULL, &dict_by_type);
-        t_by_type = patchlib_field_get_type_handle(f1);
-    }
-
-    patch_handle_t f2 =
-            patchlib_type_get_field(cs_type, "ItemNetIdsByPersistentIds");
-    if (patchlib_is_valid(f2)) {
-        patchlib_field_get_value(f2, PATCH_NULL, &dict_net_ids);
-        t_net_ids = patchlib_field_get_type_handle(f2);
-    }
-
-    patch_handle_t f3 =
-            patchlib_type_get_field(cs_type, "ItemPersistentIdsByNetIds");
-    if (patchlib_is_valid(f3)) {
-        patchlib_field_get_value(f3, PATCH_NULL, &dict_persist_ids);
-        t_persist_ids = patchlib_field_get_type_handle(f3);
-    }
-
-    /* ---------- 取构造函数 Item(int, ItemVariant) ---------- */
-    patch_handle_t m_ctor =
-            patchlib_type_get_method_by_param_count(item_type, ".ctor", 2);
-
-    /* ---------- ItemID.Search（ReLogic.Reflection.IdDictionary）-------
-     * 不调用 IdDictionary.Add：移动端用 libffi 调它会在 libil2cpp 崩溃。
-     * 改为直接写它的两个内部字典 _nameToId / _idToName（set_Item 路径已验证可用）。*/
-    patch_handle_t item_id_cls = patchlib_type_get_type("Terraria.ID", "ItemID");
-    patch_handle_t f_search = PATCH_NULL;
-    patch_handle_t search_dict = PATCH_NULL;
-    patch_handle_t f_name_to_id = PATCH_NULL;
-    patch_handle_t f_id_to_name = PATCH_NULL;
-    patch_handle_t dict_name_to_id = PATCH_NULL; // Dictionary<string,int>
-    patch_handle_t dict_id_to_name = PATCH_NULL; // Dictionary<int,string>
-    patch_handle_t t_name_to_id = PATCH_NULL;
-    patch_handle_t t_id_to_name = PATCH_NULL;
-    if (patchlib_is_valid(item_id_cls)) {
-        f_search = patchlib_type_get_field(item_id_cls, "Search");
-        if (patchlib_is_valid(f_search))
-            patchlib_field_get_value(f_search, PATCH_NULL, &search_dict);
-
-        patch_handle_t id_dict_cls =
-                patchlib_type_get_type("ReLogic.Reflection", "IdDictionary");
-        if (patchlib_is_valid(id_dict_cls)) {
-            f_name_to_id = patchlib_type_get_field(id_dict_cls, "_nameToId");
-            f_id_to_name = patchlib_type_get_field(id_dict_cls, "_idToName");
-            if (patchlib_is_valid(f_name_to_id))
-                t_name_to_id = patchlib_field_get_type_handle(f_name_to_id);
-            if (patchlib_is_valid(f_id_to_name))
-                t_id_to_name = patchlib_field_get_type_handle(f_id_to_name);
-            patchlib_free(id_dict_cls);
+    patch_scope {
+        patch_own(item_type, patchlib_type_get_type("Terraria", "Item"));
+        patch_own(cs_type, patchlib_type_get_type("Terraria.ID", "ContentSamples"));
+        if (!patchlib_is_valid(item_type) || !patchlib_is_valid(cs_type)) {
+            TEKLOG_ERROR("ContentSamples/Item type not found");
+            break;
         }
-        if (patchlib_is_valid(search_dict)) {
-            if (patchlib_is_valid(f_name_to_id))
-                patchlib_field_get_value(f_name_to_id, search_dict, &dict_name_to_id);
-            if (patchlib_is_valid(f_id_to_name))
-                patchlib_field_get_value(f_id_to_name, search_dict, &dict_id_to_name);
+
+        /* ---------- 三个字典的字段与类型句柄 ---------- */
+        patch_own(f1, patchlib_type_get_field(cs_type, "ItemsByType"));
+        patch_own(f2, patchlib_type_get_field(cs_type, "ItemNetIdsByPersistentIds"));
+        patch_own(f3, patchlib_type_get_field(cs_type, "ItemPersistentIdsByNetIds"));
+
+        patch_handle_t dict_by_type = PATCH_NULL;
+        patch_handle_t dict_net_ids = PATCH_NULL;
+        patch_handle_t dict_persist_ids = PATCH_NULL;
+
+        patch_own(t_by_type, PATCH_NULL);
+        patch_own(t_net_ids, PATCH_NULL);
+        patch_own(t_persist_ids, PATCH_NULL);
+
+        if (patchlib_is_valid(f1)) {
+            patchlib_field_get_value(f1, PATCH_NULL, &dict_by_type);
+            t_by_type = patchlib_field_get_type_handle(f1);
         }
-    }
-
-    /* ---------- 遍历所有自定义物品 ---------- */
-    const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
-    int registered = 0;
-
-    for (size_t i = 0; i < custom_count; ++i) {
-        terraria_item_handle_t **pp =
-                tefstd_vector_at(&g_terraria_item_registry, i);
-        if (!pp || !*pp) continue;
-
-        const terraria_item_handle_t *h = *pp;
-        if (h->runtime_id < 0) continue;
-
-        int item_id = h->runtime_id;
-
-        /* ----- 创建该 id 的 Item 实例 ----- */
-        patch_handle_t item = PATCH_NULL;
-        patch_handle_t variant = PATCH_NULL;
-        void *ctor_args[2] = { &item_id, &variant };
-        patchlib_constructor_invoke(m_ctor, &item, ctor_args);
-
-        /* ----- ItemsByType[item_id] = item ----- */
-        if (!patchlib_dictionary_set_value_typed(dict_by_type, t_by_type,
-                                                 &item_id, &item))
-            TEKLOG_WARN("ItemsByType set failed: id=%d", item_id);
-
-        /* ----- 动态构造持久化 id 字符串 ----- */
-        const char *loader = h->parent_modloader_id ? h->parent_modloader_id : "?";
-        const char *mod    = h->parent_id           ? h->parent_id           : "?";
-        const char *name   = h->internal_name       ? h->internal_name       : "?";
-
-        const size_t persist_len =
-                strlen(loader) + 1 + strlen(mod) + 1 + strlen(name) + 1;
-        char *persist_id = malloc(persist_len);
-        if (!persist_id) {
-            TEKLOG_WARN("malloc persist_id failed: id=%d", item_id);
-            if (patchlib_is_valid(item)) patchlib_free(item);
-            continue;
+        if (patchlib_is_valid(f2)) {
+            patchlib_field_get_value(f2, PATCH_NULL, &dict_net_ids);
+            t_net_ids = patchlib_field_get_type_handle(f2);
         }
-        snprintf(persist_id, persist_len, "%s_%s_%s", loader, mod, name);
+        if (patchlib_is_valid(f3)) {
+            patchlib_field_get_value(f3, PATCH_NULL, &dict_persist_ids);
+            t_persist_ids = patchlib_field_get_type_handle(f3);
+        }
 
-        patch_handle_t str_obj = patchlib_string_create(persist_id);
-        free(persist_id);
+        patch_own(m_ctor,
+                  patchlib_type_get_method_by_param_count(item_type, ".ctor", 2));
 
-        if (patchlib_is_valid(str_obj)) {
-            /* ----- ItemNetIdsByPersistentIds[persist_id] = item_id ----- */
-            if (!patchlib_dictionary_set_value_typed(dict_net_ids, t_net_ids,
-                                                     &str_obj, &item_id))
-                TEKLOG_WARN("NetIds set failed: id=%d", item_id);
+        /* ---------- ItemID.Search 内部字典 ---------- */
+        patch_handle_t search_dict = PATCH_NULL;
+        patch_handle_t dict_name_to_id = PATCH_NULL;
+        patch_handle_t dict_id_to_name = PATCH_NULL;
 
-            /* ----- ItemPersistentIdsByNetIds[item_id] = persist_id ----- */
-            if (!patchlib_dictionary_set_value_typed(dict_persist_ids,
-                                                     t_persist_ids, &item_id,
-                                                     &str_obj))
-                TEKLOG_WARN("PersistIds set failed: id=%d", item_id);
+        patch_own(f_search, PATCH_NULL);
+        patch_own(f_name_to_id, PATCH_NULL);
+        patch_own(f_id_to_name, PATCH_NULL);
+        patch_own(t_name_to_id, PATCH_NULL);
+        patch_own(t_id_to_name, PATCH_NULL);
 
-            /* ----- ItemID.Search 内部字典：name->id / id->name ----- */
-            if (patchlib_is_valid(dict_name_to_id) &&
-                patchlib_is_valid(t_name_to_id)) {
-                if (!patchlib_dictionary_set_value_typed(dict_name_to_id,
-                                                         t_name_to_id, &str_obj,
-                                                         &item_id))
-                    TEKLOG_WARN("Search nameToId set failed: id=%d", item_id);
+        patch_own(item_id_cls, patchlib_type_get_type("Terraria.ID", "ItemID"));
+        if (patchlib_is_valid(item_id_cls)) {
+            f_search = patchlib_type_get_field(item_id_cls, "Search");
+            if (patchlib_is_valid(f_search))
+                patchlib_field_get_value(f_search, PATCH_NULL, &search_dict);
+
+            patch_own(id_dict_cls,
+                      patchlib_type_get_type("ReLogic.Reflection", "IdDictionary"));
+            if (patchlib_is_valid(id_dict_cls)) {
+                f_name_to_id = patchlib_type_get_field(id_dict_cls, "_nameToId");
+                f_id_to_name = patchlib_type_get_field(id_dict_cls, "_idToName");
+                if (patchlib_is_valid(f_name_to_id))
+                    t_name_to_id = patchlib_field_get_type_handle(f_name_to_id);
+                if (patchlib_is_valid(f_id_to_name))
+                    t_id_to_name = patchlib_field_get_type_handle(f_id_to_name);
             }
-            if (patchlib_is_valid(dict_id_to_name) &&
-                patchlib_is_valid(t_id_to_name)) {
-                if (!patchlib_dictionary_set_value_typed(dict_id_to_name,
-                                                         t_id_to_name, &item_id,
+
+            if (patchlib_is_valid(search_dict)) {
+                if (patchlib_is_valid(f_name_to_id))
+                    patchlib_field_get_value(f_name_to_id, search_dict, &dict_name_to_id);
+                if (patchlib_is_valid(f_id_to_name))
+                    patchlib_field_get_value(f_id_to_name, search_dict, &dict_id_to_name);
+            }
+        }
+
+        /* ---------- 遍历自定义物品 ---------- */
+        const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
+        int registered = 0;
+
+        for (size_t i = 0; i < custom_count; ++i) {
+            terraria_item_handle_t **pp =
+                    tefstd_vector_at(&g_terraria_item_registry, i);
+            if (!pp || !*pp) continue;
+
+            const terraria_item_handle_t *h = *pp;
+            if (h->runtime_id < 0) continue;
+
+            int item_id = h->runtime_id;
+
+            patch_handle_t item = PATCH_NULL;
+            patch_handle_t variant = PATCH_NULL;
+            void *ctor_args[2] = { &item_id, &variant };
+            patchlib_constructor_invoke(m_ctor, &item, ctor_args);
+
+            if (!patchlib_dictionary_set_value_typed(dict_by_type, t_by_type,
+                                                     &item_id, &item))
+                TEKLOG_WARN("ItemsByType set failed: id=%d", item_id);
+
+            const char *loader = h->parent_modloader_id ? h->parent_modloader_id : "?";
+            const char *mod    = h->parent_id           ? h->parent_id           : "?";
+            const char *name   = h->internal_name       ? h->internal_name       : "?";
+
+            const size_t persist_len =
+                    strlen(loader) + 1 + strlen(mod) + 1 + strlen(name) + 1;
+            char *persist_id = malloc(persist_len);
+            if (!persist_id) {
+                TEKLOG_WARN("malloc persist_id failed: id=%d", item_id);
+                patchlib_free(item);
+                continue;
+            }
+            snprintf(persist_id, persist_len, "%s_%s_%s", loader, mod, name);
+
+            patch_handle_t str_obj = patchlib_string_create(persist_id);
+            free(persist_id);
+
+            if (patchlib_is_valid(str_obj)) {
+                if (!patchlib_dictionary_set_value_typed(dict_net_ids, t_net_ids,
+                                                         &str_obj, &item_id))
+                    TEKLOG_WARN("NetIds set failed: id=%d", item_id);
+
+                if (!patchlib_dictionary_set_value_typed(dict_persist_ids,
+                                                         t_persist_ids, &item_id,
                                                          &str_obj))
-                    TEKLOG_WARN("Search idToName set failed: id=%d", item_id);
+                    TEKLOG_WARN("PersistIds set failed: id=%d", item_id);
+
+                if (patchlib_is_valid(dict_name_to_id) &&
+                    patchlib_is_valid(t_name_to_id)) {
+                    if (!patchlib_dictionary_set_value_typed(dict_name_to_id,
+                                                             t_name_to_id, &str_obj,
+                                                             &item_id))
+                        TEKLOG_WARN("Search nameToId set failed: id=%d", item_id);
+                }
+                if (patchlib_is_valid(dict_id_to_name) &&
+                    patchlib_is_valid(t_id_to_name)) {
+                    if (!patchlib_dictionary_set_value_typed(dict_id_to_name,
+                                                             t_id_to_name, &item_id,
+                                                             &str_obj))
+                        TEKLOG_WARN("Search idToName set failed: id=%d", item_id);
+                }
             }
+
+            patchlib_free(str_obj);
+            patchlib_free(item);
+
+            registered++;
         }
 
-        /* 释放本轮创建的临时句柄（字典已持有 item/str 的引用） */
-        patchlib_free(str_obj);
-        patchlib_free(item);
-
-        registered++;
+        TEKLOG_INFO("registered %d custom items into ContentSamples", registered);
     }
-
-    TEKLOG_INFO("registered %d custom items into ContentSamples", registered);
-
-    /* ---------- 释放从类型/字段/方法 API 获得的句柄 ---------- */
-    patchlib_free(f1);
-    patchlib_free(f2);
-    patchlib_free(f3);
-    patchlib_free(t_by_type);
-    patchlib_free(t_net_ids);
-    patchlib_free(t_persist_ids);
-    patchlib_free(m_ctor);
-    patchlib_free(item_type);
-    patchlib_free(cs_type);
-
-    patchlib_free(dict_name_to_id);
-    patchlib_free(dict_id_to_name);
-    patchlib_free(t_name_to_id);
-    patchlib_free(t_id_to_name);
-    patchlib_free(search_dict);
-    patchlib_free(f_name_to_id);
-    patchlib_free(f_id_to_name);
-    patchlib_free(f_search);
-    patchlib_free(item_id_cls);
-
-    patchlib_free(dict_by_type);
-    patchlib_free(dict_net_ids);
-    patchlib_free(dict_persist_ids);
 }
 
 static void creative_item_sacrifices_catalog_initialize_postfix(
@@ -2956,51 +2909,80 @@ typedef struct {
     float DownHoverAccelerationMult;
 } tef_wing_stats_t;
 
-bool terraria_item_manager_set_wing_stats(int index, int fly_time,
-                                          float fly_speed, float acceleration,
-                                          bool hover, float hover_speed,
-                                          float hover_acceleration) {
-    if (index < 0) return false;
-    patch_handle_t armor = patchlib_type_get_type("Terraria.ID", "ArmorIDs");
-    if (!patchlib_is_valid(armor)) return false;
-    patch_handle_t wing = patchlib_type_get_inner_type(armor, "Wing");
-    patchlib_free(armor);
-    if (!patchlib_is_valid(wing)) return false;
-    patch_handle_t sets = patchlib_type_get_inner_type(wing, "Sets");
-    if (!patchlib_is_valid(sets)) { patchlib_free(wing); return false; }
-    patch_handle_t f_stats = patchlib_type_get_field(sets, "Stats");
-    patchlib_free(sets);
-    patchlib_free(wing);
-    if (!patchlib_is_valid(f_stats)) return false;
-    patch_handle_t stats = PATCH_NULL;
-    patchlib_field_get_value(f_stats, NULL, &stats);
-    patchlib_free(f_stats);
-    if (!patchlib_is_valid(stats)) return false;
-    if (patchlib_array_length(stats) <= (size_t) index) {
-        patchlib_free(stats);
+bool terraria_item_manager_set_wing_stats(const int index, const int fly_time,
+                                          const float fly_speed, const float acceleration,
+                                          const bool hover, const float hover_speed,
+                                          const float hover_acceleration) {
+    if (index < 0)
         return false;
+
+    bool ok = false;
+
+    patch_scope {
+        patch_own(cls, patchlib_type_get_type("Terraria.ID", "ArmorIDs"));
+        patch_own(wing, patchlib_type_get_inner_type(cls, "Wing"));
+        patch_own(sets, patchlib_type_get_inner_type(wing, "Sets"));
+        patch_own(field, patchlib_type_get_field(sets, "Stats"));
+
+        if (!patchlib_is_valid(field)) {
+            TEKLOG_WARN("wing stats: ArmorIDs.Wing.Sets.Stats not found");
+            break;
+        }
+
+        patch_handle_t arr = PATCH_NULL;
+        patchlib_field_get_value(field, PATCH_NULL, &arr);
+        if (!patchlib_is_valid(arr)) {
+            TEKLOG_WARN("wing stats: Stats array is null");
+            break;
+        }
+
+        const size_t len = patchlib_array_length(arr);
+        if (len <= (size_t) index) {
+            TEKLOG_WARN("wing stats: index %d out of range (len=%zu)",
+                        index, len);
+            break;
+        }
+
+        tef_wing_stats_t v = {
+            .FlyTime = fly_time,
+            .AccRunSpeedOverride = fly_speed,
+            .AccRunAccelerationMult = acceleration,
+            .HasDownHoverStats = hover,
+            .DownHoverSpeedOverride = hover_speed,
+            .DownHoverAccelerationMult = hover_acceleration,
+        };
+
+        if (!patchlib_array_set(arr, (size_t) index, &v)) {
+            TEKLOG_WARN("wing stats: array_set failed (index=%d)", index);
+            break;
+        }
+
+        TEKLOG_INFO("wing stats[%d]: fly=%d speed=%.2f hover=%d",
+                    index, fly_time, fly_speed, hover ? 1 : 0);
+        ok = true;
     }
-    tef_wing_stats_t v = {fly_time, fly_speed, acceleration, hover,
-                          hover_speed, hover_acceleration};
-    bool ok = patchlib_array_set(stats, (size_t) index, &v);
-    patchlib_free(stats);
-    TEKLOG_INFO("item equip: wing stats[%d] fly=%d speed=%.2f hover=%d",
-                index, fly_time, fly_speed, hover ? 1 : 0);
+
     return ok;
 }
 
 bool terraria_item_manager_accessory_texture_ready(const char *slot, int index) {
     const accessory_slot_t *s = find_accessory_slot(slot);
-    if (!s || index < 0) return false;
-    patch_handle_t arr = accessory_texture_array(s);
-    if (!patchlib_is_valid(arr)) return false;
+    if (!s || index < 0)
+        return false;
+
     bool ready = false;
-    if (patchlib_array_length(arr) > (size_t) index) {
-        patch_handle_t asset = PATCH_NULL;
-        if (patchlib_array_at(arr, (size_t) index, &asset))
-            ready = patchlib_is_valid(asset);
-        if (patchlib_is_valid(asset)) patchlib_free(asset);
+
+    patch_scope {
+        patch_handle_t arr = accessory_texture_array(s);
+        if (!patchlib_is_valid(arr))
+            break;
+
+        if (patchlib_array_length(arr) > (size_t) index) {
+            patch_own(asset, PATCH_NULL);
+            if (patchlib_array_at(arr, (size_t) index, &asset))
+                ready = patchlib_is_valid(asset);
+        }
     }
-    patchlib_free(arr);
+
     return ready;
 }

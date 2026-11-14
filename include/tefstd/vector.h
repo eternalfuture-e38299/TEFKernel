@@ -28,8 +28,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef TEFKERNEL_VECTOR_H
-#define TEFKERNEL_VECTOR_H
+#ifndef TEFKERNEL_STD_VECTOR_H
+#define TEFKERNEL_STD_VECTOR_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -209,4 +209,4 @@ DEFINE_FUNCTION(bool, tefstd_vector_init_from_array, tefstd_vector_t *vec, size_
 }
 #endif
 
-#endif // TEFKERNEL_VECTOR_H
+#endif // TEFKERNEL_STD_VECTOR_H

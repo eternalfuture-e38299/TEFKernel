@@ -32,6 +32,7 @@
 #include "internal/terraria/content/npc_manager.h"
 #include "internal/terraria/content/prefix_manager.h"
 #include "patchlib/property.h"
+#include "patchlib/scope.h"
 
 static patch_handle_t get_graphics_device = PATCH_NULL;
 static patch_handle_t cur_release = PATCH_NULL;
@@ -283,90 +284,72 @@ static bool g_is_server = false;
 
 void terraria_main_init(const bool is_server) {
     g_is_server = is_server;
-    TEKLOG_DEBUG("terraria_main_init called: is_server=%d", is_server);
+    TEKLOG_DEBUG("terraria_main_init: is_server=%d", is_server);
 
-    patch_handle_t main_class = patchlib_type_get_type("Terraria", "Main");
-    if (!patchlib_is_valid(main_class)) {
-        TEKLOG_ERROR("Failed to get Main class");
-        return;
-    }
-    TEKLOG_DEBUG("Got Main class: %p", main_class);
-
-    patch_handle_t game_class = PATCH_NULL;
-    if (is_server) {
-        game_class = patchlib_type_get_type("Terraria.Server", "Game");
-        TEKLOG_DEBUG("Server mode, getting Game class from Terraria.Server");
-    } else {
-        game_class = patchlib_type_get_type("Microsoft.Xna.Framework", "Game");
-        TEKLOG_DEBUG("Client mode, getting Game class from Microsoft.Xna.Framework");
-    }
-
-    if (!patchlib_is_valid(game_class)) {
-        TEKLOG_ERROR("Failed to get Game class");
-        patchlib_free(main_class);
-        return;
-    }
-    TEKLOG_DEBUG("Got Game class: %p", game_class);
-
-    get_graphics_device = patchlib_type_get_method_by_param_count(game_class, "get_GraphicsDevice", 0);
-    if (!patchlib_is_valid(get_graphics_device)) {
-        TEKLOG_ERROR("Failed to get GraphicsDevice getter method");
-    } else {
-        TEKLOG_DEBUG("Got GraphicsDevice getter method: %p", get_graphics_device);
-    }
-
-    cur_release = patchlib_type_get_field(main_class, "curRelease");
-    if (!patchlib_is_valid(cur_release)) {
-        TEKLOG_WARN("Failed to get curRelease field");
-    } else {
-        TEKLOG_DEBUG("Got curRelease field: %p", cur_release);
-    }
-
-    instance = patchlib_type_get_field(main_class, "instance");
-    if (!patchlib_is_valid(instance)) {
-        TEKLOG_WARN("Failed to get instance field");
-    } else {
-        TEKLOG_DEBUG("Got instance field: %p", instance);
-    }
-
-    patch_handle_t local_player_property = patchlib_type_get_property(main_class, "LocalPlayer");
-    local_player = patchlib_property_get_get_method(local_player_property);
-    patchlib_free(local_player_property);
-
-    patch_handle_t initialize_method = patchlib_type_get_method_by_param_count(main_class, "Initialize", 0);
-    if (!patchlib_is_valid(initialize_method)) {
-        TEKLOG_ERROR("Failed to get Initialize method");
-    } else {
-        TEKLOG_DEBUG("Got Initialize method: %p, installing hook", initialize_method);
-        patch_hook_id_t hook_id = patchlib_install_prepost_hook(initialize_method, initialize_prefix, initialize_postfix);
-        if (hook_id != PATCH_HOOK_INVALID_ID) {
-            TEKLOG_INFO("Initialize hook installed successfully, ID: %d", hook_id);
-        } else {
-            TEKLOG_ERROR("Failed to install Initialize hook");
+    patch_scope {
+        patch_own(main_class, patchlib_type_get_type("Terraria", "Main"));
+        if (!patchlib_is_valid(main_class)) {
+            TEKLOG_ERROR("Failed to get Main class");
+            break;
         }
-        patchlib_free(initialize_method);
-    }
 
-    patch_handle_t load_content_method = patchlib_type_get_method_by_param_count(main_class, "Initialize_AlmostEverything", 0);
-    if (!patchlib_is_valid(load_content_method)) {
-        TEKLOG_ERROR("Failed to get Initialize_AlmostEverything method");
-    } else {
-        TEKLOG_DEBUG("Got Initialize_AlmostEverything method: %p, installing hook", load_content_method);
-        patch_hook_id_t hook_id = patchlib_install_prepost_hook(
-            load_content_method,
-            NULL,
-            initialize_almost_everything_postfix
-        );
-        if (hook_id != PATCH_HOOK_INVALID_ID) {
-            TEKLOG_INFO("Initialize_AlmostEverything hook installed successfully, ID: %d", hook_id);
-        } else {
-            TEKLOG_ERROR("Failed to install Initialize_AlmostEverything hook");
+        patch_own(game_class,
+                  is_server
+                      ? patchlib_type_get_type("Terraria.Server", "Game")
+                      : patchlib_type_get_type("Microsoft.Xna.Framework", "Game"));
+        if (!patchlib_is_valid(game_class)) {
+            TEKLOG_ERROR("Failed to get Game class");
+            break;
         }
-        patchlib_free(load_content_method);
-    }
 
-    patchlib_free(game_class);
-    patchlib_free(main_class);
+        get_graphics_device = patchlib_type_get_method_by_param_count(
+            game_class, "get_GraphicsDevice", 0);
+        if (!patchlib_is_valid(get_graphics_device)) {
+            TEKLOG_ERROR("Failed to get GraphicsDevice getter");
+        }
+
+        cur_release = patchlib_type_get_field(main_class, "curRelease");
+        if (!patchlib_is_valid(cur_release)) {
+            TEKLOG_WARN("Failed to get curRelease field");
+        }
+
+        instance = patchlib_type_get_field(main_class, "instance");
+        if (!patchlib_is_valid(instance)) {
+            TEKLOG_WARN("Failed to get instance field");
+        }
+
+        patch_own(local_player_property,
+                  patchlib_type_get_property(main_class, "LocalPlayer"));
+        local_player = patchlib_property_get_get_method(local_player_property);
+
+        patch_own(initialize_method,
+                  patchlib_type_get_method_by_param_count(main_class, "Initialize", 0));
+        if (!patchlib_is_valid(initialize_method)) {
+            TEKLOG_ERROR("Failed to get Initialize method");
+        } else {
+            const patch_hook_id_t hook_id = patchlib_install_prepost_hook(
+                initialize_method, initialize_prefix, initialize_postfix);
+            if (hook_id != PATCH_HOOK_INVALID_ID)
+                TEKLOG_INFO("Initialize hook installed, ID: %d", hook_id);
+            else
+                TEKLOG_ERROR("Failed to install Initialize hook");
+        }
+
+        patch_own(load_content_method,
+                  patchlib_type_get_method_by_param_count(
+                      main_class, "Initialize_AlmostEverything", 0));
+        if (!patchlib_is_valid(load_content_method)) {
+            TEKLOG_ERROR("Failed to get Initialize_AlmostEverything method");
+        } else {
+            patch_hook_id_t hook_id = patchlib_install_prepost_hook(
+                load_content_method, NULL, initialize_almost_everything_postfix);
+            if (hook_id != PATCH_HOOK_INVALID_ID)
+                TEKLOG_INFO("Initialize_AlmostEverything hook installed, ID: %d", hook_id);
+            else
+                TEKLOG_ERROR("Failed to install Initialize_AlmostEverything hook");
+        }
+    }   /* 逆序释放：load_content_method → initialize_method →
+           local_player_property → game_class → main_class */
 
     TEKLOG_DEBUG("terraria_main_init completed");
 }

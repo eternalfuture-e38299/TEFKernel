@@ -1,5 +1,47 @@
 cmake_minimum_required(VERSION 3.28.3)
-project(tefkernel C CXX)
+
+# ==================== IDE Android 模拟 ====================
+# 实际构建由外部工具链文件驱动，会设置 CMAKE_TOOLCHAIN_FILE。
+set(IDE_ANDROID_MODE OFF)
+if(IDE_ANDROID_MODE)
+    set(NDK_PATH "/home/eternalfuture/Android/Sdk/ndk/28.0.13004108" CACHE PATH "Android NDK path")
+    set(IDE_ANDROID_ABI "arm64-v8a" CACHE STRING "ABI for IDE indexing")
+    set(IDE_ANDROID_API "21" CACHE STRING "API level for IDE indexing")
+
+    set(TOOLCHAIN "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64")
+
+    set(CMAKE_SYSTEM_NAME Android)
+    set(CMAKE_SYSTEM_VERSION ${IDE_ANDROID_API})
+
+    set(CMAKE_C_COMPILER   "${TOOLCHAIN}/bin/${IDE_ANDROID_ABI}${IDE_ANDROID_API}-clang")
+    set(CMAKE_CXX_COMPILER "${TOOLCHAIN}/bin/${IDE_ANDROID_ABI}${IDE_ANDROID_API}-clang++")
+    set(CMAKE_ASM_COMPILER "${TOOLCHAIN}/bin/clang")
+
+    set(CMAKE_SYSROOT "${TOOLCHAIN}/sysroot")
+
+    if(IDE_ANDROID_ABI STREQUAL "arm64-v8a")
+        set(CMAKE_C_FLAGS_INIT   "--target=aarch64-linux-android${IDE_ANDROID_API}")
+        set(CMAKE_CXX_FLAGS_INIT "--target=aarch64-linux-android${IDE_ANDROID_API}")
+    elseif(IDE_ANDROID_ABI STREQUAL "armeabi-v7a")
+        set(CMAKE_C_FLAGS_INIT   "--target=armv7a-linux-androideabi${IDE_ANDROID_API}")
+        set(CMAKE_CXX_FLAGS_INIT "--target=armv7a-linux-androideabi${IDE_ANDROID_API}")
+    endif()
+
+    set(CMAKE_FIND_ROOT_PATH "${TOOLCHAIN}/sysroot")
+    set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+    add_compile_definitions(__ANDROID__=1 ANDROID=1)
+    set(ANDROID ON)
+
+    # 给 shadowhook 等子工程提供 ANDROID_ABI
+    if(NOT DEFINED ANDROID_ABI)
+        set(ANDROID_ABI "${IDE_ANDROID_ABI}" CACHE STRING "" FORCE)
+    endif()
+endif()
+
+project(tefkernel C)
 
 set(CMAKE_C_STANDARD 17)
 
@@ -15,18 +57,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
-# 如果还有汇编文件也需要 PIC
+# 汇编文件也需要 PIC
 set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -DPIC")
 set(CMAKE_ASM_FLAGS "-x assembler-with-cpp")
 
-set(ANDROID_MODE OFF)
-if (${ANDROID_MODE})
-    set(ANDROID ON)
-    add_compile_definitions(__ANDROID__)
-    set(CMAKE_SYSROOT /home/eternalfuture/Android/Sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/sysroot/)
-endif ()
-
-set(PATCHLIB_SRC src/patchlib/common/type.c
+set(PATCHLIB_SRC
+        src/patchlib/common/type.c
         src/patchlib/common/method.c
         src/patchlib/common/property.c
         src/patchlib/common/field.c
@@ -44,7 +80,6 @@ if (ANDROID)
             src/patchlib/android/il2cpp_api.c
             src/patchlib/android/private.c
             src/patchlib/android/method_hook.c
-            src/patchlib/android/ffi_guard.cpp
             src/patchlib/android/struct/array.c
             src/patchlib/android/struct/string.c
     )
@@ -59,10 +94,13 @@ else ()
     )
 endif ()
 
+# tefstd：list / scope 一并纳入
 set(TEFSTD_SRC
         src/tefstd/vector.c
         src/tefstd/hashmap.c
         src/tefstd/skipmap.c
+        src/tefstd/list.c
+        src/tefstd/scope.c
         src/tefstd/log.c
 )
 
@@ -115,10 +153,9 @@ set(TEFPACKAGE_SRC
 
 if (ANDROID)
     list(APPEND INTERNAL_SRC
-            src/android/android_runtime_core.cpp
-            src/android/android_test.cpp
-            src/android/cpcall.cpp
-            src/android/iohook.cpp
+            src/android/android_runtime_core.c
+            src/android/cpcall.c
+            src/android/iohook.c
     )
 
     list(APPEND TERRARIA_SRC
@@ -142,7 +179,6 @@ else ()
     )
 endif ()
 
-
 # miniaudio_config
 add_library(miniaudio_config INTERFACE)
 
@@ -150,8 +186,7 @@ target_include_directories(miniaudio_config INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/miniaudio
 )
 
-# 你之前确定的极简宏：禁用解码、编码、高级引擎、资源管理器、生成器
-# 注意：不要定义 MA_NO_THREADING，ma_device 回调依赖线程
+# 禁用解码、编码、高级引擎、资源管理器、生成器；不要定义 MA_NO_THREADING
 target_compile_definitions(miniaudio_config INTERFACE
         MA_NO_DECODING
         MA_NO_ENCODING
@@ -161,7 +196,7 @@ target_compile_definitions(miniaudio_config INTERFACE
 )
 
 add_library(tefkernel SHARED
-        #miniaudio 实现文件
+        # miniaudio 实现文件
         libs/miniaudio/miniaudio.c
 
         # 内核代码
@@ -178,68 +213,82 @@ add_library(tefkernel SHARED
 
 target_link_libraries(tefkernel PRIVATE miniaudio_config)
 
-if(ANDROID)
-    target_link_libraries(tefkernel PRIVATE OpenSLES)
-    # AAudio 在 NDK 中通常由 libaaudio 提供，较新 NDK 可显式链接
-    # target_link_libraries(tefkernel PRIVATE aaudio)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(tefkernel PRIVATE dl m pthread)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_link_libraries(tefkernel PRIVATE "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox")
-endif()
+# ==================== 平台链接 ====================
 
-# Windows 动态库：强制导出所有符号
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW)
-    # 启用自动导出所有符号
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    set_target_properties(tefkernel PROPERTIES
-            WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+if (ANDROID)
+    target_link_libraries(tefkernel PRIVATE
+            OpenSLES
+            android
+            log
+            dl
+            m
+    )
+    # AAudio 视 NDK 版本可选
+    # target_link_libraries(tefkernel PRIVATE aaudio)
+
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(tefkernel PRIVATE dl m pthread)
+
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(tefkernel PRIVATE
+            "-framework CoreFoundation"
+            "-framework CoreAudio"
+            "-framework AudioToolbox"
     )
 
-    # 方法2：链接器选项强制导出
+elseif (WIN32 OR MINGW)
+    # Windows：导出所有符号 + 链接系统库
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set_target_properties(tefkernel PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+
+    target_link_libraries(tefkernel PRIVATE
+            ws2_32       # winsock
+            bcrypt       # 加密
+            winmm        # 多媒体/定时器
+            dbghelp      # 崩溃回溯
+            advapi32     # 注册表/安全
+            user32       # 窗口/消息
+            gdi32        # GDI
+            shell32      # Shell API
+            ole32        # COM
+            oleaut32     # COM 自动化
+            uuid         # GUID
+            comdlg32     # 通用对话框
+            shlwapi      # Shell 轻量 API
+            version      # 版本信息
+            psapi        # 进程状态
+            iphlpapi     # IP 辅助
+            dnsapi       # DNS
+            secur32      # SSPI
+            crypt32      # 证书/加密
+            setupapi     # 设备安装
+            imm32        # 输入法
+            winhttp      # HTTP
+            wininet      # WinINet
+    )
+
     target_link_options(tefkernel PRIVATE
             -Wl,--export-all-symbols
             -Wl,--enable-auto-import
             -Wl,--whole-archive
             -Wl,--kill-at
     )
-
-    # 链接 Windows 系统库
-    target_link_libraries(tefkernel PRIVATE
-            ws2_32
-            bcrypt
-            winmm
-            dbghelp
-    )
-endif()
+endif ()
 
 target_compile_definitions(tefkernel PUBLIC IS_TEFKERNEL_BUILD)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     target_compile_definitions(tefkernel PRIVATE _DARWIN_C_SOURCE)
-endif()
+endif ()
 
-if (${ANDROID})
-    # set(Plugin.SymbolResolver OFF CACHE BOOL "Enable symbol resolver" FORCE)
+# ==================== Android 依赖 ====================
 
-    set(Plugin.ImportTableReplace OFF CACHE BOOL "Enable import table replace" FORCE)
-    set(Plugin.Android.BionicLinkerUtil OFF CACHE BOOL "Enable android bionic linker util" FORCE)
-    set(DOBBY_BUILD_EXAMPLE OFF CACHE BOOL "Build example" FORCE)
-    set(DOBBY_BUILD_TEST OFF CACHE BOOL "Build test" FORCE)
-    set(DOBBY_BUILD_KERNEL_MODE OFF CACHE BOOL "Build xnu kernel mode" FORCE)
-    set(Private.Obfuscation OFF CACHE BOOL "Enable llvm obfuscation" FORCE)
-    set(FullFloatingPointRegisterPack OFF CACHE BOOL "Save and pack all floating-point registers" FORCE)
-    set(DOBBY_DEBUG OFF CACHE BOOL "Enable debug logging" FORCE) # 生产环境建议关闭
-
+if (ANDROID)
     add_subdirectory(libs/libffi)
-    add_subdirectory(libs/xdl)
-    add_subdirectory(libs/dobby)
-    target_link_libraries(tefkernel
-            PUBLIC
-            android
-            log
-            dobby_static
-            xdl
+    add_subdirectory(libs/shadowhook)
+
+    target_link_libraries(tefkernel PUBLIC
+            shadowhook
             libffi
     )
 
@@ -248,29 +297,32 @@ if (${ANDROID})
             ${CMAKE_CURRENT_BINARY_DIR}/libs/libffi/include
     )
 
-    target_link_options(tefkernel PRIVATE -static-libstdc++)
-    # 不要导出静态链接进来的 C++ 运行时/libunwind/libffi 符号。
-    # 否则后加载的扩展库会把它的 __gxx_personality_v0/__cxa_* 绑定到内核这份，
-    # 与它自己的 unwinder 混用，异常展开时在 unw_get_proc_info 里崩。
-    target_link_options(tefkernel PRIVATE -Wl,--exclude-libs,ALL)
+
+
+#[[    target_link_options(tefkernel PRIVATE -static-libstdc++)
+    # 不导出静态链接进来的 C++ 运行时/libunwind/libffi 符号
+    target_link_options(tefkernel PRIVATE -Wl,--exclude-libs,ALL)]]
 endif ()
 
-# Windows(MinGW) 下把 gcc/winpthread 运行时也静态链接进 DLL，
-# 否则产物会依赖 libwinpthread-1.dll —— 玩家机器上没有就会加载失败。
-if(MINGW OR (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND CMAKE_C_COMPILER_ID STREQUAL "GNU"))
+# ==================== MinGW 运行时静态链接 ====================
+
+if (MINGW OR (WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "GNU"))
     target_link_options(tefkernel PRIVATE
             -static-libgcc
+            -static-libstdc++
             -Wl,-Bstatic
             -lwinpthread
             -Wl,-Bdynamic
     )
-endif()
+endif ()
 
 target_include_directories(tefkernel
         PUBLIC
         include
         src
 )
+
+# ==================== Release strip ====================
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
@@ -281,7 +333,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
                 VERBATIM
         )
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        # macOS 使用不同的 strip 选项
         add_custom_command(TARGET tefkernel POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "Stripping symbols from tefkernel..."
                 COMMAND ${CMAKE_STRIP} -S $<TARGET_FILE:tefkernel>
@@ -291,94 +342,55 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
-# 获取系统名称和架构
-if(ANDROID)
-    set(SYSTEM_NAME "android")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(SYSTEM_NAME "linux")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set(SYSTEM_NAME "mac")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(SYSTEM_NAME "windows")
-else()
-    set(SYSTEM_NAME "unknown")
-endif()
+# ==================== 产物命名 ====================
 
-# 获取架构
-
-if(ANDROID)
-    # Android 使用 NDK 的 ABI 名称
-    if(ANDROID_ABI STREQUAL "arm64-v8a")
+if (ANDROID)
+    if (ANDROID_ABI STREQUAL "arm64-v8a")
         set(ARCH "arm64-v8a")
-    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+    elseif (ANDROID_ABI STREQUAL "armeabi-v7a")
         set(ARCH "armeabi-v7a")
     else()
         set(ARCH "${ANDROID_ABI}")
     endif()
-elseif(MINGW OR WIN32)
-    # Windows: 通过编译器名称判断架构
-    if(CMAKE_C_COMPILER MATCHES "x86_64-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "x86_64-w64-mingw32")
+    set(SYSTEM_NAME "android")
+elseif (MINGW OR WIN32)
+    if (CMAKE_C_COMPILER MATCHES "x86_64-w64-mingw32")
         set(ARCH "x86_64")
-    elseif(CMAKE_C_COMPILER MATCHES "i686-w64-mingw32" OR CMAKE_CXX_COMPILER MATCHES "i686-w64-mingw32")
+    elseif (CMAKE_C_COMPILER MATCHES "i686-w64-mingw32")
         set(ARCH "x86")
-    else()
-        # 备用方案：通过指针大小判断
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(ARCH "x86_64")
-        else()
-            set(ARCH "x86")
-        endif()
-    endif()
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    # macOS: 优先根据 CMAKE_OSX_ARCHITECTURES 判断目标架构（支持在 ARM64 macOS runner 上编译 x86_64）
-    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
-        set(ARCH "x86_64")
-    elseif(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
-        set(ARCH "arm64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        set(ARCH "arm64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
+    elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(ARCH "x86_64")
     else()
-        set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+        set(ARCH "x86")
     endif()
-else()
-    # 非 Android/Windows/macOS 平台使用系统处理器名称
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+    set(SYSTEM_NAME "windows")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    if (CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+        set(ARCH "x86_64")
+    elseif (CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
         set(ARCH "arm64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7a|ARMv7|arm")
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        set(ARCH "arm64")
+    else()
+        set(ARCH "x86_64")
+    endif()
+    set(SYSTEM_NAME "mac")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        set(ARCH "arm64")
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|arm")
         set(ARCH "arm32")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64|x64")
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|x64")
         set(ARCH "x86_64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86")
-        set(ARCH "x86")
     else()
-        set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+        set(ARCH "x86")
     endif()
+    set(SYSTEM_NAME "linux")
+else()
+    set(SYSTEM_NAME "unknown")
+    set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-#[[
-message(STATUS "========== DEBUG ==========")
-message(STATUS "SYSTEM_NAME: ${SYSTEM_NAME}")
-message(STATUS "ARCH: ${ARCH}")
-message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
-message(STATUS "WIN32: ${WIN32}")
-message(STATUS "MINGW: ${MINGW}")
-message(STATUS "============================")]]
-
-
-# 设置输出文件名
 set_target_properties(tefkernel PROPERTIES
-    OUTPUT_NAME "tefkernel.${SYSTEM_NAME}.${ARCH}"
+        OUTPUT_NAME "tefkernel.${SYSTEM_NAME}.${ARCH}"
 )
-#[[
-
-set(TEST ON)
-if (${TEST})
-    include_directories(include)
-
-    add_library(test_module SHARED
-            test/module.c
-    )
-endif ()]]
