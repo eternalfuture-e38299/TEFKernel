@@ -816,6 +816,7 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/content/projectile_manager.h"
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/buff_manager.h"
+#include "terraria/content/tile_manager.h"
 #include "terraria/content/audio_manager.h"
 #include "terraria/content/prefix_manager.h"
 #include "terraria/gui.h"
@@ -1190,6 +1191,10 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_buff_manager_time);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_remove);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_register_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_unregister_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_get_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_id_get_count);
 
     // gui
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);

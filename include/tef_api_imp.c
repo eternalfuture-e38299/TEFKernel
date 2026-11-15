@@ -56,6 +56,7 @@
 #include "terraria/recipe_manager.h"
 #include "terraria/language_manager.h"
 #include "terraria/content/buff_manager.h"
+#include "terraria/content/tile_manager.h"
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/projectile_manager.h"
 #include "terraria/content/audio_manager.h"

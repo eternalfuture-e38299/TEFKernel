@@ -93,6 +93,7 @@ set(TERRARIA_SRC
         src/terraria/common/content/projectile_manager.c
         src/terraria/common/content/npc_manager.c
         src/terraria/common/content/buff_manager.c
+        src/terraria/common/content/tile_manager.c
         src/terraria/common/gui.c
         src/terraria/common/recipe_manager.c
         src/terraria/common/language_manager.c
@@ -130,6 +131,7 @@ if (ANDROID)
             src/terraria/android/content/button_scroll.c
             src/terraria/android/content/button_store.c
             src/terraria/android/content/button_images.c
+            src/terraria/android/content/tile_pe_patch.c
     )
 else ()
     list(APPEND INTERNAL_SRC

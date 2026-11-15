@@ -51,6 +51,7 @@
 #include "internal/terraria/content/projectile_manager.h"
 #include "internal/terraria/content/npc_manager.h"
 #include "internal/terraria/content/buff_manager.h"
+#include "internal/terraria/content/tile_manager.h"
 #include "internal/terraria/content/prefix_manager.h"
 #include "internal/terraria/gui.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
@@ -167,6 +168,7 @@ static int hook_il2cpp_init(const char* domain_name) {
     terraria_projectile_manager_init();
     terraria_npc_manager_init();
     terraria_buff_manager_init();
+    terraria_tile_manager_init();
     terraria_prefix_manager_init();
     terraria_gui_init();
     terraria_button_manager_install();
