@@ -817,6 +817,7 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "terraria/content/projectile_manager.h"
 #include "terraria/content/npc_manager.h"
 #include "terraria/content/buff_manager.h"
+#include "terraria/content/tile_manager.h"
 #include "terraria/content/audio_manager.h"
 #include "terraria/content/prefix_manager.h"
 #include "terraria/gui.h"
@@ -824,6 +825,8 @@ tpf_register_symbol(kernel_plugin, #func, (const void *)(func))
 #include "tefstd/scope.h"
 #if defined(__ANDROID__)
 #include "terraria/content/button_manager.h"
+#else
+#include "terraria/content/keybind_manager.h"
 #endif
 
 void tpf_init_libtefkernel() {
@@ -1153,6 +1156,18 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_button_manager_released);
     TPF_KERNEL_SYMBOL(terraria_button_manager_set_enabled);
     TPF_KERNEL_SYMBOL(terraria_button_manager_set_visible);
+#else
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_available);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_error);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_install);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_shutdown);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_register);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_unregister);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_unregister_owner);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_down);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_pressed);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_released);
+    TPF_KERNEL_SYMBOL(terraria_keybind_manager_set_enabled);
 #endif
 
     // item_manager
@@ -1203,6 +1218,10 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_buff_manager_time);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_remove);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_register_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_unregister_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_get_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_id_get_count);
 
     // gui
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);

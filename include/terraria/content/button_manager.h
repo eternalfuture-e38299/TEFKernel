@@ -37,6 +37,8 @@ typedef struct terraria_button_desc_t {
 
 DEFINE_FUNCTION(bool, terraria_button_manager_available, void)
 DEFINE_FUNCTION(const char *, terraria_button_manager_error, void)
+/* 已废弃：绑定存档位置由内核统一管理（工作目录），传入的目录会被忽略。
+ * 保留该入口只为让既有加载器的接口探测不失败。 */
 DEFINE_FUNCTION(void, terraria_button_manager_configure_storage,
                 const char *directory)
 DEFINE_FUNCTION(void, terraria_button_manager_install, void)

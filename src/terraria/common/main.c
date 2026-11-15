@@ -31,6 +31,7 @@
 #include "internal/terraria/content/buff_manager.h"
 #include "internal/terraria/content/npc_manager.h"
 #include "internal/terraria/content/prefix_manager.h"
+#include "internal/terraria/content/tile_manager.h"
 #include "patchlib/property.h"
 #include "patchlib/scope.h"
 
@@ -41,6 +42,10 @@ static patch_handle_t local_player = PATCH_NULL;
 
 static bool initialize_prefix(patch_handle_t this, void **args,
                                const patch_method_signature_t *sig_info, void *result) {
+    if (tefstd_vector_size(&g_terraria_tile_registry)) {
+        terraria_tile_manager_assign_ids();
+        terraria_tile_manager_resize();
+    }
     const int base_count = terraria_item_id_get_count();
     const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
     const size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
@@ -149,6 +154,7 @@ static bool initialize_prefix(patch_handle_t this, void **args,
 // WorldItem.UpdateItem 中越界而被 Main.ignoreErrors 静默移除。
 static void initialize_postfix(patch_handle_t this, void **args, void *result,
                                const patch_method_signature_t *sig_info) {
+    terraria_tile_manager_resize();
     const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);
     const size_t custom_proj = tefstd_vector_size(&g_terraria_projectile_registry);
     const size_t custom_buff = tefstd_vector_size(&g_terraria_buff_registry);
@@ -171,6 +177,9 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
 
 static void initialize_almost_everything_postfix(patch_handle_t this, void **args, void *result,
                                  const patch_method_signature_t *sig_info) {
+    terraria_tile_manager_resize();
+    terraria_tile_manager_init_textures();
+    terraria_tile_manager_init_static();
     TEKLOG_INFO("Main.Initialize_AlmostEverything completed, resizing arrays...");
 
     const size_t custom_count = tefstd_vector_size(&g_terraria_item_registry);

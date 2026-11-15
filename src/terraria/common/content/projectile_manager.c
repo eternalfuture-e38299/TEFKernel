@@ -366,6 +366,39 @@ static void fill_new_slots_with_modal(patch_handle_t old_array,
             break;
 }
 
+/* ProjectileID.Sets.Factory._size 是 SetFactory 创建新集合时使用的长度，
+ * 不会随 Sets 里的静态数组一起扩到 ProjectileID.Count + custom，
+ * Mod 用 Factory.Create*Set 自建集合时仍只有基础长度。 */
+static void resize_projectile_set_factory(const int new_size) {
+    patch_handle_t pid = patchlib_type_get_type("Terraria.ID", "ProjectileID");
+    if (!patchlib_is_valid(pid)) return;
+    patch_handle_t sets = patchlib_type_get_inner_type(pid, "Sets");
+    patchlib_free(pid);
+    if (!patchlib_is_valid(sets)) return;
+
+    patch_handle_t f_factory = patchlib_type_get_field(sets, "Factory");
+    patchlib_free(sets);
+    if (!patchlib_is_valid(f_factory)) return;
+
+    patch_handle_t factory = PATCH_NULL;
+    patchlib_field_get_value(f_factory, NULL, &factory);
+    patchlib_free(f_factory);
+    if (!patchlib_is_valid(factory)) return;
+
+    patch_handle_t sf = patchlib_type_get_type("Terraria.ID", "SetFactory");
+    if (!patchlib_is_valid(sf)) return;
+    patch_handle_t f_size = patchlib_type_get_field(sf, "_size");
+    patchlib_free(sf);
+    if (!patchlib_is_valid(f_size)) return;
+
+    int size = new_size;
+    patchlib_field_set_value(f_size, factory, &size);
+    patchlib_free(f_size);
+    patchlib_free(factory);
+    TEKLOG_INFO("projectile resize: ProjectileID.Sets.Factory._size -> %d",
+                new_size);
+}
+
 /* 把某个"按 ProjectileID 索引"的静态数组扩到 new_size（长度必须等于 base 才动）。
  * modal = 用原数组众数填充新槽（ProjectileID.Sets 的默认值大多不是 0）；
  * fill_with_int = 用固定 int 填充新槽（Main.projFrames 必须 >= 1）。 */
@@ -492,6 +525,9 @@ void terraria_projectile_manager_resize() {
         patchlib_free(field);
     }
     tefstd_vector_destroy(&fields);
+    /* 2.5) ProjectileID.Sets.Factory._size 也要扩，否则 Mod 用 Factory 自建
+     * 按 type 索引的集合时长度仍停留在原版 Count。 */
+    resize_projectile_set_factory(new_size);
     patchlib_free(sets);
     TEKLOG_INFO("projectile resize: %d set array(s) resized (base=%d -> %d)",
                 resized, base, new_size);
