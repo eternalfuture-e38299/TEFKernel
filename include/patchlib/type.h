@@ -300,9 +300,7 @@ DEFINE_FUNCTION(bool, patchlib_type_get_properties, patch_handle_t type, bool in
  * @param h 句柄
  */
 DEFINE_FUNCTION(void, patchlib_free, patch_handle_t h)
-#endif
 
-#if !defined(__ANDROID__)
 /**
  * @brief 复制对象（浅拷贝）
  * @param handle 源句柄

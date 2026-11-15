@@ -28,8 +28,8 @@
  * SOFTWARE.
  *******************************************************************************/
 
-#ifndef TEFKERNEL_SKIPMAP_H
-#define TEFKERNEL_SKIPMAP_H
+#ifndef TEFKERNEL_STD_SKIPMAP_H
+#define TEFKERNEL_STD_SKIPMAP_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -181,4 +181,4 @@ DEFINE_FUNCTION(bool, tefstd_skipmap_next,
 }
 #endif
 
-#endif // TEFKERNEL_SKIPMAP_H
+#endif // TEFKERNEL_STD_SKIPMAP_H

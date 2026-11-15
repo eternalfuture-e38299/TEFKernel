@@ -28,8 +28,8 @@
  * SOFTWARE.
  *******************************************************************************/
 
-#ifndef TEFKERNEL_HASHMAP_H
-#define TEFKERNEL_HASHMAP_H
+#ifndef TEFKERNEL_STD_HASHMAP_H
+#define TEFKERNEL_STD_HASHMAP_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -205,4 +205,4 @@ DEFINE_FUNCTION(bool, tefstd_hashmap_next,
 }
 #endif
 
-#endif // TEFKERNEL_HASHMAP_H
+#endif // TEFKERNEL_STD_HASHMAP_H

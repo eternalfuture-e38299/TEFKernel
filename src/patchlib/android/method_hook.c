@@ -24,9 +24,10 @@
 #include <bits/sysconf.h>
 #include <sys/mman.h>
 #include <malloc.h>
-#include <dobby.h>
 #include <errno.h>
 #include <string.h>
+
+#include "shadowhook.h"
 
 #include "private.h"
 #include "internal/log.h"
@@ -35,36 +36,43 @@
 #include "tefstd/hashmap.h"
 
 typedef struct patchlib_hook_handle_t {
-    void *method; ///< 当前挂钩的函数
-    void *original; ///< 原始函数
-    ffi_cif cif; ///< FFI调用接口（直接存储，不动态分配）
-    ffi_closure* closure;
-    void *trampoline_func; ///< 跳板函数
+    void *method;              ///< 当前挂钩的函数
+    void *original;            ///< 原始函数
+    void *stub;                ///< ShadowHook 返回的 hook 凭据，unhook 时用
+    ffi_cif cif;               ///< FFI 调用接口
+    ffi_closure *closure;
+    void *trampoline_func;     ///< 跳板函数
     patch_method_signature_t method_signature; ///< 函数签名
-    tefstd_vector_t prefixes; ///< 前置补丁函数(void*)
+    tefstd_vector_t prefixes;  ///< 前置补丁函数(void*)
     tefstd_vector_t postfixes; ///< 后置补丁函数(void*)
-    bool is_hooked; ///< 是否已挂钩
-    ffi_type** arg_types;        // ← 新增，保存 arg_types 数组
-    size_t arg_types_count;      // ← 新增，数组长度
-    ffi_type* return_ffi_type;   // ← 新增，返回类型 ffi_type
+    bool is_hooked;            ///< 是否已挂钩
+    ffi_type **arg_types;      ///< 保存 arg_types 数组
+    size_t arg_types_count;    ///< 数组长度
+    ffi_type *return_ffi_type; ///< 返回类型 ffi_type
 } patchlib_hook_handle_t;
 
 typedef struct patchlib_hook_node_t {
-    patch_hook_id_t id; ///< Hook ID
-    patchlib_hook_handle_t* handle; ///< 节点指向的句柄
-    void* prefix;            ///< 前置补丁函数指针
-    void* postfix;           ///< 后置补丁函数指针
+    patch_hook_id_t id;
+    patchlib_hook_handle_t *handle;
+    void *prefix;
+    void *postfix;
 } patchlib_hook_node_t;
 
 static struct {
-    bool initialized; ///< 初始化状态
-    tefstd_vector_t hook_handles;    ///< Hook句柄 <patchlib_hook_handle_t*>
-    tefstd_hashmap_t hooks; ///< Hook节点 <patch_hook_id_t, patchlib_hook_node_t*>
-    tefstd_hashmap_t method_to_handle;  ///< 方法到句柄的映射 <void*, patchlib_hook_handle_t*>
-    patch_hook_id_t next_hook_id; ///< 下一个可用的Hook ID
+    bool initialized;
+    tefstd_vector_t hook_handles;            ///< <patchlib_hook_handle_t*>
+    tefstd_hashmap_t hooks;                  ///< <patch_hook_id_t, patchlib_hook_node_t*>
+    tefstd_hashmap_t method_to_handle;       ///< <void*, patchlib_hook_handle_t*>
+    patch_hook_id_t next_hook_id;
 } g_hooks;
 
-static void init_g_hooks() {
+/* typed_hook 的 method → stub 映射，供 uninstall_typed_hook 使用 */
+static struct {
+    bool initialized;
+    tefstd_hashmap_t method_to_stub;         ///< <void* method, void* stub>
+} g_typed_hooks;
+
+static void init_g_hooks(void) {
     if (g_hooks.initialized) {
         TEKLOG_DEBUG("Hook system already initialized");
         return;
@@ -78,16 +86,22 @@ static void init_g_hooks() {
     TEKLOG_INFO("Initializing hook system");
 #endif
 
-    tefstd_vector_init(&g_hooks.hook_handles, sizeof(patchlib_hook_handle_t*));
-    tefstd_hashmap_init(&g_hooks.hooks, sizeof(patch_hook_id_t), sizeof(patchlib_hook_node_t*));
-    tefstd_hashmap_init(&g_hooks.method_to_handle, sizeof(void*), sizeof(patchlib_hook_handle_t*));
+    tefstd_vector_init(&g_hooks.hook_handles, sizeof(patchlib_hook_handle_t *));
+    tefstd_hashmap_init(&g_hooks.hooks, sizeof(patch_hook_id_t), sizeof(patchlib_hook_node_t *));
+    tefstd_hashmap_init(&g_hooks.method_to_handle, sizeof(void *), sizeof(patchlib_hook_handle_t *));
     g_hooks.next_hook_id = 0;
 
     g_hooks.initialized = true;
     TEKLOG_INFO("Hook system initialized successfully");
 }
 
-static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
+static void init_g_typed_hooks(void) {
+    if (g_typed_hooks.initialized) return;
+    tefstd_hashmap_init(&g_typed_hooks.method_to_stub, sizeof(void *), sizeof(void *));
+    g_typed_hooks.initialized = true;
+}
+
+static patchlib_hook_handle_t *find_or_create_hook_handle(void *method) {
     if (!g_hooks.initialized) {
         TEKLOG_DEBUG("Hook system not initialized, initializing now");
         init_g_hooks();
@@ -95,7 +109,7 @@ static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
 
     TEKLOG_DEBUG("Looking for hook handle for method: %p", method);
 
-    patchlib_hook_handle_t** handle_ptr = tefstd_hashmap_get(&g_hooks.method_to_handle, &method);
+    patchlib_hook_handle_t **handle_ptr = tefstd_hashmap_get(&g_hooks.method_to_handle, &method);
     if (handle_ptr && *handle_ptr) {
         TEKLOG_DEBUG("Found existing hook handle for method: %p", method);
         return *handle_ptr;
@@ -103,22 +117,25 @@ static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
 
     TEKLOG_INFO("Creating new hook handle for method: %p", method);
 
-    // 创建新句柄
-    patchlib_hook_handle_t* handle = malloc(sizeof(patchlib_hook_handle_t));
+    patchlib_hook_handle_t *handle = malloc(sizeof(patchlib_hook_handle_t));
     if (!handle) {
         TEKLOG_ERROR("Failed to allocate memory for hook handle");
         return NULL;
     }
 
     handle->method = method;
+    handle->original = NULL;
+    handle->stub = NULL;
+    handle->closure = NULL;
+    handle->trampoline_func = NULL;
     handle->is_hooked = false;
+    handle->arg_types = NULL;
+    handle->arg_types_count = 0;
+    handle->return_ffi_type = NULL;
 
+    tefstd_vector_init(&handle->prefixes, sizeof(void *));
+    tefstd_vector_init(&handle->postfixes, sizeof(void *));
 
-    // 初始化向量
-    tefstd_vector_init(&handle->prefixes, sizeof(void*));
-    tefstd_vector_init(&handle->postfixes, sizeof(void*));
-
-    // 获取方法签名
     if (!patchlib_method_get_signature(method, &handle->method_signature)) {
         TEKLOG_ERROR("Failed to get method signature for method: %p", method);
         tefstd_vector_destroy(&handle->prefixes);
@@ -127,7 +144,6 @@ static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
         return NULL;
     }
 
-    // 注册到全局表
     tefstd_hashmap_put(&g_hooks.method_to_handle, &method, &handle);
     tefstd_vector_push_back(&g_hooks.hook_handles, &handle);
 
@@ -135,39 +151,35 @@ static patchlib_hook_handle_t* find_or_create_hook_handle(void* method) {
     return handle;
 }
 
-static void* allocate_executable_memory(const size_t size) {
-    // 获取系统页大小
+static void *allocate_executable_memory(const size_t size) {
     const long page_size = sysconf(_SC_PAGESIZE);
     if (page_size == -1) {
         TEKLOG_ERROR("Failed to get page size: %s", strerror(errno));
         return NULL;
     }
 
-    // 计算需要映射的页数
-    size_t mapped_size = (size + page_size - 1) & ~(page_size - 1);
+    const size_t mapped_size = (size + page_size - 1) & ~(page_size - 1);
 
-    // 根据架构确定对齐要求
     size_t alignment;
-    const char* arch_name;
+    const char *arch_name;
 
 #if defined(__aarch64__)
-    alignment = 16;  // ARM64要求16字节对齐
+    alignment = 16;
     arch_name = "ARM64";
 #elif defined(__arm__)
-    alignment = 8;   // ARM32要求8字节对齐
+    alignment = 8;
     arch_name = "ARM32";
 #else
-    alignment = 16;  // 其他架构使用安全值
+    alignment = 16;
     arch_name = "Unknown";
 #endif
 
     TEKLOG_DEBUG("Allocating executable memory for %s: size=%zu, page_size=%ld, alignment=%zu",
                  arch_name, size, page_size, alignment);
 
-    // 分配额外空间用于对齐
-    size_t total_size = mapped_size + alignment - 1;
+    const size_t total_size = mapped_size + alignment - 1;
 
-    void* ptr = mmap(NULL, total_size,
+    void *ptr = mmap(NULL, total_size,
                      PROT_READ | PROT_WRITE | PROT_EXEC,
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -176,29 +188,22 @@ static void* allocate_executable_memory(const size_t size) {
         return NULL;
     }
 
-    // 计算对齐的指针
-    uintptr_t aligned_addr = ((uintptr_t)ptr + alignment - 1) & ~(alignment - 1);
-    void* aligned_ptr = (void*)aligned_addr;
+    const uintptr_t aligned_addr = ((uintptr_t) ptr + alignment - 1) & ~(alignment - 1);
+    void *aligned_ptr = (void *) aligned_addr;
 
-    // 验证对齐
-    if (((uintptr_t)aligned_ptr & (alignment - 1)) != 0) {
+    if (((uintptr_t) aligned_ptr & (alignment - 1)) != 0) {
         TEKLOG_ERROR("Memory not properly aligned for %s: %p (required alignment: %zu)",
                      arch_name, aligned_ptr, alignment);
         munmap(ptr, total_size);
         return NULL;
     }
 
-    TEKLOG_DEBUG("Successfully allocated executable memory for %s:", arch_name);
-    TEKLOG_DEBUG("  Raw pointer: %p", ptr);
-    TEKLOG_DEBUG("  Aligned pointer: %p", aligned_ptr);
-    TEKLOG_DEBUG("  Total size: %zu, Usable size: %zu", total_size, size);
-    TEKLOG_DEBUG("  Alignment check: %p & %zu = 0 (OK)",
-                 aligned_ptr, alignment - 1);
-
+    TEKLOG_DEBUG("Allocated executable memory: raw=%p aligned=%p size=%zu",
+                 ptr, aligned_ptr, total_size);
     return aligned_ptr;
 }
 
-static void free_executable_memory(void* ptr, const size_t size) {
+static void free_executable_memory(void *ptr, const size_t size) {
     if (ptr) {
         const long page_size = sysconf(_SC_PAGESIZE);
         const size_t mapped_size = (size + page_size - 1) & ~(page_size - 1);
@@ -207,92 +212,87 @@ static void free_executable_memory(void* ptr, const size_t size) {
     }
 }
 
-static void hook_dispatcher_static(ffi_cif* cif, void* ret, void** args, void* user_data) {
-    const patchlib_hook_handle_t* handle = user_data;
+static void hook_dispatcher_static(ffi_cif *cif, void *ret, void **args, void *user_data) {
+    const patchlib_hook_handle_t *handle = user_data;
 
     bool call_original = true;
 
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
-    if (prefix_count > 0) {
-        for (size_t i = 0; i < prefix_count; ++i) {
-            void** prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
-            if (prefix_ptr && *prefix_ptr) {
-                const prefix_callback_t prefix = *prefix_ptr;
-                if (prefix(NULL, args, &handle->method_signature, ret)) {
-                    call_original = false;
-                    break;
-                }
+    for (size_t i = 0; i < prefix_count; ++i) {
+        void **prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
+        if (prefix_ptr && *prefix_ptr) {
+            const prefix_callback_t prefix = *prefix_ptr;
+            if (prefix(NULL, args, &handle->method_signature, ret)) {
+                call_original = false;
+                break;
             }
         }
     }
 
     if (call_original) {
-        ffi_call(cif, handle->original, ret, args);
+        ffi_call(cif, FFI_FN(handle->original), ret, args);
     }
 
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
-    if (postfix_count > 0) {
-        for (size_t i = 0; i < postfix_count; ++i) {
-            void** postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
-            if (postfix_ptr && *postfix_ptr) {
-                const postfix_callback_t postfix = *postfix_ptr;
-                postfix(NULL, args, ret, &handle->method_signature);
-            }
+    for (size_t i = 0; i < postfix_count; ++i) {
+        void **postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
+        if (postfix_ptr && *postfix_ptr) {
+            const postfix_callback_t postfix = *postfix_ptr;
+            postfix(NULL, args, ret, &handle->method_signature);
         }
     }
 }
 
-static void hook_dispatcher(ffi_cif* cif, void* ret, void** args, void* user_data) {
-    const patchlib_hook_handle_t* handle = user_data;
+static void hook_dispatcher(ffi_cif *cif, void *ret, void **args, void *user_data) {
+    const patchlib_hook_handle_t *handle = user_data;
 
-    void* instance = *(void**)args[0];
-    void** actual_args = args + 1;
+    void *instance = *(void **) args[0];
+    void **actual_args = args + 1;
 
     bool call_original = true;
 
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
-    if (prefix_count > 0) {
-        for (size_t i = 0; i < prefix_count; ++i) {
-            void** prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
-            if (prefix_ptr && *prefix_ptr) {
-                const prefix_callback_t prefix = *prefix_ptr;
-                if (prefix(instance, actual_args, &handle->method_signature, ret)) {
-                    call_original = false;
-                    break;
-                }
+    for (size_t i = 0; i < prefix_count; ++i) {
+        void **prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
+        if (prefix_ptr && *prefix_ptr) {
+            const prefix_callback_t prefix = *prefix_ptr;
+            if (prefix(instance, actual_args, &handle->method_signature, ret)) {
+                call_original = false;
+                break;
             }
         }
     }
 
     if (call_original) {
-        ffi_call(cif, handle->original, ret, args);
+        ffi_call(cif, FFI_FN(handle->original), ret, args);
     }
 
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
-    if (postfix_count > 0) {
-        for (size_t i = 0; i < postfix_count; ++i) {
-            void** postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
-            if (postfix_ptr && *postfix_ptr) {
-                const postfix_callback_t postfix = *postfix_ptr;
-                postfix(instance, actual_args, ret, &handle->method_signature);
-            }
+    for (size_t i = 0; i < postfix_count; ++i) {
+        void **postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
+        if (postfix_ptr && *postfix_ptr) {
+            const postfix_callback_t postfix = *postfix_ptr;
+            postfix(instance, actual_args, ret, &handle->method_signature);
         }
     }
 }
 
-static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
-    void(*hook_callback)(ffi_cif *, void *, void **, void *) = NULL;
+static bool create_closure_from_signature(patchlib_hook_handle_t *handle) {
+    void (*hook_callback)(ffi_cif *, void *, void **, void *);
     if (handle->method_signature.is_instance)
-        hook_callback = (void*)hook_dispatcher;
+        hook_callback = (void (*)(ffi_cif *, void *, void **, void *)) hook_dispatcher;
     else
-        hook_callback = (void*)hook_dispatcher_static;
+        hook_callback = (void (*)(ffi_cif *, void *, void **, void *)) hook_dispatcher_static;
 
-    ffi_type* re_type = patch_type_to_ffi_type(handle->method_signature.return_type, handle->method_signature.return_type_handle);
+    ffi_type *re_type = patch_type_to_ffi_type(handle->method_signature.return_type,
+                                               handle->method_signature.return_type_handle);
 
     const size_t args_count = tefstd_vector_size(&handle->method_signature.arg_types);
-    const size_t total_args = args_count + (handle->method_signature.is_instance ? 1 : 0) + (il2cpp_method_is_generic(handle->method) ? 1 : 0);
+    const size_t total_args = args_count
+                              + (handle->method_signature.is_instance ? 1 : 0)
+                              + (il2cpp_method_is_generic(handle->method) ? 1 : 0);
 
-    ffi_type** arg_types = malloc(total_args * sizeof(ffi_type*));
+    ffi_type **arg_types = malloc(total_args * sizeof(ffi_type *));
     if (!arg_types) {
         TEKLOG_ERROR("Failed to allocate memory for argument types");
         return false;
@@ -300,12 +300,12 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
 
     size_t arg_index = 0;
     if (handle->method_signature.is_instance) {
-        arg_types[arg_index++] = &ffi_type_pointer; // this 指针
+        arg_types[arg_index++] = &ffi_type_pointer;
     }
 
     for (size_t i = 0; i < args_count; ++i) {
-        patch_type_t* type = tefstd_vector_at(&handle->method_signature.arg_types, i);
-        patch_handle_t* type_handle = tefstd_vector_at(&handle->method_signature.arg_type_handles, i);
+        patch_type_t *type = tefstd_vector_at(&handle->method_signature.arg_types, i);
+        patch_handle_t *type_handle = tefstd_vector_at(&handle->method_signature.arg_type_handles, i);
 
         if (!type) {
             TEKLOG_ERROR("Failed to get argument type at index %zu", i);
@@ -315,18 +315,18 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
         arg_types[arg_index++] = patch_type_to_ffi_type(*type, *type_handle);
     }
 
-    if (il2cpp_method_is_generic(handle->method)) arg_types[arg_index++] = &ffi_type_pointer;
+    if (il2cpp_method_is_generic(handle->method))
+        arg_types[arg_index++] = &ffi_type_pointer;
 
-
-        ffi_abi abi = FFI_DEFAULT_ABI;
+    ffi_abi abi = FFI_DEFAULT_ABI;
 #if defined(__aarch64__)
-        abi = FFI_SYSV;
-        TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM64");
+    abi = FFI_SYSV;
+    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM64");
 #elif defined(__arm__)
-        abi = FFI_SYSV;
-        TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM32");
+    abi = FFI_SYSV;
+    TEKLOG_DEBUG("Using FFI_SYSV ABI for ARM32");
 #else
-        TEKLOG_DEBUG("Using FFI_DEFAULT_ABI");
+    TEKLOG_DEBUG("Using FFI_DEFAULT_ABI");
 #endif
 
     ffi_status status = ffi_prep_cif(&handle->cif, abi, total_args, re_type, arg_types);
@@ -337,7 +337,7 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     }
 
     const size_t closure_size = sizeof(ffi_closure);
-    void* exec_mem = allocate_executable_memory(closure_size);
+    void *exec_mem = allocate_executable_memory(closure_size);
     if (!exec_mem) {
         TEKLOG_ERROR("Failed to allocate executable memory");
         free(arg_types);
@@ -350,11 +350,17 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     handle->arg_types_count = total_args;
     handle->return_ffi_type = re_type;
 
-    status = ffi_prep_closure_loc(handle->closure, &handle->cif, hook_callback, handle, handle->trampoline_func);
+    status = ffi_prep_closure_loc(handle->closure, &handle->cif, hook_callback, handle,
+                                  handle->trampoline_func);
     if (status != FFI_OK) {
         TEKLOG_ERROR("ffi_prep_closure_loc failed with status: %d", status);
         free_executable_memory(exec_mem, closure_size);
         free(arg_types);
+        handle->closure = NULL;
+        handle->trampoline_func = NULL;
+        handle->arg_types = NULL;
+        handle->arg_types_count = 0;
+        handle->return_ffi_type = NULL;
         return false;
     }
 
@@ -362,7 +368,8 @@ static bool create_closure_from_signature(patchlib_hook_handle_t* handle) {
     return true;
 }
 
-patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix) {
+patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix,
+                                              postfix_callback_t postfix) {
     if (!patchlib_is_valid(method)) {
         TEKLOG_ERROR("Cannot install hook: method is NULL");
         return PATCH_HOOK_INVALID_ID;
@@ -373,17 +380,39 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
         return PATCH_HOOK_INVALID_ID;
     }
 
-
-    patchlib_hook_handle_t* handle = find_or_create_hook_handle(method);
-    if (!handle->is_hooked) {
-        patchlib_method_get_signature(method, &handle->method_signature);
-        create_closure_from_signature(handle);
-        DobbyHook(patchlib_method_get_pointer(method), handle->trampoline_func,  &handle->original);
-        handle->is_hooked = true;
+    patchlib_hook_handle_t *handle = find_or_create_hook_handle(method);
+    if (!handle) {
+        TEKLOG_ERROR("Failed to create hook handle for method: %p", method);
+        return PATCH_HOOK_INVALID_ID;
     }
 
-    // 创建Hook节点
-    patchlib_hook_node_t* node = malloc(sizeof(patchlib_hook_node_t));
+    if (!handle->is_hooked) {
+        if (!create_closure_from_signature(handle)) {
+            TEKLOG_ERROR("Failed to create closure for method: %p", method);
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        void *target = patchlib_method_get_pointer(method);
+        if (!target) {
+            TEKLOG_ERROR("Method pointer is NULL for method: %p", method);
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        void *stub = shadowhook_hook_func_addr(target, handle->trampoline_func,
+                                               &handle->original);
+        if (!stub) {
+            TEKLOG_ERROR("shadowhook_hook_func_addr failed: %s",
+                         shadowhook_to_errmsg(shadowhook_get_errno()));
+            return PATCH_HOOK_INVALID_ID;
+        }
+
+        handle->stub = stub;
+        handle->is_hooked = true;
+        TEKLOG_DEBUG("ShadowHook installed: target=%p stub=%p original=%p",
+                     target, stub, handle->original);
+    }
+
+    patchlib_hook_node_t *node = malloc(sizeof(patchlib_hook_node_t));
     if (!node) {
         TEKLOG_ERROR("Failed to allocate memory for hook node");
         return PATCH_HOOK_INVALID_ID;
@@ -396,7 +425,6 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
 
     TEKLOG_DEBUG("Created hook node ID: %d", node->id);
 
-    // 添加回调到句柄
     if (prefix) {
         tefstd_vector_push_back(&handle->prefixes, &prefix);
         TEKLOG_DEBUG("Added prefix callback: %p", prefix);
@@ -425,42 +453,42 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
 
     TEKLOG_INFO("Uninstalling hook ID: %d", hook_id);
 
-    patchlib_hook_node_t** node_ptr = tefstd_hashmap_get(&g_hooks.hooks, &hook_id);
+    patchlib_hook_node_t **node_ptr = tefstd_hashmap_get(&g_hooks.hooks, &hook_id);
     if (!node_ptr || !*node_ptr) {
         TEKLOG_ERROR("Hook node not found for ID: %d", hook_id);
         return false;
     }
 
-    patchlib_hook_node_t* node = *node_ptr;
-    patchlib_hook_handle_t* handle = node->handle;
+    patchlib_hook_node_t *node = *node_ptr;
+    patchlib_hook_handle_t *handle = node->handle;
 
     TEKLOG_DEBUG("Found hook node for method: %p", handle->method);
 
-    // 从handle中移除回调
     if (node->prefix) {
         const bool removed = tefstd_vector_remove_value(&handle->prefixes, &node->prefix);
-        TEKLOG_DEBUG("Removed prefix callback: %p (success: %s)", node->prefix, removed ? "true" : "false");
+        TEKLOG_DEBUG("Removed prefix callback: %p (success: %s)", node->prefix,
+                     removed ? "true" : "false");
     }
     if (node->postfix) {
         const bool removed = tefstd_vector_remove_value(&handle->postfixes, &node->postfix);
-        TEKLOG_DEBUG("Removed postfix callback: %p (success: %s)", node->postfix, removed ? "true" : "false");
+        TEKLOG_DEBUG("Removed postfix callback: %p (success: %s)", node->postfix,
+                     removed ? "true" : "false");
     }
 
-    // 如果没有其他hook，清理整个handle
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
 
     if (prefix_count == 0 && postfix_count == 0 && handle->is_hooked) {
         TEKLOG_INFO("No more hooks for method %p, cleaning up", handle->method);
 
-        // 恢复原始函数
-        void* method_ptr = patchlib_method_get_pointer(handle->method);
-        if (method_ptr && handle->original) {
-            TEKLOG_DEBUG("Restoring original function for method: %p", method_ptr);
-            DobbyDestroy(method_ptr);
+        if (handle->stub) {
+            int rc = shadowhook_unhook(handle->stub);
+            if (rc != 0) {
+                TEKLOG_ERROR("shadowhook_unhook failed: %s", shadowhook_to_errmsg(rc));
+            }
+            handle->stub = NULL;
         }
 
-        // 释放FFI资源
         if (handle->closure) {
             TEKLOG_DEBUG("Freeing executable closure");
             free_executable_memory(handle->closure, sizeof(ffi_closure));
@@ -473,14 +501,12 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
         TEKLOG_INFO("Hook resources cleaned up for method: %p", handle->method);
     } else {
         TEKLOG_DEBUG("Method %p still has %zu prefixes and %zu postfixes",
-                    handle->method, prefix_count, postfix_count);
+                     handle->method, prefix_count, postfix_count);
     }
 
-    // 从全局表中移除节点
     tefstd_hashmap_del(&g_hooks.hooks, &hook_id);
     TEKLOG_DEBUG("Removed hook node from global table");
 
-    // 如果handle完全空了，也清理它
     if (tefstd_vector_size(&handle->prefixes) == 0 &&
         tefstd_vector_size(&handle->postfixes) == 0) {
 
@@ -488,9 +514,8 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
 
         tefstd_hashmap_del(&g_hooks.method_to_handle, &handle->method);
 
-        // 从hook_handles中移除
         for (size_t i = 0; i < tefstd_vector_size(&g_hooks.hook_handles); i++) {
-            patchlib_hook_handle_t** handle_ptr = tefstd_vector_at(&g_hooks.hook_handles, i);
+            patchlib_hook_handle_t **handle_ptr = tefstd_vector_at(&g_hooks.hook_handles, i);
             if (handle_ptr && *handle_ptr == handle) {
                 tefstd_vector_erase(&g_hooks.hook_handles, i, NULL);
                 TEKLOG_DEBUG("Removed handle from hook_handles vector");
@@ -498,27 +523,23 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
             }
         }
 
-        // 释放每个 struct 参数的 ffi_type
         for (size_t i = 0; i < handle->arg_types_count; i++) {
-            patch_handle_t* h = tefstd_vector_at(&handle->method_signature.arg_type_handles, i);
+            patch_handle_t *h = tefstd_vector_at(&handle->method_signature.arg_type_handles, i);
             if (handle->arg_types && h) {
                 patch_ffi_type_free(handle->arg_types[i], *h);
             }
         }
 
-        // 释放返回类型的 ffi_type
         if (handle->return_ffi_type) {
-            patch_ffi_type_free(handle->return_ffi_type, handle->method_signature.return_type_handle);
+            patch_ffi_type_free(handle->return_ffi_type,
+                                handle->method_signature.return_type_handle);
         }
 
-        // 释放 arg_types 数组本身
         free(handle->arg_types);
         handle->arg_types = NULL;
 
-        // 释放签名（应包含 arg_type_handles 等）
         patchlib_method_signature_free(&handle->method_signature);
 
-        // 清理签名资源
         tefstd_vector_destroy(&handle->prefixes);
         tefstd_vector_destroy(&handle->postfixes);
         free(handle);
@@ -543,14 +564,18 @@ bool patchlib_install_typed_hook(patch_handle_t method, void *detour, void **ori
         return false;
     }
 
-    /* 复用 patchlib 已有的 Dobby 使用点：不再从业务代码直接调 DobbyHook。 */
-    const int rc = DobbyHook(address, (dobby_dummy_func_t) detour,
-                             (dobby_dummy_func_t *) original);
-    if (rc != 0) {
-        TEKLOG_ERROR("install_typed_hook: DobbyHook failed (rc=%d, addr=%p)", rc, address);
+    init_g_typed_hooks();
+
+    void *stub = shadowhook_hook_func_addr(address, detour, original);
+    if (!stub) {
+        TEKLOG_ERROR("install_typed_hook: shadowhook_hook_func_addr failed: %s",
+                     shadowhook_to_errmsg(shadowhook_get_errno()));
         return false;
     }
-    TEKLOG_INFO("install_typed_hook: installed at %p (original=%p)", address, *original);
+
+    tefstd_hashmap_put(&g_typed_hooks.method_to_stub, &method, &stub);
+    TEKLOG_INFO("install_typed_hook: installed at %p (stub=%p original=%p)",
+                address, stub, *original);
     return true;
 }
 
@@ -560,17 +585,27 @@ bool patchlib_uninstall_typed_hook(patch_handle_t method) {
         return false;
     }
 
-    void *address = patchlib_method_get_pointer(method);
-    if (!address) {
-        TEKLOG_ERROR("uninstall_typed_hook: method pointer is NULL");
+    if (!g_typed_hooks.initialized) {
+        TEKLOG_ERROR("uninstall_typed_hook: typed hook system not initialized");
         return false;
     }
 
-    const int rc = DobbyDestroy(address);
-    if (rc != 0) {
-        TEKLOG_ERROR("uninstall_typed_hook: DobbyDestroy failed (rc=%d, addr=%p)", rc, address);
+    void **stub_ptr = tefstd_hashmap_get(&g_typed_hooks.method_to_stub, &method);
+    if (!stub_ptr || !*stub_ptr) {
+        TEKLOG_ERROR("uninstall_typed_hook: no typed hook registered for method %p",
+                     (void *) method);
         return false;
     }
-    TEKLOG_INFO("uninstall_typed_hook: uninstalled at %p", address);
+
+    void *stub = *stub_ptr;
+    int rc = shadowhook_unhook(stub);
+    if (rc != 0) {
+        TEKLOG_ERROR("uninstall_typed_hook: shadowhook_unhook failed: %s",
+                     shadowhook_to_errmsg(rc));
+        return false;
+    }
+
+    tefstd_hashmap_del(&g_typed_hooks.method_to_stub, &method);
+    TEKLOG_INFO("uninstall_typed_hook: uninstalled for method %p", (void *) method);
     return true;
 }
