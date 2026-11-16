@@ -22,19 +22,28 @@
 
 #include "tefstd/scope.h"
 
+#include <stdlib.h>
+
 void tefstd_scope_push(tefstd_scope_list_t *list, tefstd_scope_node_t *node,
                        void *ptr, const tefstd_scope_release_fn fn) {
-    node->ptr = ptr;
-    node->fn = fn;
-    node->next = list->head;
-    list->head = node;
+    (void)node;
+    if (!list || !fn) return;
+
+    tefstd_scope_node_t *owned = malloc(sizeof(*owned));
+    if (!owned) return;
+
+    owned->ptr = ptr;
+    owned->fn = fn;
+    owned->next = list->head;
+    list->head = owned;
 }
 
 void tefstd_scope_run(tefstd_scope_list_t *list) {
     while (list->head) {
-        const tefstd_scope_node_t *n = list->head;
+        tefstd_scope_node_t *n = list->head;
         list->head = n->next;
         n->fn(n->ptr);   /* 后登记的先释放 */
+        free(n);
     }
 }
 
@@ -42,7 +51,9 @@ bool tefstd_scope_detach(tefstd_scope_list_t *list, const void *ptr) {
     tefstd_scope_node_t **pp = &list->head;
     while (*pp) {
         if ((*pp)->ptr == ptr) {
+            tefstd_scope_node_t *owned = *pp;
             *pp = (*pp)->next;
+            free(owned);
             return true;
         }
         pp = &(*pp)->next;
