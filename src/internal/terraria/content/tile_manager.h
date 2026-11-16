@@ -19,6 +19,33 @@ void terraria_tile_manager_resize(void);
 void terraria_tile_manager_init_textures(void);
 void terraria_tile_manager_init_static(void);
 
+/**
+ * @brief 按稳定字符串键 (loader/mod/internal_name) 查找自定义图格
+ *
+ * 与 terraria_item_manager_find_item 同语义：读档时只认身份，不认数值 id。
+ */
+terraria_tile_handle_t *terraria_tile_manager_find_tile(const char *loader,
+                                                        const char *mod,
+                                                        const char *name);
+
+/**
+ * @brief 原版图格数 + 已注册自定义图格数（当前运行时的上限）
+ */
+int terraria_tile_id_get_total_count(void);
+
+/**
+ * @brief 当前所有按图格 ID 定长的表已经扩到的长度
+ *
+ * 正常等于 terraria_tile_id_get_total_count()；读档时可以按世界文件里
+ * 记录的图格数量临时扩大（Mod 缺失时避免 LoadWorldTiles 越界）。
+ */
+int terraria_tile_id_get_capacity(void);
+
+/**
+ * @brief 把图格相关表扩容到至少 capacity（只增不减，读档前调用）
+ */
+void terraria_tile_manager_resize_to(int capacity);
+
 #ifdef __cplusplus
 }
 #endif

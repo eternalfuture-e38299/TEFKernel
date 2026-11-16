@@ -139,6 +139,7 @@ set(TERRARIA_SRC
         src/terraria/common/save/tef_save_game_handles.c
         src/terraria/common/save/tef_player_save.c
         src/terraria/common/save/tef_world_save.c
+        src/terraria/common/save/tef_tile_save.c
         src/terraria/common/content/audio_manager.c
         src/terraria/common/content/prefix_manager.c
         src/terraria/common/entity.c

@@ -30,6 +30,13 @@ extern "C" {
 /* 安装 SaveChests / LoadChests 钩子（幂等） */
 void tef_world_save_init(void);
 
+/**
+ * 当前世界存档基路径（形如 ".../World.wld"，不含 .tef 后缀）。
+ *
+ * 调用方负责 free()；未加载世界或取不到路径时返回 NULL。
+ */
+char *tef_world_save_base_path(void);
+
 #ifdef __cplusplus
 }
 #endif

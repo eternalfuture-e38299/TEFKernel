@@ -73,8 +73,13 @@ tefstd_vector_t g_terraria_tile_registry;
 /* 提前声明：resize_tile_sets() 里要递归处理 TileID.Sets 的嵌套类 */
 static void resize_all_type_tile_arrays(patch_handle_t target_type,
                                         int new_size);
+static void tile_resize_impl(int total);
 
 static int g_vanilla_tile_count;
+/* 当前所有「按图格 ID 定长」的表已经扩到的长度。
+ * 正常等于 原版 + 已注册自定义图格；读档时可以临时按世界文件里的
+ * 图格数量扩大（Mod 缺失时靠它避免 LoadWorldTiles 越界）。 */
+static int g_tile_capacity;
 static bool g_ids_assigned;
 static patch_handle_t g_tile_count_field;
 static patch_handle_t g_tile_textures_field;
@@ -1097,6 +1102,43 @@ terraria_tile_handle_t *terraria_tile_manager_get_tile(int runtime_id) {
     return tile_ptr ? *tile_ptr : NULL;
 }
 
+terraria_tile_handle_t *terraria_tile_manager_find_tile(const char *loader,
+                                                        const char *mod,
+                                                        const char *name) {
+    if (!loader || !mod || !name) {
+        return NULL;
+    }
+
+    for (size_t i = 0;
+         i < tefstd_vector_size(&g_terraria_tile_registry);
+         ++i) {
+        terraria_tile_handle_t **tile_ptr =
+                tefstd_vector_at(&g_terraria_tile_registry, i);
+        if (!tile_ptr || !*tile_ptr) {
+            continue;
+        }
+
+        terraria_tile_handle_t *tile = *tile_ptr;
+        if (tile->parent_modloader_id && tile->parent_id &&
+            tile->internal_name &&
+            strcmp(tile->parent_modloader_id, loader) == 0 &&
+            strcmp(tile->parent_id, mod) == 0 &&
+            strcmp(tile->internal_name, name) == 0) {
+            return tile;
+        }
+    }
+    return NULL;
+}
+
+int terraria_tile_id_get_total_count(void) {
+    return g_vanilla_tile_count +
+           (int)tefstd_vector_size(&g_terraria_tile_registry);
+}
+
+int terraria_tile_id_get_capacity(void) {
+    return g_tile_capacity;
+}
+
 void terraria_tile_manager_assign_ids(void) {
     const size_t count =
             tefstd_vector_size(&g_terraria_tile_registry);
@@ -1115,13 +1157,36 @@ void terraria_tile_manager_assign_ids(void) {
 }
 
 void terraria_tile_manager_resize(void) {
-    const size_t custom_count =
-            tefstd_vector_size(&g_terraria_tile_registry);
-    if (custom_count == 0 || g_vanilla_tile_count <= 0) {
+    const int total = g_vanilla_tile_count +
+                      (int)tefstd_vector_size(&g_terraria_tile_registry);
+    if (total <= g_tile_capacity) {
         return;
     }
+    tile_resize_impl(total);
+}
 
-    const int total = g_vanilla_tile_count + (int)custom_count;
+/* 读档前按世界文件里记录的图格数量把表扩到位。
+ *
+ * 场景：世界是在「装了自定义图格」的会话里保存的，现在 Mod 缺失。
+ * 此时当前会话的 TileID.Count 只有 754，而世界里有 754 号图格，
+ * LoadWorldTiles 里 WorldGen.tileCounts[754] / TileID.Sets.*[754]
+ * 会直接 IndexOutOfRange（表现为「加载失败」），根本走不到后面的重映射。 */
+void terraria_tile_manager_resize_to(int capacity) {
+    if (capacity <= g_tile_capacity || g_vanilla_tile_count <= 0) {
+        return;
+    }
+    TEKLOG_INFO("tile resize: capacity %d -> %d (world header)",
+                g_tile_capacity, capacity);
+    tile_resize_impl(capacity);
+}
+/* resize 的实际实现：把 total 作为「表长度」处理（可大于当前已注册图格数） */
+static void tile_resize_impl(int total) {
+    if (total <= 0 || g_vanilla_tile_count <= 0) {
+        return;
+    }
+    if (total > g_tile_capacity) {
+        g_tile_capacity = total;
+    }
 
     pad_tile_object_data(total);
 
@@ -1238,11 +1303,54 @@ static void prepare_tile_asset(patch_handle_t textures, patch_handle_t asset,
     patchlib_free(asset_class);
 }
 
+/* 未注册的槽位（典型场景：世界里有某个已卸载 Mod 的图格）不能是 null，
+ * 否则渲染时会解引用空 Asset。这里统一借 1 号图格的资源填上。 */
+static void fill_unregistered_tile_assets(patch_handle_t textures,
+                                          int from, int to) {
+    if (!patchlib_is_valid(textures) || to <= from) {
+        return;
+    }
+
+    patch_handle_t fallback = PATCH_NULL;
+    if (!patchlib_array_at(textures, 1, &fallback) ||
+        !patchlib_is_valid(fallback)) {
+        if (patchlib_is_valid(fallback)) {
+            patchlib_free(fallback);
+        }
+        TEKLOG_WARN("tile texture: no fallback asset (tile 1)");
+        return;
+    }
+
+    int filled = 0;
+    for (int i = from; i < to; ++i) {
+        patch_handle_t slot = PATCH_NULL;
+        const bool has_slot =
+                patchlib_array_at(textures, (size_t)i, &slot) &&
+                patchlib_is_valid(slot);
+        if (!has_slot) {
+            patchlib_array_set(textures, (size_t)i, &fallback);
+            ++filled;
+        }
+        if (patchlib_is_valid(slot)) {
+            patchlib_free(slot);
+        }
+    }
+
+    if (filled > 0) {
+        TEKLOG_INFO("tile texture: filled %d unregistered slot(s) "
+                    "[%d, %d) with fallback asset",
+                    filled, from, to);
+    }
+    patchlib_free(fallback);
+}
+
 void terraria_tile_manager_init_textures(void) {
     const size_t custom_count =
             tefstd_vector_size(&g_terraria_tile_registry);
-    const int total = g_vanilla_tile_count + (int)custom_count;
-    if (custom_count == 0 ||
+    const int total = g_tile_capacity > 0
+                              ? g_tile_capacity
+                              : g_vanilla_tile_count + (int)custom_count;
+    if (total <= g_vanilla_tile_count ||
         !resize_field_array(
                 g_tile_textures_field,
                 "TextureAssets.Tile", total)) {
@@ -1293,6 +1401,10 @@ void terraria_tile_manager_init_textures(void) {
                     tile->runtime_id);
         }
     }
+
+    /* 未注册的槽位（如已卸载 Mod 的图格）要有兜底贴图，避免渲染解引用 null */
+    fill_unregistered_tile_assets(textures, g_vanilla_tile_count, total);
+
     patchlib_free(textures);
 
     /* LoadTextures 之后高亮描边图才有真实 Asset，这里再补一次模板填充 */
@@ -1309,8 +1421,11 @@ void terraria_tile_manager_init_static(void) {
     }
 
     /* TileObjectData._data 是 Main.Initialize 里才创建的，这里再补一次占位 */
-    pad_tile_object_data(g_vanilla_tile_count +
-                         (int)tefstd_vector_size(&g_terraria_tile_registry));
+    pad_tile_object_data(g_tile_capacity > 0
+                                 ? g_tile_capacity
+                                 : g_vanilla_tile_count +
+                                           (int)tefstd_vector_size(
+                                                   &g_terraria_tile_registry));
 
     for (size_t i = 0;
          i < tefstd_vector_size(&g_terraria_tile_registry);
@@ -1369,6 +1484,7 @@ void terraria_tile_manager_init(void) {
                 g_tile_count_field, PATCH_NULL, &vanilla_count);
     }
     g_vanilla_tile_count = (int)vanilla_count;
+    g_tile_capacity = g_vanilla_tile_count;
 
     patch_handle_t texture_assets =
             patchlib_type_get_type(

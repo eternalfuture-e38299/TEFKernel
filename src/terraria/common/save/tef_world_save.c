@@ -29,6 +29,7 @@
 #include "internal/terraria/content/prefix_manager.h"
 #include "internal/terraria/save/tef_save_game_handles.h"
 #include "internal/terraria/save/tef_save_format.h"
+#include "internal/terraria/save/tef_tile_save.h"
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/struct/array.h"
@@ -45,6 +46,10 @@ static char *world_tef_save_base(void) {
   char *p = tef_save_invoke_get_str(h->m_file_get_path, wfd);
   patchlib_free(wfd);
   return p;
+}
+
+char *tef_world_save_base_path(void) {
+  return world_tef_save_base();
 }
 
 static void write_chests_seg(tef_save_wbuf_t *seg) {
@@ -167,18 +172,23 @@ static void save_world_chests(void) {
 
   tef_save_wbuf_t chests = { .ok = true };
   tef_save_wbuf_t res    = { .ok = true };
+  tef_save_wbuf_t tiles  = { .ok = true };
 
   write_chests_seg(&chests);
+  tef_tile_save_write_seg(&tiles);
 
-  const tef_save_seg_out_t segs[2] = {
+  const tef_save_seg_out_t segs[3] = {
     {.id = TEF_SAVE_SEG_CHESTS,   .data = chests.data, .len = (uint32_t)chests.len },
-    {.id = TEF_SAVE_SEG_RESEARCH, .data = res.data,    .len = (uint32_t)res.len },
+    {.id = TEF_SAVE_SEG_TILES,    .data = tiles.data,  .len = (uint32_t)tiles.len  },
+    {.id = TEF_SAVE_SEG_RESEARCH, .data = res.data,    .len = (uint32_t)res.len    },
   };
-  if (chests.ok && res.ok && tef_save_file_write(path, TEF_SAVE_KIND_WORLD, segs, 2))
+  if (chests.ok && res.ok && tiles.ok &&
+      tef_save_file_write(path, TEF_SAVE_KIND_WORLD, segs, 3))
     TEKLOG_DEBUG("tef_save_world_save: saved to %s", path);
 
   tef_save_wb_free(&chests);
   tef_save_wb_free(&res);
+  tef_save_wb_free(&tiles);
 }
 
 /* ================================================================
@@ -387,6 +397,7 @@ static void chest_load_postfix(patch_handle_t this, void **args, void *result,
  * ================================================================ */
 void tef_world_save_init(void) {
   tef_save_game_handles_init();
+  tef_tile_save_init();
 
   patch_handle_t worldfile_class = patchlib_type_get_type("Terraria.IO", "WorldFile");
   if (!patchlib_is_valid(worldfile_class)) {
