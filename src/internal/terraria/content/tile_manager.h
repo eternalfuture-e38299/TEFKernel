@@ -14,19 +14,12 @@ extern "C" {
 extern tefstd_vector_t g_terraria_tile_registry;
 
 void terraria_tile_manager_init(void);
+void terraria_tile_manager_destroy(void);
 void terraria_tile_manager_assign_ids(void);
 void terraria_tile_manager_resize(void);
 void terraria_tile_manager_init_textures(void);
 void terraria_tile_manager_init_static(void);
-
-/**
- * @brief 按稳定字符串键 (loader/mod/internal_name) 查找自定义图格
- *
- * 与 terraria_item_manager_find_item 同语义：读档时只认身份，不认数值 id。
- */
-terraria_tile_handle_t *terraria_tile_manager_find_tile(const char *loader,
-                                                        const char *mod,
-                                                        const char *name);
+void terraria_tile_manager_post_setup_content(void);
 
 /**
  * @brief 原版图格数 + 已注册自定义图格数（当前运行时的上限）

@@ -55,6 +55,11 @@ static bool is_tile_related_method(const char *namespace_name,
     if (class_name && strstr(class_name, "Tile")) {
         return true;
     }
+    if (class_name && strcmp(class_name, "WorldGen") == 0 && method_name &&
+        (strcmp(method_name, "PlaceObject") == 0 ||
+         strcmp(method_name, "ScoreRoom") == 0)) {
+        return true;
+    }
     (void)namespace_name;
     return false;
 }

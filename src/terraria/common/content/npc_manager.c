@@ -8,17 +8,22 @@
 
 #include "internal/terraria/content/npc_manager.h"
 #include "internal/log.h"
+#include "internal/terraria/content/item_manager.h"
+#include "internal/terraria/entity.h"
 
 #include "patchlib/field.h"
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
+#include "patchlib/struct/dictionary.h"
+#include "patchlib/struct/string.h"
 #include "patchlib/il2cpp_api.h"
 #include "terraria/asset.h"
 #include "terraria/language_manager.h"
 #include "terraria/texture2d.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -56,7 +61,127 @@ static patch_hook_id_t h_town_room_ctor = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_npc_loot = PATCH_HOOK_INVALID_ID;
 static patch_handle_t f_has_room = PATCH_NULL;  /* TownRoomManager._hasRoom */
 static patch_hook_id_t h_ai = PATCH_HOOK_INVALID_ID;
+#if defined(__ANDROID__)
+static patch_hook_id_t h_lang_get_npc_name = PATCH_HOOK_INVALID_ID;
+#endif
 static bool g_ids_assigned = false;
+
+typedef struct npc_bestiary_record_t {
+    const terraria_npc_handle_t *owner;
+    terraria_npc_bestiary_t cfg;
+    char **tags_copy;
+    int tag_count;
+    terraria_npc_loot_entry_t *drops_copy;
+    char **drop_names_copy;
+    int drop_count;
+    char *banner_item_name_copy;
+} npc_bestiary_record_t;
+
+static tefstd_vector_t g_npc_bestiary_records;
+static bool g_bestiary_records_inited = false;
+
+static void free_bestiary_record(npc_bestiary_record_t *rec) {
+    if (!rec) return;
+    if (rec->tags_copy) {
+        for (int i = 0; i < rec->tag_count; ++i) {
+            free(rec->tags_copy[i]);
+        }
+        free(rec->tags_copy);
+    }
+    if (rec->drop_names_copy) {
+        for (int i = 0; i < rec->drop_count; ++i) {
+            free(rec->drop_names_copy[i]);
+        }
+        free(rec->drop_names_copy);
+    }
+    free(rec->drops_copy);
+    free(rec->banner_item_name_copy);
+    memset(rec, 0, sizeof(*rec));
+}
+
+static npc_bestiary_record_t *find_bestiary_record(const terraria_npc_handle_t *owner) {
+    if (!g_bestiary_records_inited || !owner) return NULL;
+    const size_t n = tefstd_vector_size(&g_npc_bestiary_records);
+    for (size_t i = 0; i < n; ++i) {
+        npc_bestiary_record_t *r = tefstd_vector_at(&g_npc_bestiary_records, i);
+        if (r && r->owner == owner) return r;
+    }
+    return NULL;
+}
+
+static void remove_bestiary_record(const terraria_npc_handle_t *owner) {
+    if (!g_bestiary_records_inited || !owner) return;
+    for (size_t i = tefstd_vector_size(&g_npc_bestiary_records); i-- > 0;) {
+        npc_bestiary_record_t *r = tefstd_vector_at(&g_npc_bestiary_records, i);
+        if (r && r->owner == owner) {
+            free_bestiary_record(r);
+            tefstd_vector_erase(&g_npc_bestiary_records, i, NULL);
+        }
+    }
+}
+
+static char *dup_cstr(const char *s) {
+    if (!s) return NULL;
+    const size_t len = strlen(s);
+    char *out = (char *)malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, s, len + 1);
+    return out;
+}
+
+bool terraria_npc_manager_set_bestiary(int runtime_id,
+                                       const terraria_npc_bestiary_t *bestiary) {
+    terraria_npc_handle_t *h = terraria_npc_manager_get_npc(runtime_id);
+    if (!h || !bestiary) return false;
+    if (!g_bestiary_records_inited) {
+        tefstd_vector_init(&g_npc_bestiary_records, sizeof(npc_bestiary_record_t));
+        g_bestiary_records_inited = true;
+    }
+
+    npc_bestiary_record_t next;
+    memset(&next, 0, sizeof(next));
+    next.owner = h;
+    next.cfg = *bestiary;
+    next.cfg.tags = NULL;
+    next.cfg.drops = NULL;
+    next.banner_item_name_copy = dup_cstr(bestiary->banner_item_name);
+    next.cfg.banner_item_name = next.banner_item_name_copy;
+
+    if (bestiary->tags && bestiary->tag_count > 0) {
+        next.tags_copy = (char **)calloc((size_t)bestiary->tag_count, sizeof(char *));
+        if (next.tags_copy) {
+            next.tag_count = bestiary->tag_count;
+            for (int i = 0; i < bestiary->tag_count; ++i) {
+                next.tags_copy[i] = dup_cstr(bestiary->tags[i]);
+            }
+            next.cfg.tags = (const char *const *)next.tags_copy;
+        }
+    }
+
+    if (bestiary->drops && bestiary->drop_count > 0) {
+        next.drops_copy = (terraria_npc_loot_entry_t *)calloc(
+                (size_t)bestiary->drop_count, sizeof(terraria_npc_loot_entry_t));
+        next.drop_names_copy = (char **)calloc(
+                (size_t)bestiary->drop_count, sizeof(char *));
+        if (next.drops_copy && next.drop_names_copy) {
+            next.drop_count = bestiary->drop_count;
+            for (int i = 0; i < bestiary->drop_count; ++i) {
+                next.drops_copy[i] = bestiary->drops[i];
+                next.drop_names_copy[i] = dup_cstr(bestiary->drops[i].item_name);
+                next.drops_copy[i].item_name = next.drop_names_copy[i];
+            }
+            next.cfg.drops = next.drops_copy;
+        }
+    }
+
+    npc_bestiary_record_t *existing = find_bestiary_record(h);
+    if (existing) {
+        free_bestiary_record(existing);
+        *existing = next;
+        return true;
+    }
+    return tefstd_vector_push_back(&g_npc_bestiary_records, &next);
+}
 
 /* 原版 NPCID.Count（697）。桌面端之后会把 NPCID.Count 抬高用于绘制，
  * 所以内核内部一律用这个缓存值做 base，避免 nid 计算被改掉。 */
@@ -188,6 +313,7 @@ bool terraria_npc_manager_unregister_npc_by_id(const int runtime_id) {
         if (!pp || !*pp)
             continue;
         if ((*pp)->runtime_id == runtime_id) {
+            remove_bestiary_record(*pp);
             const bool removed =
                     tefstd_vector_erase(&g_terraria_npc_registry, i, NULL);
             if (removed)
@@ -207,6 +333,7 @@ bool terraria_npc_manager_unregister_npc(terraria_npc_handle_t *npc_handle) {
                 tefstd_vector_at(&g_terraria_npc_registry, i);
         if (!pp || *pp != npc_handle)
             continue;
+        remove_bestiary_record(npc_handle);
         const bool removed =
                 tefstd_vector_erase(&g_terraria_npc_registry, i, NULL);
         if (removed && g_ids_assigned)
@@ -995,7 +1122,601 @@ static void town_room_ctor_postfix(patch_handle_t this, void **args, void *resul
     patchlib_free(arr);
 }
 
-/* NPC.NPCLoot() 后置：自定义 NPC 的掉落回调 */
+/* 获取 Main.BestiaryTracker.Kills 实例（调用方负责释放返回句柄） */
+static patch_handle_t get_bestiary_kills_tracker(void) {
+    static patch_handle_t main_cls = PATCH_NULL;
+    static patch_handle_t f_tracker = PATCH_NULL;
+    static patch_handle_t tracker_cls = PATCH_NULL;
+    static patch_handle_t f_kills = PATCH_NULL;
+
+    if (!patchlib_is_valid(f_kills)) {
+        main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            f_tracker = patchlib_type_get_field(main_cls, "BestiaryTracker");
+        }
+        tracker_cls = patchlib_type_get_type(
+                "Terraria.GameContent.Bestiary", "BestiaryUnlocksTracker");
+        if (patchlib_is_valid(tracker_cls)) {
+            f_kills = patchlib_type_get_field(tracker_cls, "Kills");
+        }
+    }
+    if (!patchlib_is_valid(f_tracker) || !patchlib_is_valid(f_kills)) {
+        return PATCH_NULL;
+    }
+
+    patch_handle_t tracker = PATCH_NULL;
+    patchlib_field_get_value(f_tracker, PATCH_NULL, &tracker);
+    if (!patchlib_is_valid(tracker)) {
+        return PATCH_NULL;
+    }
+    patch_handle_t kills = PATCH_NULL;
+    patchlib_field_get_value(f_kills, tracker, &kills);
+    patchlib_free(tracker);
+    return kills;
+}
+
+#if defined(__ANDROID__)
+/* 手机端 Lang.GetNPCName 仅判断 netID < 697，超出就返回 Empty，导致自定义 NPC 名字不显示。 */
+static bool lang_get_npc_name_prefix(patch_handle_t this, void **args,
+                                     const patch_method_signature_t *sig_info,
+                                     void *result) {
+    (void)this;
+    (void)sig_info;
+    if (!args || !args[0] || !result) {
+        return false;
+    }
+    const int net_id = *(const int *)args[0];
+    if (net_id < g_npc_base) {
+        return false;
+    }
+
+    terraria_npc_handle_t *h = terraria_npc_manager_get_npc(net_id);
+    if (!h) {
+        return false;
+    }
+
+    static patch_handle_t lang_cls = PATCH_NULL;
+    static patch_handle_t f_cache = PATCH_NULL;
+    if (!patchlib_is_valid(f_cache)) {
+        lang_cls = patchlib_type_get_type("Terraria", "Lang");
+        if (patchlib_is_valid(lang_cls)) {
+            f_cache = patchlib_type_get_field(lang_cls, "_npcNameCache");
+        }
+    }
+
+    patch_handle_t cache = PATCH_NULL;
+    patch_handle_t text = PATCH_NULL;
+    if (patchlib_is_valid(f_cache)) {
+        patchlib_field_get_value(f_cache, PATCH_NULL, &cache);
+    }
+    if (patchlib_is_valid(cache) &&
+        (size_t)net_id < patchlib_array_length(cache)) {
+        patchlib_array_at(cache, (size_t)net_id, &text);
+    }
+    if (patchlib_is_valid(cache)) {
+        patchlib_free(cache);
+    }
+    if (!patchlib_is_valid(text)) {
+        char *key = terraria_entity_make_key(TEF_ENTITY(h), "npc_name");
+        if (key) {
+            text = terraria_language_manager_get_localized_text(key);
+            free(key);
+        }
+    }
+    if (!patchlib_is_valid(text)) {
+        return false;
+    }
+
+    *(patch_handle_t *)result = text;
+    return true;
+}
+#endif
+
+void terraria_npc_manager_init_localized_text(void) {
+    const size_t custom = tefstd_vector_size(&g_terraria_npc_registry);
+    if (custom == 0) {
+        return;
+    }
+
+    patch_handle_t lang_cls = patchlib_type_get_type("Terraria", "Lang");
+    if (!patchlib_is_valid(lang_cls)) {
+        return;
+    }
+    patch_handle_t f_cache = patchlib_type_get_field(lang_cls, "_npcNameCache");
+    patch_handle_t cache = PATCH_NULL;
+    if (patchlib_is_valid(f_cache)) {
+        patchlib_field_get_value(f_cache, PATCH_NULL, &cache);
+    }
+    if (patchlib_is_valid(cache)) {
+        const size_t cache_len = patchlib_array_length(cache);
+        int applied = 0;
+        for (size_t i = 0; i < custom; ++i) {
+            terraria_npc_handle_t **pp =
+                    tefstd_vector_at(&g_terraria_npc_registry, i);
+            if (!pp || !*pp || (*pp)->runtime_id < 0 ||
+                (size_t)(*pp)->runtime_id >= cache_len) {
+                continue;
+            }
+            char *key = terraria_entity_make_key(TEF_ENTITY(*pp), "npc_name");
+            if (!key) {
+                continue;
+            }
+            patch_handle_t lt = terraria_language_manager_get_localized_text(key);
+            if (patchlib_is_valid(lt)) {
+                patchlib_array_set(cache, (size_t)(*pp)->runtime_id, &lt);
+                patchlib_free(lt);
+                applied++;
+            }
+            free(key);
+        }
+        TEKLOG_INFO("npc l10n: %d custom NPC name(s) written to Lang._npcNameCache",
+                    applied);
+        patchlib_free(cache);
+    }
+    if (patchlib_is_valid(f_cache)) {
+        patchlib_free(f_cache);
+    }
+    patchlib_free(lang_cls);
+}
+
+static patch_handle_t find_bestiary_spawn_tag(patch_handle_t *tag_groups,
+                                              size_t group_count,
+                                              const char *name) {
+    if (!tag_groups || !name || !*name) {
+        return PATCH_NULL;
+    }
+    for (size_t i = 0; i < group_count; ++i) {
+        if (!patchlib_is_valid(tag_groups[i])) {
+            continue;
+        }
+        patch_handle_t f = patchlib_type_get_field(tag_groups[i], name);
+        if (!patchlib_is_valid(f)) {
+            continue;
+        }
+        patch_handle_t elem = PATCH_NULL;
+        patchlib_field_get_value(f, PATCH_NULL, &elem);
+        patchlib_free(f);
+        if (patchlib_is_valid(elem)) {
+            return elem;
+        }
+    }
+    return PATCH_NULL;
+}
+
+void terraria_npc_manager_init_bestiary(void) {
+    const size_t custom = tefstd_vector_size(&g_terraria_npc_registry);
+    if (custom == 0) {
+        return;
+    }
+
+    patch_handle_t cs_cls = patchlib_type_get_type("Terraria.ID", "ContentSamples");
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    patch_handle_t be_cls = patchlib_type_get_type(
+            "Terraria.GameContent.Bestiary", "BestiaryEntry");
+    patch_handle_t db_cls = patchlib_type_get_type(
+            "Terraria.GameContent.Bestiary", "BestiaryDatabase");
+    patch_handle_t prov_cls = patchlib_type_get_type(
+            "Terraria.GameContent.Bestiary", "CommonEnemyUICollectionInfoProvider");
+    patch_handle_t flavor_cls = patchlib_type_get_type(
+            "Terraria.GameContent.Bestiary", "FlavorTextBestiaryInfoElement");
+    patch_handle_t idb_cls = patchlib_type_get_type(
+            "Terraria.GameContent.ItemDropRules", "ItemDropDatabase");
+    patch_handle_t drop_cls = patchlib_type_get_type(
+            "Terraria.GameContent.ItemDropRules", "CommonDrop");
+
+    if (!patchlib_is_valid(cs_cls) || !patchlib_is_valid(main_cls) ||
+        !patchlib_is_valid(be_cls) || !patchlib_is_valid(db_cls)) {
+        TEKLOG_WARN("npc bestiary: core Bestiary types missing");
+        return;
+    }
+
+    patch_handle_t f_npcs_by_id = patchlib_type_get_field(cs_cls, "NpcsByNetId");
+    patch_handle_t f_persist_by_id =
+            patchlib_type_get_field(cs_cls, "NpcPersistentIdsByNetIds");
+    patch_handle_t f_credit_by_id =
+            patchlib_type_get_field(cs_cls, "NpcBestiaryCreditIdsByNpcNetIds");
+    patch_handle_t f_id_by_persist =
+            patchlib_type_get_field(cs_cls, "NpcNetIdsByPersistentIds");
+    patch_handle_t f_stars =
+            patchlib_type_get_field(cs_cls, "NpcBestiaryRarityStars");
+    patch_handle_t f_sorting =
+            patchlib_type_get_field(cs_cls, "NpcBestiarySortingId");
+    patch_handle_t m_rebuild_sorting = patchlib_type_get_method_by_param_count(
+            cs_cls, "RebuildBestiarySortingIDsByBestiaryDatabaseContents", 1);
+
+    patch_handle_t dict_npcs = PATCH_NULL, t_npcs = PATCH_NULL;
+    patch_handle_t dict_persist = PATCH_NULL, t_persist = PATCH_NULL;
+    patch_handle_t dict_credit = PATCH_NULL, t_credit = PATCH_NULL;
+    patch_handle_t dict_rev = PATCH_NULL, t_rev = PATCH_NULL;
+    patch_handle_t dict_stars = PATCH_NULL, t_stars = PATCH_NULL;
+    patch_handle_t dict_sorting = PATCH_NULL, t_sorting = PATCH_NULL;
+
+    if (patchlib_is_valid(f_npcs_by_id)) {
+        patchlib_field_get_value(f_npcs_by_id, PATCH_NULL, &dict_npcs);
+        t_npcs = patchlib_field_get_type_handle(f_npcs_by_id);
+    }
+    if (patchlib_is_valid(f_persist_by_id)) {
+        patchlib_field_get_value(f_persist_by_id, PATCH_NULL, &dict_persist);
+        t_persist = patchlib_field_get_type_handle(f_persist_by_id);
+    }
+    if (patchlib_is_valid(f_credit_by_id)) {
+        patchlib_field_get_value(f_credit_by_id, PATCH_NULL, &dict_credit);
+        t_credit = patchlib_field_get_type_handle(f_credit_by_id);
+    }
+    if (patchlib_is_valid(f_id_by_persist)) {
+        patchlib_field_get_value(f_id_by_persist, PATCH_NULL, &dict_rev);
+        t_rev = patchlib_field_get_type_handle(f_id_by_persist);
+    }
+    if (patchlib_is_valid(f_stars)) {
+        patchlib_field_get_value(f_stars, PATCH_NULL, &dict_stars);
+        t_stars = patchlib_field_get_type_handle(f_stars);
+    }
+    if (patchlib_is_valid(f_sorting)) {
+        patchlib_field_get_value(f_sorting, PATCH_NULL, &dict_sorting);
+        t_sorting = patchlib_field_get_type_handle(f_sorting);
+    }
+
+    patch_handle_t f_bestiary_db = patchlib_type_get_field(main_cls, "BestiaryDB");
+    patch_handle_t bestiary_db = PATCH_NULL;
+    if (patchlib_is_valid(f_bestiary_db)) {
+        patchlib_field_get_value(f_bestiary_db, PATCH_NULL, &bestiary_db);
+    }
+    if (!patchlib_is_valid(bestiary_db)) {
+        TEKLOG_WARN("npc bestiary: Main.BestiaryDB is null");
+        return;
+    }
+
+    patch_handle_t npc_ctor =
+            patchlib_type_get_method_by_param_count(npc_class, ".ctor", 0);
+    patch_handle_t f_net_id = patchlib_type_get_field(npc_class, "netID");
+
+    patch_handle_t m_enemy = patchlib_type_get_method_by_param_count(be_cls, "Enemy", 1);
+    patch_handle_t m_critter = patchlib_type_get_method_by_param_count(be_cls, "Critter", 1);
+    patch_handle_t m_town = patchlib_type_get_method_by_param_count(be_cls, "TownNPC", 1);
+    patch_handle_t m_get_info = patchlib_type_get_method_by_param_count(be_cls, "get_Info", 0);
+    patch_handle_t f_ui_provider = patchlib_type_get_field(be_cls, "UIInfoProvider");
+
+    patch_handle_t m_db_register =
+            patchlib_type_get_method_by_param_count(db_cls, "Register", 1);
+    patch_handle_t m_db_extract =
+            patchlib_type_get_method_by_param_count(db_cls, "ExtractDropsForNPC", 2);
+
+    patch_handle_t m_prov_ctor = patchlib_is_valid(prov_cls)
+            ? patchlib_type_get_method_by_param_count(prov_cls, ".ctor", 2) : PATCH_NULL;
+    patch_handle_t m_flavor_ctor = patchlib_is_valid(flavor_cls)
+            ? patchlib_type_get_method_by_param_count(flavor_cls, ".ctor", 1) : PATCH_NULL;
+
+    patch_handle_t m_idb_ctor = patchlib_is_valid(idb_cls)
+            ? patchlib_type_get_method_by_param_count(idb_cls, ".ctor", 0) : PATCH_NULL;
+    patch_handle_t m_idb_reg = patchlib_is_valid(idb_cls)
+            ? patchlib_type_get_method_by_param_count(idb_cls, "RegisterToNPC", 2) : PATCH_NULL;
+    patch_handle_t m_drop_ctor = patchlib_is_valid(drop_cls)
+            ? patchlib_type_get_method_by_param_count(drop_cls, ".ctor", 5) : PATCH_NULL;
+
+    patch_method_signature_t info_sig;
+    const bool info_sig_ok = patchlib_is_valid(m_get_info) &&
+            patchlib_method_get_signature(m_get_info, &info_sig);
+    patch_handle_t m_info_add = (info_sig_ok && patchlib_is_valid(info_sig.return_type_handle))
+            ? patchlib_type_get_method_by_param_count(info_sig.return_type_handle, "Add", 1)
+            : PATCH_NULL;
+
+    /* 收集 SpawnConditions 下的标签静态组（Biomes / Times / Events / Invasions / Visuals） */
+    patch_handle_t tag_groups[5] = {PATCH_NULL, PATCH_NULL, PATCH_NULL, PATCH_NULL, PATCH_NULL};
+    static const char *const tag_group_names[5] = {
+        "Biomes", "Times", "Events", "Invasions", "Visuals"
+    };
+    patch_handle_t pop_cls = patchlib_type_get_type(
+            "Terraria.GameContent.Bestiary", "BestiaryDatabaseNPCsPopulator");
+    patch_handle_t common_tags_cls = patchlib_is_valid(pop_cls)
+            ? patchlib_type_get_inner_type(pop_cls, "CommonTags") : PATCH_NULL;
+    patch_handle_t spawn_cond_cls = patchlib_is_valid(common_tags_cls)
+            ? patchlib_type_get_inner_type(common_tags_cls, "SpawnConditions")
+            : PATCH_NULL;
+    if (patchlib_is_valid(spawn_cond_cls)) {
+        for (size_t gi = 0; gi < 5; ++gi) {
+            tag_groups[gi] = patchlib_type_get_inner_type(
+                    spawn_cond_cls, tag_group_names[gi]);
+#if defined(__ANDROID__)
+            if (patchlib_is_valid(tag_groups[gi]) && il2cpp_runtime_class_init) {
+                il2cpp_runtime_class_init((void *)tag_groups[gi]);
+            }
+#endif
+        }
+    }
+
+    int registered_entries = 0;
+    for (size_t i = 0; i < custom; ++i) {
+        terraria_npc_handle_t **pp = tefstd_vector_at(&g_terraria_npc_registry, i);
+        if (!pp || !*pp || (*pp)->runtime_id < g_npc_base) {
+            continue;
+        }
+        terraria_npc_handle_t *h = *pp;
+        int id = h->runtime_id;
+        npc_bestiary_record_t *rec = find_bestiary_record(h);
+        terraria_npc_bestiary_t *cfg = rec ? &rec->cfg : NULL;
+
+        /* 延后解析同 Mod 旗帜物品 id */
+        if (cfg && cfg->banner_item_id <= 0 && cfg->banner_item_name) {
+            terraria_item_handle_t *banner = terraria_item_manager_find_item(
+                    h->parent_modloader_id, h->parent_id, cfg->banner_item_name);
+            if (banner && banner->runtime_id > 0) {
+                cfg->banner_item_id = banner->runtime_id;
+            }
+        }
+
+        const char *loader = h->parent_modloader_id ? h->parent_modloader_id : "?";
+        const char *mod = h->parent_id ? h->parent_id : "?";
+        const char *name = h->internal_name ? h->internal_name : "?";
+        const size_t plen = strlen(loader) + 1 + strlen(mod) + 1 + strlen(name) + 1;
+        char *persist_c = (char *)malloc(plen);
+        if (!persist_c) {
+            continue;
+        }
+        snprintf(persist_c, plen, "%s:%s:%s", loader, mod, name);
+        patch_handle_t persist_str = patchlib_string_create(persist_c);
+        free(persist_c);
+
+        if (patchlib_is_valid(persist_str)) {
+            if (patchlib_is_valid(dict_persist) && patchlib_is_valid(t_persist)) {
+                patchlib_dictionary_set_value_typed(
+                        dict_persist, t_persist, &id, &persist_str);
+            }
+            if (patchlib_is_valid(dict_credit) && patchlib_is_valid(t_credit)) {
+                patchlib_dictionary_set_value_typed(
+                        dict_credit, t_credit, &id, &persist_str);
+            }
+            if (patchlib_is_valid(dict_rev) && patchlib_is_valid(t_rev)) {
+                patchlib_dictionary_set_value_typed(
+                        dict_rev, t_rev, &persist_str, &id);
+            }
+        }
+
+        int stars = (cfg && cfg->stars > 0) ? cfg->stars : 1;
+        if (stars < 1) stars = 1;
+        if (stars > 5) stars = 5;
+        if (patchlib_is_valid(dict_stars) && patchlib_is_valid(t_stars)) {
+            patchlib_dictionary_set_value_typed(dict_stars, t_stars, &id, &stars);
+        }
+
+        if (cfg && cfg->exclude) {
+            if (patchlib_is_valid(dict_sorting) && patchlib_is_valid(t_sorting)) {
+                int zero_sort = 0;
+                patchlib_dictionary_set_value_typed(
+                        dict_sorting, t_sorting, &id, &zero_sort);
+            }
+            if (patchlib_is_valid(persist_str)) {
+                patchlib_free(persist_str);
+            }
+            continue;
+        }
+
+        /* 构造 ContentSamples.NpcsByNetId[id]（不依赖 NPCSpawnParams 结构体参数） */
+        patch_handle_t sample_npc = PATCH_NULL;
+        if (patchlib_is_valid(npc_ctor)) {
+            patchlib_constructor_invoke(npc_ctor, &sample_npc, NULL);
+        } else {
+            sample_npc = patchlib_type_new_instance(npc_class);
+        }
+        if (patchlib_is_valid(sample_npc)) {
+            if (patchlib_is_valid(f_type)) {
+                patchlib_field_set_value(f_type, sample_npc, &id);
+            }
+            if (patchlib_is_valid(f_net_id)) {
+                patchlib_field_set_value(f_net_id, sample_npc, &id);
+            }
+            if (h->npc_ops.set_defaults) {
+                h->npc_ops.set_defaults(h, sample_npc);
+            }
+            if (patchlib_is_valid(dict_npcs) && patchlib_is_valid(t_npcs)) {
+                patchlib_dictionary_set_value_typed(
+                        dict_npcs, t_npcs, &id, &sample_npc);
+            }
+            patchlib_free(sample_npc);
+        }
+
+        patch_handle_t m_factory = m_enemy;
+        if (cfg && cfg->kind == TERRARIA_NPC_BESTIARY_CRITTER &&
+            patchlib_is_valid(m_critter)) {
+            m_factory = m_critter;
+        } else if (cfg && cfg->kind == TERRARIA_NPC_BESTIARY_TOWN_NPC &&
+                   patchlib_is_valid(m_town)) {
+            m_factory = m_town;
+        }
+
+        patch_handle_t entry = PATCH_NULL;
+        if (patchlib_is_valid(m_factory)) {
+            void *eargs[1] = {&id};
+            patchlib_method_invoke_args(m_factory, PATCH_NULL, &entry, eargs);
+        }
+
+        if (patchlib_is_valid(entry)) {
+            if (cfg && cfg->quick_unlock && patchlib_is_valid(persist_str) &&
+                patchlib_is_valid(m_prov_ctor) &&
+                patchlib_is_valid(f_ui_provider)) {
+                patch_handle_t provider = PATCH_NULL;
+                bool quick = true;
+                void *pargs[2] = {&persist_str, &quick};
+                if (patchlib_constructor_invoke(m_prov_ctor, &provider, pargs) &&
+                    patchlib_is_valid(provider)) {
+                    patchlib_field_set_value(f_ui_provider, entry, &provider);
+                    patchlib_free(provider);
+                }
+            }
+
+            patch_handle_t info_list = PATCH_NULL;
+            if (patchlib_is_valid(m_get_info)) {
+                patchlib_method_invoke_args(m_get_info, entry, &info_list, NULL);
+            }
+            if (patchlib_is_valid(info_list) && patchlib_is_valid(m_info_add)) {
+                if (cfg && cfg->tags && cfg->tag_count > 0) {
+                    for (int ti = 0; ti < cfg->tag_count; ++ti) {
+                        patch_handle_t tag_elem = find_bestiary_spawn_tag(
+                                tag_groups, 5, cfg->tags[ti]);
+                        if (patchlib_is_valid(tag_elem)) {
+                            void *aargs[1] = {&tag_elem};
+                            patchlib_method_invoke_args(
+                                    m_info_add, info_list, NULL, aargs);
+                            patchlib_free(tag_elem);
+                        } else {
+                            TEKLOG_WARN("npc bestiary: unknown spawn tag '%s' on %s",
+                                        cfg->tags[ti] ? cfg->tags[ti] : "?", name);
+                        }
+                    }
+                }
+
+                if (cfg && cfg->has_flavor_text && patchlib_is_valid(m_flavor_ctor)) {
+                    char *fkey = terraria_entity_make_key(TEF_ENTITY(h), "npc_bestiary");
+                    if (fkey) {
+                        patch_handle_t fstr = patchlib_string_create(fkey);
+                        free(fkey);
+                        if (patchlib_is_valid(fstr)) {
+                            patch_handle_t flavor = PATCH_NULL;
+                            void *fargs[1] = {&fstr};
+                            if (patchlib_constructor_invoke(
+                                        m_flavor_ctor, &flavor, fargs) &&
+                                patchlib_is_valid(flavor)) {
+                                void *aargs[1] = {&flavor};
+                                patchlib_method_invoke_args(
+                                        m_info_add, info_list, NULL, aargs);
+                                patchlib_free(flavor);
+                            }
+                            patchlib_free(fstr);
+                        }
+                    }
+                }
+            }
+            if (patchlib_is_valid(info_list)) {
+                patchlib_free(info_list);
+            }
+
+            if (patchlib_is_valid(m_db_register)) {
+                void *rargs[1] = {&entry};
+                patchlib_method_invoke_args(m_db_register, bestiary_db, NULL, rargs);
+                registered_entries++;
+            }
+
+            if (cfg && cfg->drops && cfg->drop_count > 0 &&
+                patchlib_is_valid(m_idb_ctor) && patchlib_is_valid(m_idb_reg) &&
+                patchlib_is_valid(m_drop_ctor) && patchlib_is_valid(m_db_extract)) {
+                patch_handle_t temp_db = PATCH_NULL;
+                if (patchlib_constructor_invoke(m_idb_ctor, &temp_db, NULL) &&
+                    patchlib_is_valid(temp_db)) {
+                    int added_drops = 0;
+                    for (int di = 0; di < cfg->drop_count; ++di) {
+                        int item_id = cfg->drops[di].item_id;
+                        if (item_id <= 0 && cfg->drops[di].item_name) {
+                            terraria_item_handle_t *dit =
+                                    terraria_item_manager_find_item(
+                                            h->parent_modloader_id, h->parent_id,
+                                            cfg->drops[di].item_name);
+                            if (dit && dit->runtime_id > 0) {
+                                item_id = dit->runtime_id;
+                            }
+                        }
+                        if (item_id <= 0) {
+                            continue;
+                        }
+                        int denom = cfg->drops[di].chance_denominator > 0
+                                ? cfg->drops[di].chance_denominator : 1;
+                        int min_st = cfg->drops[di].min_stack > 0
+                                ? cfg->drops[di].min_stack : 1;
+                        int max_st = cfg->drops[di].max_stack >= min_st
+                                ? cfg->drops[di].max_stack : min_st;
+                        int numer = cfg->drops[di].chance_numerator > 0
+                                ? cfg->drops[di].chance_numerator : 1;
+
+                        patch_handle_t rule = PATCH_NULL;
+                        void *dargs[5] = {&item_id, &denom, &min_st, &max_st, &numer};
+                        if (patchlib_constructor_invoke(m_drop_ctor, &rule, dargs) &&
+                            patchlib_is_valid(rule)) {
+                            void *reg_args[2] = {&id, &rule};
+                            patchlib_method_invoke_args(
+                                    m_idb_reg, temp_db, NULL, reg_args);
+                            patchlib_free(rule);
+                            added_drops++;
+                        }
+                    }
+                    if (added_drops > 0) {
+                        void *ex_args[2] = {&temp_db, &id};
+                        patchlib_method_invoke_args(
+                                m_db_extract, bestiary_db, NULL, ex_args);
+                    }
+                    patchlib_free(temp_db);
+                }
+            }
+            patchlib_free(entry);
+        }
+
+        if (patchlib_is_valid(persist_str)) {
+            patchlib_free(persist_str);
+        }
+    }
+
+    if (patchlib_is_valid(m_rebuild_sorting)) {
+        void *sargs[1] = {&bestiary_db};
+        patchlib_method_invoke_args(m_rebuild_sorting, PATCH_NULL, NULL, sargs);
+    }
+
+    TEKLOG_INFO("npc bestiary: registered %d custom entry(s)", registered_entries);
+
+    if (patchlib_is_valid(m_info_add)) patchlib_free(m_info_add);
+    if (info_sig_ok) patchlib_method_signature_free(&info_sig);
+    for (size_t gi = 0; gi < 5; ++gi) {
+        if (patchlib_is_valid(tag_groups[gi])) patchlib_free(tag_groups[gi]);
+    }
+    if (patchlib_is_valid(spawn_cond_cls)) patchlib_free(spawn_cond_cls);
+    if (patchlib_is_valid(common_tags_cls)) patchlib_free(common_tags_cls);
+    if (patchlib_is_valid(pop_cls)) patchlib_free(pop_cls);
+
+    if (patchlib_is_valid(m_drop_ctor)) patchlib_free(m_drop_ctor);
+    if (patchlib_is_valid(m_idb_reg)) patchlib_free(m_idb_reg);
+    if (patchlib_is_valid(m_idb_ctor)) patchlib_free(m_idb_ctor);
+    if (patchlib_is_valid(m_flavor_ctor)) patchlib_free(m_flavor_ctor);
+    if (patchlib_is_valid(m_prov_ctor)) patchlib_free(m_prov_ctor);
+    if (patchlib_is_valid(m_db_extract)) patchlib_free(m_db_extract);
+    if (patchlib_is_valid(m_db_register)) patchlib_free(m_db_register);
+    if (patchlib_is_valid(f_ui_provider)) patchlib_free(f_ui_provider);
+    if (patchlib_is_valid(m_get_info)) patchlib_free(m_get_info);
+    if (patchlib_is_valid(m_town)) patchlib_free(m_town);
+    if (patchlib_is_valid(m_critter)) patchlib_free(m_critter);
+    if (patchlib_is_valid(m_enemy)) patchlib_free(m_enemy);
+    if (patchlib_is_valid(f_net_id)) patchlib_free(f_net_id);
+    if (patchlib_is_valid(npc_ctor)) patchlib_free(npc_ctor);
+    patchlib_free(bestiary_db);
+    if (patchlib_is_valid(f_bestiary_db)) patchlib_free(f_bestiary_db);
+
+    if (patchlib_is_valid(dict_npcs)) patchlib_free(dict_npcs);
+    if (patchlib_is_valid(dict_persist)) patchlib_free(dict_persist);
+    if (patchlib_is_valid(dict_credit)) patchlib_free(dict_credit);
+    if (patchlib_is_valid(dict_rev)) patchlib_free(dict_rev);
+    if (patchlib_is_valid(dict_stars)) patchlib_free(dict_stars);
+    if (patchlib_is_valid(dict_sorting)) patchlib_free(dict_sorting);
+    if (patchlib_is_valid(t_npcs)) patchlib_free(t_npcs);
+    if (patchlib_is_valid(t_persist)) patchlib_free(t_persist);
+    if (patchlib_is_valid(t_credit)) patchlib_free(t_credit);
+    if (patchlib_is_valid(t_rev)) patchlib_free(t_rev);
+    if (patchlib_is_valid(t_stars)) patchlib_free(t_stars);
+    if (patchlib_is_valid(t_sorting)) patchlib_free(t_sorting);
+
+    if (patchlib_is_valid(m_rebuild_sorting)) patchlib_free(m_rebuild_sorting);
+    if (patchlib_is_valid(f_sorting)) patchlib_free(f_sorting);
+    if (patchlib_is_valid(f_stars)) patchlib_free(f_stars);
+    if (patchlib_is_valid(f_id_by_persist)) patchlib_free(f_id_by_persist);
+    if (patchlib_is_valid(f_credit_by_id)) patchlib_free(f_credit_by_id);
+    if (patchlib_is_valid(f_persist_by_id)) patchlib_free(f_persist_by_id);
+    if (patchlib_is_valid(f_npcs_by_id)) patchlib_free(f_npcs_by_id);
+
+    if (patchlib_is_valid(drop_cls)) patchlib_free(drop_cls);
+    if (patchlib_is_valid(idb_cls)) patchlib_free(idb_cls);
+    if (patchlib_is_valid(flavor_cls)) patchlib_free(flavor_cls);
+    if (patchlib_is_valid(prov_cls)) patchlib_free(prov_cls);
+    patchlib_free(db_cls);
+    patchlib_free(be_cls);
+    patchlib_free(main_cls);
+    patchlib_free(cs_cls);
+}
+
+/* NPC.NPCLoot() 后置：自定义 NPC 的击杀统计 / 旗帜 / 掉落回调 */
 static void npc_loot_postfix(patch_handle_t this, void **args, void *result,
                              const patch_method_signature_t *sig_info) {
     (void) args;
@@ -1003,6 +1724,66 @@ static void npc_loot_postfix(patch_handle_t this, void **args, void *result,
     (void) sig_info;
     terraria_npc_handle_t *h = custom_from_instance(this);
     if (!h) return;
+
+    npc_bestiary_record_t *rec = find_bestiary_record(h);
+    const bool excluded = rec && rec->cfg.exclude;
+
+    static patch_handle_t kills_cls = PATCH_NULL;
+#if defined(__ANDROID__)
+    static patch_handle_t m_reg_kill = PATCH_NULL;
+#endif
+    static patch_handle_t m_get_kills = PATCH_NULL;
+    static patch_handle_t entity_cls = PATCH_NULL;
+    static patch_handle_t f_entity_pos = PATCH_NULL;
+    if (!patchlib_is_valid(kills_cls)) {
+        kills_cls = patchlib_type_get_type(
+                "Terraria.GameContent.Bestiary", "NPCKillsTracker");
+        if (patchlib_is_valid(kills_cls)) {
+#if defined(__ANDROID__)
+            m_reg_kill = patchlib_type_get_method_by_param_count(
+                    kills_cls, "RegisterKill", 1);
+#endif
+            m_get_kills = patchlib_type_get_method_by_param_types(
+                    kills_cls, "GetKillCount", 1, &npc_class);
+        }
+        entity_cls = patchlib_type_get_type("Terraria", "Entity");
+        if (patchlib_is_valid(entity_cls)) {
+            f_entity_pos = patchlib_type_get_field(entity_cls, "position");
+        }
+    }
+
+    if (!excluded) {
+        patch_handle_t kills_tracker = get_bestiary_kills_tracker();
+        if (patchlib_is_valid(kills_tracker)) {
+#if defined(__ANDROID__)
+            /* 手机端 NPC.NPCLoot 在 type >= 697 时提前返回，跳过 RegisterKill(this) */
+            if (patchlib_is_valid(m_reg_kill)) {
+                void *kargs[1] = {&this};
+                patchlib_method_invoke_args(m_reg_kill, kills_tracker, NULL, kargs);
+            }
+#endif
+            if (rec && rec->cfg.banner_item_id > 0 &&
+                patchlib_is_valid(m_get_kills)) {
+                int count = 0;
+                void *qargs[1] = {&this};
+                if (patchlib_method_invoke_args(
+                            m_get_kills, kills_tracker, &count, qargs)) {
+                    const int step = rec->cfg.kills_to_banner > 0
+                            ? rec->cfg.kills_to_banner : 50;
+                    if (count > 0 && (count % step) == 0) {
+                        struct { float x; float y; } pos = {0.0f, 0.0f};
+                        if (patchlib_is_valid(f_entity_pos)) {
+                            patchlib_field_get_value(f_entity_pos, this, &pos);
+                        }
+                        terraria_npc_manager_drop_item(
+                                rec->cfg.banner_item_id, pos.x, pos.y, 1);
+                    }
+                }
+            }
+            patchlib_free(kills_tracker);
+        }
+    }
+
     int type = -1;
     if (patchlib_is_valid(f_type))
         patchlib_field_get_value(f_type, this, &type);
@@ -1424,6 +2205,24 @@ void terraria_npc_manager_init(void) {
 #endif
     }
 
+#if defined(__ANDROID__)
+    {
+        patch_handle_t lang_cls = patchlib_type_get_type("Terraria", "Lang");
+        if (patchlib_is_valid(lang_cls)) {
+            patch_handle_t get_name = patchlib_type_get_method_by_param_count(
+                    lang_cls, "GetNPCName", 1);
+            if (patchlib_is_valid(get_name)) {
+                h_lang_get_npc_name = patchlib_install_prepost_hook(
+                        get_name, lang_get_npc_name_prefix, NULL);
+                patchlib_free(get_name);
+                TEKLOG_INFO("npc: hooked Lang.GetNPCName (%d)",
+                            (int)h_lang_get_npc_name);
+            }
+            patchlib_free(lang_cls);
+        }
+    }
+#endif
+
     TEKLOG_INFO("npc: init done (base=%d, custom=%zu)",
                 g_npc_base,
                 tefstd_vector_size(&g_terraria_npc_registry));
@@ -1435,6 +2234,10 @@ void terraria_npc_manager_destroy(void) {
         h_set_defaults = PATCH_HOOK_INVALID_ID;
     }
 #if defined(__ANDROID__)
+    if (h_lang_get_npc_name != PATCH_HOOK_INVALID_ID) {
+        patchlib_uninstall_hook(h_lang_get_npc_name);
+        h_lang_get_npc_name = PATCH_HOOK_INVALID_ID;
+    }
     if (h_draw_npcs != PATCH_HOOK_INVALID_ID) {
         patchlib_uninstall_hook(h_draw_npcs);
         h_draw_npcs = PATCH_HOOK_INVALID_ID;
@@ -1461,6 +2264,16 @@ void terraria_npc_manager_destroy(void) {
     if (h_ai != PATCH_HOOK_INVALID_ID) {
         patchlib_uninstall_hook(h_ai);
         h_ai = PATCH_HOOK_INVALID_ID;
+    }
+    if (g_bestiary_records_inited) {
+        const size_t n = tefstd_vector_size(&g_npc_bestiary_records);
+        for (size_t i = 0; i < n; ++i) {
+            npc_bestiary_record_t *r =
+                    tefstd_vector_at(&g_npc_bestiary_records, i);
+            free_bestiary_record(r);
+        }
+        tefstd_vector_destroy(&g_npc_bestiary_records);
+        g_bestiary_records_inited = false;
     }
     tefstd_vector_destroy(&g_terraria_npc_registry);
 }

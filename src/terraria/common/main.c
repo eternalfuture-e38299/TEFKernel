@@ -224,7 +224,8 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     if (custom_npc > 0) {
         terraria_npc_manager_resize();
         terraria_npc_manager_init_texture2d();
-        TEKLOG_INFO("Custom NPC arrays resized and textures initialized");
+        terraria_npc_manager_init_localized_text();
+        TEKLOG_INFO("Custom NPC arrays resized, textures and names initialized");
     }
 
 
@@ -293,6 +294,14 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
      * 加载器是在 init_static 里通过 terraria_item_manager_set_prefix_class()
      * 用真实的 runtime_id 声明类别的。 */
     terraria_item_manager_apply_prefix_classes();
+
+    /* 图格后期联动（物品掉落自动关联 / DerivedPlacementDetails / 合并 / 自发光 / 小地图） */
+    terraria_tile_manager_post_setup_content();
+
+    /* 图鉴注入：必须在 item/npc init_static 全部跑完后再填充 ContentSamples 与 BestiaryDB */
+    if (custom_npc > 0) {
+        terraria_npc_manager_init_bestiary();
+    }
 }
 
 static bool g_is_server = false;

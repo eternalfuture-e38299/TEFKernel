@@ -1204,6 +1204,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_npc_manager_get_npcs);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_find_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_id_get_count);
+    TPF_KERNEL_SYMBOL(terraria_npc_manager_set_bestiary);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_spawn);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_drop_item);
 
@@ -1222,7 +1223,9 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_tile_manager_register_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_unregister_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_get_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_find_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_id_get_count);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_set_merge);
 
     // gui
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);
