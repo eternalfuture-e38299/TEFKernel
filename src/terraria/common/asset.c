@@ -141,12 +141,20 @@ patch_handle_t terraria_asset_create(patch_handle_t type, patch_handle_t value) 
 }
 
 patch_handle_t terraria_asset_get_value(patch_handle_t asset) {
+    if (!patchlib_is_valid(asset)) return PATCH_NULL;
+
     patch_handle_t asset_generic_class = il2cpp_object_get_class(asset);
-    patch_handle_t asset_value = patchlib_type_get_field(asset_generic_class, "<Value>k__BackingField");
+    if (!patchlib_is_valid(asset_generic_class)) return PATCH_NULL;
+
+    patch_handle_t asset_value =
+            patchlib_type_get_field(asset_generic_class,
+                                    "<Value>k__BackingField");
+    if (!patchlib_is_valid(asset_value))
+        asset_value = patchlib_type_get_field(asset_generic_class, "Value");
 
     patch_handle_t result = PATCH_NULL;
-
-    patchlib_field_get_value(asset_value, asset, &result);
+    if (patchlib_is_valid(asset_value))
+        patchlib_field_get_value(asset_value, asset, &result);
 
     patchlib_free(asset_generic_class);
     patchlib_free(asset_value);

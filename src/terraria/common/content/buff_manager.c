@@ -900,7 +900,8 @@ void terraria_buff_manager_init_texture2d(void) {
 static patch_handle_t expand_lang_cache(patch_handle_t field,
                                         patch_handle_t element_type,
                                         int base, int extra) {
-    if (field == PATCH_NULL || element_type == PATCH_NULL || extra <= 0)
+    (void) element_type;
+    if (field == PATCH_NULL || extra <= 0)
         return PATCH_NULL;
 
     patch_handle_t old_arr = PATCH_NULL;
@@ -911,27 +912,18 @@ static patch_handle_t expand_lang_cache(patch_handle_t field,
     const size_t old_len = patchlib_array_length(old_arr);
     const size_t new_len = (size_t) base + (size_t) extra;
     if (new_len <= old_len) {
-        /* 已经够大，不重复扩容 */
-        patchlib_free(old_arr);
-        return old_arr;   /* 注意：这里返回的是同一个句柄，调用方别再 free */
+        /* 已经够大，不重复扩容；句柄仍由字段持有，调用方别 free */
+        return old_arr;
     }
 
-    patch_handle_t new_arr = patchlib_array_create(new_len, element_type);
+    /* 用 resize 而不是 array_create + 逐元素拷贝：
+     * PE 上新建引用数组再回填会失败，resize 保类型且自动拷贝。 */
+    patch_handle_t new_arr = patchlib_array_resize(old_arr, new_len, NULL);
     if (new_arr == PATCH_NULL) {
         patchlib_free(old_arr);
         return PATCH_NULL;
     }
 
-    /* 拷贝原 0..old_len-1 */
-    for (size_t i = 0; i < old_len; ++i) {
-        patch_handle_t elem = PATCH_NULL;
-        if (patchlib_array_at(old_arr, i, &elem) && elem != PATCH_NULL) {
-            patchlib_array_set(new_arr, i, &elem);
-            patchlib_free(elem);
-        }
-    }
-
-    /* 把字段指针改指向新数组 */
     patchlib_field_set_value(field, PATCH_NULL, &new_arr);
     patchlib_free(old_arr);
     return new_arr;
@@ -949,6 +941,28 @@ void terraria_buff_manager_init_localized_text(void) {
     if (localized_text_cls == PATCH_NULL) {
         TEKLOG_WARN("buff l10n: LocalizedText type not found");
         return;
+    }
+
+    /* 诊断：字段是否解析到、当前数组长度 */
+    {
+        patch_handle_t cur = PATCH_NULL;
+        size_t name_len = 0, desc_len = 0;
+        if (patchlib_is_valid(f_buff_name_cache)) {
+            patchlib_field_get_value(f_buff_name_cache, PATCH_NULL, &cur);
+            if (patchlib_is_valid(cur)) name_len = patchlib_array_length(cur);
+            patchlib_free(cur);
+            cur = PATCH_NULL;
+        }
+        if (patchlib_is_valid(f_buff_description_cache)) {
+            patchlib_field_get_value(f_buff_description_cache, PATCH_NULL, &cur);
+            if (patchlib_is_valid(cur)) desc_len = patchlib_array_length(cur);
+            patchlib_free(cur);
+        }
+        TEKLOG_INFO("buff l10n: name_field=%d desc_field=%d "
+                    "name_len=%zu desc_len=%zu target=%d",
+                    patchlib_is_valid(f_buff_name_cache) ? 1 : 0,
+                    patchlib_is_valid(f_buff_description_cache) ? 1 : 0,
+                    name_len, desc_len, base + custom_count);
     }
 
     /* 2. 扩容两个缓存数组 */

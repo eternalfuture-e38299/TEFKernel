@@ -242,6 +242,13 @@ static void pad_tile_object_data(int total_tiles) {
         return;
     }
 
+#if defined(__ANDROID__)
+    /* _data 是 TileObjectData.Initialize（Main.Initialize 内）创建的；
+     * 类没初始化时读静态字段是 null，会被误判成“list not found”。 */
+    if (il2cpp_runtime_class_init)
+        il2cpp_runtime_class_init((void *) type);
+#endif
+
     patch_handle_t field =
             patchlib_type_get_field(type, "_data");
     patch_handle_t list = PATCH_NULL;
@@ -251,13 +258,24 @@ static void pad_tile_object_data(int total_tiles) {
     patchlib_free(type);
 
     if (!patchlib_is_valid(list)) {
-        TEKLOG_WARN("tile object data: _data list not found");
+#if defined(__ANDROID__)
+        TEKLOG_WARN("tile object data: _data list not found "
+                    "(field=%d cctor=%p)",
+                    patchlib_is_valid(field) ? 1 : 0,
+                    (void *) il2cpp_runtime_class_init);
+#else
+        TEKLOG_WARN("tile object data: _data list not found (field=%d)",
+                    patchlib_is_valid(field) ? 1 : 0);
+#endif
         if (patchlib_is_valid(field)) {
             patchlib_free(field);
         }
         return;
     }
 
+    /* 普通非 frame-important 图格在原版里 _data[type] 本来就是 null
+     * （TileObjectData.Initialize 先给所有槽位 Add(null)）。
+     * 这里只需要把 List 长度补到自定义 ID，值保持 null 即可。 */
     patch_handle_t empty_entry = PATCH_NULL;
     for (int i = g_tile_object_data_padding;
          i < required_padding; ++i) {
@@ -402,10 +420,10 @@ static void set_main_tile_flag(patch_handle_t main_type, const char *name,
 
     const bool ok = set_bool_array_element(array, (size_t)runtime_id, value);
 
-    int readback = -1;
+    int readback = 0;
     const bool read_ok =
             patchlib_array_at(array, (size_t)runtime_id, &readback);
-    if (!ok || !read_ok || (readback != 0) != value) {
+    if (!ok || !read_ok || ((readback & 1) != 0) != value) {
         TEKLOG_WARN(
                 "tile flag: %s[%d] write=%d read=%d (len=%zu, ok=%d, read_ok=%d)",
                 name, runtime_id, value ? 1 : 0, readback, length, ok ? 1 : 0,
@@ -441,11 +459,14 @@ static void resize_tile_merge(patch_handle_t main_type, int new_size) {
         outer = patchlib_array_resize(
                 old_outer, (size_t)new_size, PATCH_NULL);
         if (!patchlib_is_valid(outer)) {
+            TEKLOG_WARN("tile merge: outer resize %zu -> %d failed",
+                        old_size, new_size);
             patchlib_free(old_outer);
             patchlib_free(merge_field);
             return;
         }
     }
+    TEKLOG_INFO("tile merge: outer %zu -> %d", old_size, new_size);
 
     patch_handle_t bool_type = patchlib_get_basic_type(PATCH_BOOL);
     if (patchlib_is_valid(outer) && patchlib_is_valid(bool_type)) {
@@ -477,6 +498,17 @@ static void resize_tile_merge(patch_handle_t main_type, int new_size) {
 
         if (outer != old_outer) {
             patchlib_field_set_value(merge_field, PATCH_NULL, &outer);
+        }
+
+        /* 诊断：自定义槽位的行必须存在，否则 TileMergeAttempt(num, tileMerge[num]) 空引用 */
+        patch_handle_t check = PATCH_NULL;
+        if (patchlib_array_at(outer, (size_t)new_size - 1, &check) &&
+            patchlib_is_valid(check)) {
+            TEKLOG_INFO("tile merge: row[%d] len=%zu ok",
+                        new_size - 1, patchlib_array_length(check));
+            patchlib_free(check);
+        } else {
+            TEKLOG_WARN("tile merge: row[%d] is NULL", new_size - 1);
         }
     }
 
@@ -535,9 +567,19 @@ static void resize_tile_sets(int new_size) {
         return;
     }
 
+#if defined(__ANDROID__)
+    /* TileID.Sets 的 cctor 在 PE 上是惰性的：第一次访问前所有 bool[] 都是 null，
+     * 这里不触发的话 resize_tile_sets 会全部跳过，等世界加载首次访问时才按
+     * 754 创建，随后 TileMergeAttempt 用自定义 type(754) 索引就崩。 */
+    if (il2cpp_runtime_class_init)
+        il2cpp_runtime_class_init((void *) sets_type);
+#endif
+
     tefstd_vector_t fields;
     tefstd_vector_init(&fields, sizeof(patch_handle_t));
     patchlib_type_get_fields(sets_type, false, &fields);
+    TEKLOG_INFO("tile sets: %zu field(s) on TileID.Sets",
+                tefstd_vector_size(&fields));
 
     for (size_t i = 0; i < tefstd_vector_size(&fields); ++i) {
         patch_handle_t field =
@@ -557,8 +599,30 @@ static void resize_tile_sets(int new_size) {
                 ? patchlib_type_get_name(field_type)
                 : NULL;
         if (type_name && strstr(type_name, "[]")) {
-            resize_field_array(
-                    field, patchlib_field_get_name(field), new_size);
+            patch_handle_t current = PATCH_NULL;
+            patchlib_field_get_value(field, PATCH_NULL, &current);
+            if (!patchlib_is_valid(current) &&
+                strstr(type_name, "Boolean[]")) {
+                /* PE 上某些 TileID.Sets 的 bool[] 在 cctor 里可能仍是 null；
+                 * TileMergeAttempt 会直接索引，null 就 NullReference。 */
+                patch_handle_t bool_type =
+                        patchlib_get_basic_type(PATCH_BOOL);
+                if (patchlib_is_valid(bool_type)) {
+                    patch_handle_t created = patchlib_array_create(
+                            (size_t) new_size, bool_type);
+                    if (patchlib_is_valid(created)) {
+                        patchlib_field_set_value(field, PATCH_NULL, &created);
+                        TEKLOG_INFO("tile resize: %s was NULL, created [%d]",
+                                    patchlib_field_get_name(field), new_size);
+                        patchlib_free(created);
+                    }
+                    patchlib_free(bool_type);
+                }
+            } else {
+                resize_field_array(
+                        field, patchlib_field_get_name(field), new_size);
+            }
+            patchlib_free(current);
         }
 
         if (patchlib_is_valid(field_type)) {
@@ -1412,6 +1476,32 @@ void terraria_tile_manager_init_textures(void) {
 }
 
 void terraria_tile_manager_init_static(void) {
+    {
+        patch_handle_t id_cls = patchlib_type_get_type(
+                "Terraria.ID", "TileID");
+        if (patchlib_is_valid(id_cls)) {
+            patch_handle_t sets = patchlib_type_get_inner_type(
+                    id_cls, "Sets");
+            patchlib_free(id_cls);
+            if (patchlib_is_valid(sets)) {
+                patch_handle_t dirt = patchlib_type_get_field(
+                        sets, "Dirt");
+                patch_handle_t arr = PATCH_NULL;
+                size_t len = 0;
+                if (patchlib_is_valid(dirt))
+                    patchlib_field_get_value(dirt, PATCH_NULL, &arr);
+                if (patchlib_is_valid(arr))
+                    len = patchlib_array_length(arr);
+                TEKLOG_INFO("tile sets diag: Dirt field=%d array=%d len=%zu",
+                            patchlib_is_valid(dirt) ? 1 : 0,
+                            patchlib_is_valid(arr) ? 1 : 0, len);
+                patchlib_free(arr);
+                patchlib_free(dirt);
+                patchlib_free(sets);
+            }
+        }
+    }
+
     /* 最后一轮兜底：Main.Initialize 里的默认值初始化可能把我们的旗标覆盖掉，
      * 这里再写一次（PC 上 tileSolid 决定能不能穿过）。 */
     patch_handle_t main_type = patchlib_type_get_type("Terraria", "Main");
@@ -1463,6 +1553,113 @@ static bool player_set_adj_tile_prefix(patch_handle_t this, void **args,
     (void) result;
     ensure_player_adj_tile(this);
     return false; /* 继续执行原函数（此时 adjTile 已是扩容后的数组） */
+}
+
+/* 临时诊断：TileMergeAttempt(int myType, bool[] lookfor, refs...)
+ * lookfor 为 null 时原版会 NullReference；这里拦截并打印 myType，避免黑屏。 */
+static bool tile_merge_attempt_prefix(patch_handle_t this, void **args,
+                                      const patch_method_signature_t *sig,
+                                      void *result) {
+    (void) this; (void) result;
+    if (!sig || !args || !args[0] || !args[1]) return false;
+    if (tefstd_vector_size(&sig->arg_type_handles) < 2) return false;
+    patch_handle_t param1 = *(patch_handle_t *) tefstd_vector_at(
+            &sig->arg_type_handles, 1);
+    const char *param1_name = patchlib_is_valid(param1)
+            ? patchlib_type_get_name(param1) : NULL;
+    /* 只处理 bool[] 重载；另一个是 int lookfor，args[1] 读成指针会得到 null */
+    if (!param1_name || !strstr(param1_name, "Boolean[]"))
+        return false;
+    const int my_type = *(int *) args[0];
+    patch_handle_t lookfor = *(patch_handle_t *) args[1];
+    if (!patchlib_is_valid(lookfor)) {
+        TEKLOG_WARN("tile merge attempt: NULL lookfor myType=%d", my_type);
+
+        /* 列出常见 merge 数组的 null 状态，定位到底哪一个没扩 */
+        patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            static const char *const names[] = {
+                    "tileBrick", "tilePile", "tileBlendAll", "tileMergeDirt"};
+            for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+                patch_handle_t f = patchlib_type_get_field(main_cls, names[i]);
+                patch_handle_t a = PATCH_NULL;
+                if (patchlib_is_valid(f))
+                    patchlib_field_get_value(f, PATCH_NULL, &a);
+                TEKLOG_WARN("  Main.%s array=%p len=%zu", names[i],
+                            (void *) a,
+                            patchlib_is_valid(a) ? patchlib_array_length(a) : 0);
+                patchlib_free(a);
+                patchlib_free(f);
+            }
+            patchlib_free(main_cls);
+        }
+        /* 遍历 Main 和 TileID.Sets 的所有 bool[]，只打印 null 的字段 */
+        patch_handle_t scan[2] = {
+                patchlib_type_get_type("Terraria", "Main"), PATCH_NULL};
+        patch_handle_t id_cls_scan = patchlib_type_get_type(
+                "Terraria.ID", "TileID");
+        patch_handle_t sets_scan = patchlib_is_valid(id_cls_scan)
+                ? patchlib_type_get_inner_type(id_cls_scan, "Sets")
+                : PATCH_NULL;
+        patchlib_free(id_cls_scan);
+        scan[1] = sets_scan;
+        static const char *const scan_names[2] = {"Main", "TileID.Sets"};
+        for (int si = 0; si < 2; ++si) {
+            if (!patchlib_is_valid(scan[si])) continue;
+            tefstd_vector_t fs;
+            tefstd_vector_init(&fs, sizeof(patch_handle_t));
+            if (patchlib_type_get_fields(scan[si], false, &fs)) {
+                for (size_t k = 0; k < tefstd_vector_size(&fs); ++k) {
+                    patch_handle_t f =
+                            *(patch_handle_t *) tefstd_vector_at(&fs, k);
+                    if (!patchlib_is_valid(f)) continue;
+                    patch_handle_t ft = patchlib_field_get_type_handle(f);
+                    const char *tn = patchlib_is_valid(ft)
+                            ? patchlib_type_get_name(ft) : NULL;
+                    if (tn && strstr(tn, "Boolean[]")) {
+                        patch_handle_t a = PATCH_NULL;
+                        patchlib_field_get_value(f, PATCH_NULL, &a);
+                        if (!patchlib_is_valid(a))
+                            TEKLOG_WARN("  NULL bool[]: %s.%s",
+                                        scan_names[si],
+                                        patchlib_field_get_name(f));
+                        patchlib_free(a);
+                    }
+                    patchlib_free(ft);
+                    patchlib_free(f);
+                }
+            }
+            tefstd_vector_destroy(&fs);
+            patchlib_free(scan[si]);
+        }
+
+        patch_handle_t id_cls = patchlib_type_get_type("Terraria.ID", "TileID");
+        if (patchlib_is_valid(id_cls)) {
+            patch_handle_t sets = patchlib_type_get_inner_type(id_cls, "Sets");
+            patchlib_free(id_cls);
+            if (patchlib_is_valid(sets)) {
+                static const char *const names[] = {
+                        "Dirt", "GrassSpecial", "BlockMergesWithMergeAllBlock",
+                        "ChecksForMerge"};
+                for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+                    patch_handle_t f = patchlib_type_get_field(sets, names[i]);
+                    patch_handle_t a = PATCH_NULL;
+                    if (patchlib_is_valid(f))
+                        patchlib_field_get_value(f, PATCH_NULL, &a);
+                    TEKLOG_WARN("  Sets.%s array=%p len=%zu", names[i],
+                                (void *) a,
+                                patchlib_is_valid(a) ? patchlib_array_length(a) : 0);
+                    patchlib_free(a);
+                    patchlib_free(f);
+                }
+                patchlib_free(sets);
+            }
+        }
+
+        /* prefix 返回 true = 跳过原函数，避免 NullReference */
+        return true;
+    }
+    return false;
 }
 
 void terraria_tile_manager_init(void) {
@@ -1525,6 +1722,32 @@ void terraria_tile_manager_init(void) {
             patchlib_free(map_init);
         }
         patchlib_free(map_helper);
+    }
+
+    {
+        patch_handle_t wg = patchlib_type_get_type("Terraria", "WorldGen");
+        if (patchlib_is_valid(wg)) {
+            tefstd_vector_t methods;
+            tefstd_vector_init(&methods, sizeof(patch_handle_t));
+            int hooked = 0;
+            if (patchlib_type_get_methods(wg, false, &methods)) {
+                for (size_t i = 0; i < tefstd_vector_size(&methods); ++i) {
+                    patch_handle_t m =
+                            *(patch_handle_t *) tefstd_vector_at(&methods, i);
+                    if (!patchlib_is_valid(m)) continue;
+                    const char *name = patchlib_method_get_name(m);
+                    if (name && strcmp(name, "TileMergeAttempt") == 0 &&
+                        patchlib_method_get_param_count(m) == 10) {
+                        patchlib_install_prepost_hook(
+                                m, tile_merge_attempt_prefix, NULL);
+                        hooked++;
+                    }
+                }
+            }
+            tefstd_vector_destroy(&methods);
+            TEKLOG_INFO("tile merge attempt diagnostic hooks: %d", hooked);
+            patchlib_free(wg);
+        }
     }
 
     TEKLOG_INFO("tile manager initialized: vanilla count = %d",

@@ -1022,6 +1022,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_field_get_value);
     TPF_KERNEL_SYMBOL(patchlib_field_set_value);
     TPF_KERNEL_SYMBOL(patchlib_field_get_type);
+    TPF_KERNEL_SYMBOL(patchlib_field_get_type_handle);
 
     // 方法操作API
     TPF_KERNEL_SYMBOL(patchlib_method_get_name);

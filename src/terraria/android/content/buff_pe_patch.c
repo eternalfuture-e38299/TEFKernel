@@ -442,6 +442,13 @@ static int compare_method_ranges(const void *left, const void *right) {
     return 0;
 }
 
+
+static int compare_uptr(const void *left, const void *right) {
+    const uintptr_t a = *(const uintptr_t *) left;
+    const uintptr_t b = *(const uintptr_t *) right;
+    return (a > b) - (a < b);
+}
+
 static method_range_t *collect_methods(
         void *il2cpp_handle, size_t *out_count) {
     image_class_count_t image_class_count =
@@ -468,6 +475,15 @@ static method_range_t *collect_methods(
     method_range_t *ranges =
             malloc(capacity * sizeof(method_range_t));
     if (!ranges) {
+        return NULL;
+    }
+
+    size_t all_capacity = 4096;
+    size_t all_count = 0;
+    uintptr_t *all_starts =
+            malloc(all_capacity * sizeof(uintptr_t));
+    if (!all_starts) {
+        free(ranges);
         return NULL;
     }
 
@@ -501,12 +517,6 @@ static method_range_t *collect_methods(
                             klass, &iterator)) != NULL) {
                 const char *method_name =
                         il2cpp_method_get_name(method);
-                if (!is_buff_related_method(
-                            namespace_name, class_name,
-                            method_name)) {
-                    continue;
-                }
-
                 void *entry =
                         patchlib_method_get_pointer(method);
                 if (!entry) {
@@ -524,12 +534,35 @@ static method_range_t *collect_methods(
                     continue;
                 }
 
+                /* 记录所有方法的起点，后面用它把扫描范围裁到真实方法边界，
+                 * 避免按“下一个匹配方法”计算 end 时扫进无关代码。 */
+                if (all_count == all_capacity) {
+                    all_capacity *= 2;
+                    uintptr_t *grown = realloc(
+                            all_starts,
+                            all_capacity * sizeof(uintptr_t));
+                    if (!grown) {
+                        free(all_starts);
+                        free(ranges);
+                        return NULL;
+                    }
+                    all_starts = grown;
+                }
+                all_starts[all_count++] = normalized;
+
+                if (!is_buff_related_method(
+                            namespace_name, class_name,
+                            method_name)) {
+                    continue;
+                }
+
                 if (count == capacity) {
                     capacity *= 2;
                     method_range_t *grown = realloc(
                             ranges,
                             capacity * sizeof(method_range_t));
                     if (!grown) {
+                        free(all_starts);
                         free(ranges);
                         return NULL;
                     }
@@ -558,15 +591,36 @@ static method_range_t *collect_methods(
         }
     }
 
+    qsort(all_starts, all_count, sizeof(uintptr_t), compare_uptr);
+    size_t all_unique = 0;
+    for (size_t i = 0; i < all_count; ++i) {
+        if (all_unique == 0 ||
+            all_starts[i] != all_starts[all_unique - 1]) {
+            all_starts[all_unique++] = all_starts[i];
+        }
+    }
+
     for (size_t i = 0; i < unique; ++i) {
-        uintptr_t next = ranges[i].start + MAX_METHOD_SCAN_BYTES;
-        if (i + 1 < unique &&
-            ranges[i + 1].start < next) {
-            next = ranges[i + 1].start;
+        const uintptr_t start = ranges[i].start;
+        uintptr_t next = start + MAX_METHOD_SCAN_BYTES;
+
+        /* 二分找到真正紧邻的下一个方法起点 */
+        size_t lo = 0, hi = all_unique;
+        while (lo < hi) {
+            const size_t mid = (lo + hi) / 2;
+            if (all_starts[mid] <= start) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        if (lo < all_unique && all_starts[lo] < next) {
+            next = all_starts[lo];
         }
         ranges[i].end = next;
     }
 
+    free(all_starts);
     *out_count = unique;
     return ranges;
 }
