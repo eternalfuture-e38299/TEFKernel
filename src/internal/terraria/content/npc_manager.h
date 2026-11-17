@@ -27,8 +27,6 @@ void terraria_npc_manager_init_texture2d(void);
 /** 为自定义 NPC 写入 Lang._npcNameCache 本地化名称 */
 void terraria_npc_manager_init_localized_text(void);
 
-/** 把自定义 NPC 注入 ContentSamples / BestiaryDatabase 并重建图鉴排序 */
-void terraria_npc_manager_init_bestiary(void);
 
 #ifdef __cplusplus
 }

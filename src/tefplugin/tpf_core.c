@@ -1204,7 +1204,6 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_npc_manager_get_npcs);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_find_npc);
     TPF_KERNEL_SYMBOL(terraria_npc_id_get_count);
-    TPF_KERNEL_SYMBOL(terraria_npc_manager_set_bestiary);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_spawn);
     TPF_KERNEL_SYMBOL(terraria_npc_manager_drop_item);
 

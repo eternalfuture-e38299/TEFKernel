@@ -298,10 +298,6 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     /* 图格后期联动（物品掉落自动关联 / DerivedPlacementDetails / 合并 / 自发光 / 小地图） */
     terraria_tile_manager_post_setup_content();
 
-    /* 图鉴注入：必须在 item/npc init_static 全部跑完后再填充 ContentSamples 与 BestiaryDB */
-    if (custom_npc > 0) {
-        terraria_npc_manager_init_bestiary();
-    }
 }
 
 static bool g_is_server = false;
