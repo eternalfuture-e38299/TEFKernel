@@ -74,7 +74,7 @@ static bool initialize_prefix(patch_handle_t this, void **args,
 
     if (custom_buff > 0) {
         terraria_buff_manager_assign_ids(terraria_buff_id_get_count());
-        TEKLOG_INFO("Assigned buff IDs (不占用原版 BuffID)");
+        TEKLOG_INFO("Assigned buff IDs (tables resized after Main.Initialize)");
     }
 
     if (custom_npc > 0) {
@@ -172,6 +172,11 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
         terraria_npc_manager_resize();
     if (custom_prefix > 0)
         terraria_prefix_manager_resize();
+    if (custom_buff > 0) {
+        terraria_buff_manager_resize();
+        terraria_buff_manager_raise_count();
+        TEKLOG_INFO("Custom buff tables resized and BuffID.Count raised");
+    }
 }
 
 
@@ -210,9 +215,10 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     }
 
     if (custom_buff > 0) {
+        terraria_buff_manager_resize();
         terraria_buff_manager_init_texture2d();
         terraria_buff_manager_init_localized_text();
-        TEKLOG_INFO("Custom buff textures initialized");
+        TEKLOG_INFO("Custom buff arrays/textures initialized");
     }
 
     if (custom_npc > 0) {

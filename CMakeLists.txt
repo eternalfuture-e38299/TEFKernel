@@ -170,6 +170,7 @@ if (ANDROID)
             src/terraria/android/content/button_store.c
             src/terraria/android/content/button_images.c
             src/terraria/android/content/tile_pe_patch.c
+            src/terraria/android/content/buff_pe_patch.c
     )
 else ()
     list(APPEND INTERNAL_SRC
