@@ -73,16 +73,34 @@ static patch_handle_t m_enough_items = PATCH_NULL;
 static patch_handle_t m_add_available = PATCH_NULL;
 static patch_handle_t m_refocus = PATCH_NULL;
 
+/* 向导「材料→可合成」模式：CollectGuideRecipes 的循环上限同样被编译成
+ * const 3700，末尾的 Mod 配方（现在统一追加在原版配方之后）原版扫不到。
+ * 在原版扫描结束后补扫 [3700, numRecipes) 并追加进 availableRecipe。 */
+static patch_handle_t m_collect_guide = PATCH_NULL;
+static patch_handle_t guide_item_f = PATCH_NULL;    /* Main.guideItem */
+static patch_handle_t m_get_guide_item = PATCH_NULL;/* Main.guideItem（属性兜底） */
+static patch_handle_t item_type_f = PATCH_NULL;     /* Item.type */
+static patch_handle_t required_item_f = PATCH_NULL; /* Recipe.requiredItem */
+static patch_handle_t num_available_f = PATCH_NULL; /* Main.numAvailableRecipes */
+
 static int g_vanilla_max_recipes = 3700;
 static int g_old_focus_recipe = 0;
 static int g_last_added_beyond = -1;
 static bool g_scan_beyond_max = false;
+static bool g_guide_scan_beyond_max = false;
 
 static bool find_recipes_prefix(patch_handle_t this, void **args,
                                 const patch_method_signature_t *sig_info,
                                 void *result);
 static void find_recipes_postfix(patch_handle_t this, void **args, void *result,
                                  const patch_method_signature_t *sig_info);
+
+static bool collect_guide_prefix(patch_handle_t this, void **args,
+                                 const patch_method_signature_t *sig_info,
+                                 void *result);
+static void collect_guide_postfix(patch_handle_t this, void **args,
+                                  void *result,
+                                  const patch_method_signature_t *sig_info);
 #endif
 
 static void ensure_recipe_capacity(void);
@@ -96,17 +114,61 @@ static bool recipe_add_prefix(patch_handle_t this, void **args,
                               const patch_method_signature_t *sig_info,
                               void *result);
 
-static bool
-setup_recipes_prefix(patch_handle_t this, void **args,
+static bool g_recipe_callbacks_added = false;
+static bool g_finalize_hook_active = false;
+
+static bool add_mod_recipes_prefix(patch_handle_t this, void **args,
                                    const patch_method_signature_t *sig_info,
-                                   void *result) {
-    for (int i = 0; i < tefstd_vector_size(&g_recipe_callback); ++i) {
+                                   void *result);
+
+/* SetupRecipes 每次重建配方表时允许回调再写入一次（否则会重复追加）；
+ * 同时避免 Mod 自己调用 CreateRequiredItemQuickLookups 时误触发回调。
+ * 若收尾方法挂不上（g_finalize_hook_active=false），则退回旧行为在这里写入。 */
+static bool setup_recipes_prefix(patch_handle_t this, void **args,
+                                 const patch_method_signature_t *sig_info,
+                                 void *result) {
+    g_recipe_callbacks_added = false;
+    if (!g_finalize_hook_active)
+        return add_mod_recipes_prefix(this, args, sig_info, result);
+    (void) this;
+    (void) args;
+    (void) sig_info;
+    (void) result;
+    return false;
+}
+
+/* 所有 Mod 配方都追加在**原版配方之后**再写入：
+ *   SetupRecipes 末尾会先跑 CreateReverseWallRecipes / CreateReversePlatformRecipes，
+ *   再进入 CreateRequiredItemQuickLookups / UpdateWhichItemsAreMaterials 等收尾。
+ *   把回调挂到 CreateRequiredItemQuickLookups 上，等价于 tModLoader 的
+ *   RecipeLoader.AddRecipes() 插入点：
+ *     - 原版配方索引保持 0..N-1 不变，不会把原版尾部挤到 maxRecipes 之外；
+ *     - 随后的 quickLookup / 材料标记 / 变体刷新会自动覆盖新配方。
+ * 之前挂在 SetupRecipes 的 prefix 上，Mod 配方占据索引 0..C-1，把原版最后
+ * 几条（如虚空保险库、部分肉后饰品）推到 3700 之后，手机端向导直接看不见。 */
+static bool
+add_mod_recipes_prefix(patch_handle_t this, void **args,
+                       const patch_method_signature_t *sig_info,
+                       void *result) {
+    (void) this;
+    (void) args;
+    (void) sig_info;
+    (void) result;
+    if (g_recipe_callbacks_added)
+        return false;
+    g_recipe_callbacks_added = true;
+    const int callback_count = (int) tefstd_vector_size(&g_recipe_callback);
+    for (int i = 0; i < callback_count; ++i) {
         const terraria_recipe_manager_addrecipes_t callback =
                 *(terraria_recipe_manager_addrecipes_t *) tefstd_vector_at(
                     &g_recipe_callback, i);
         if (callback)
             callback();
     }
+
+    if (callback_count > 0)
+        TEKLOG_INFO("recipe: %d Mod callback(s) applied after vanilla recipes",
+                    callback_count);
 
     return false;
 }
@@ -271,6 +333,121 @@ static void find_recipes_postfix(patch_handle_t this, void **args, void *result,
 
     patchlib_free(player);
 }
+
+/* CollectGuideRecipes 前置：把 availableRecipe / availableRecipeY 按总配方数
+ * 撑大，避免补扫追加时越界。原版主体的 0..3699 扫描保持不动。 */
+static bool collect_guide_prefix(patch_handle_t this, void **args,
+                                 const patch_method_signature_t *sig_info,
+                                 void *result) {
+    (void) this;
+    (void) args;
+    (void) sig_info;
+    (void) result;
+    g_guide_scan_beyond_max = false;
+
+    int total = 0;
+    if (patchlib_is_valid(num_recipes_f))
+        patchlib_field_get_value(num_recipes_f, PATCH_NULL, &total);
+    if (total <= g_vanilla_max_recipes)
+        return false;
+
+    grow_available_recipe_arrays(total);
+    g_guide_scan_beyond_max = true;
+    return false;
+}
+
+/* CollectGuideRecipes 后置：补扫 [3700, numRecipes)，把「以向导物品为材料」
+ * 的 Mod 配方追加到 availableRecipe。Mod 配方来自 Lua，只用具体物品 id，
+ * 不会出现 RecipeGroup，因此直接比较 requiredItem[].type 即可。 */
+static void collect_guide_postfix(patch_handle_t this, void **args,
+                                  void *result,
+                                  const patch_method_signature_t *sig_info) {
+    (void) this;
+    (void) args;
+    (void) result;
+    (void) sig_info;
+    if (!g_guide_scan_beyond_max) return;
+    g_guide_scan_beyond_max = false;
+
+    if (!patchlib_is_valid(num_recipes_f) ||
+        !patchlib_is_valid(item_type_f) ||
+        !patchlib_is_valid(required_item_f))
+        return;
+
+    patch_handle_t guide_item = PATCH_NULL;
+    if (patchlib_is_valid(guide_item_f))
+        patchlib_field_get_value(guide_item_f, PATCH_NULL, &guide_item);
+    else
+        guide_item = invoke_object_static(m_get_guide_item);
+    if (!patchlib_is_valid(guide_item)) return;
+    int guide_type = 0;
+    patchlib_field_get_value(item_type_f, guide_item, &guide_type);
+    patchlib_free(guide_item);
+    if (guide_type <= 0) return;
+
+    int total = 0;
+    patchlib_field_get_value(num_recipes_f, PATCH_NULL, &total);
+    if (total <= g_vanilla_max_recipes) return;
+
+    patch_handle_t available = invoke_object_static(m_get_available_recipe);
+    if (!patchlib_is_valid(available)) return;
+    const size_t available_len = patchlib_array_length(available);
+
+    int num_available = 0;
+    if (patchlib_is_valid(num_available_f))
+        patchlib_field_get_value(num_available_f, PATCH_NULL, &num_available);
+
+    patch_handle_t recipes = PATCH_NULL;
+    patchlib_field_get_value(recipe_f, PATCH_NULL, &recipes);
+    int added = 0;
+    if (patchlib_is_valid(recipes)) {
+        for (int i = g_vanilla_max_recipes; i < total; ++i) {
+            patch_handle_t recipe = PATCH_NULL;
+            if (!patchlib_array_at(recipes, (size_t) i, &recipe) ||
+                !patchlib_is_valid(recipe))
+                break;
+
+            patch_handle_t required = PATCH_NULL;
+            patchlib_field_get_value(required_item_f, recipe, &required);
+            bool matched = false;
+            if (patchlib_is_valid(required)) {
+                const size_t req_len = patchlib_array_length(required);
+                for (size_t j = 0; j < req_len; ++j) {
+                    patch_handle_t mat = PATCH_NULL;
+                    if (!patchlib_array_at(required, j, &mat) ||
+                        !patchlib_is_valid(mat))
+                        break;
+                    int mat_type = 0;
+                    patchlib_field_get_value(item_type_f, mat, &mat_type);
+                    patchlib_free(mat);
+                    if (mat_type == 0) break;
+                    if (mat_type == guide_type) {
+                        matched = true;
+                        break;
+                    }
+                }
+                patchlib_free(required);
+            }
+            patchlib_free(recipe);
+
+            if (!matched) continue;
+            if ((size_t) num_available >= available_len) break;
+            const int index = i;
+            if (patchlib_array_set(available, (size_t) num_available, &index)) {
+                ++num_available;
+                ++added;
+            }
+        }
+        patchlib_free(recipes);
+    }
+
+    if (added > 0 && patchlib_is_valid(num_available_f))
+        patchlib_field_set_value(num_available_f, PATCH_NULL, &num_available);
+    if (added > 0)
+        TEKLOG_INFO("recipe: guide >maxRecipes appended %d (total=%d)",
+                    added, total);
+    patchlib_free(available);
+}
 #endif
 
 void terraria_recipe_manager_init() {
@@ -280,9 +457,9 @@ void terraria_recipe_manager_init() {
     recipe_cls = patchlib_type_get_type("Terraria", "Recipe");
     m_recipe_ctor =
             patchlib_type_get_method_by_param_count(recipe_cls, ".ctor", 0);
-    patch_handle_t setup_recipes =
-            patchlib_type_get_method_by_param_count(recipe_cls,
-                                                    "SetupRecipes", 0);
+    patch_handle_t finalize_recipes =
+            patchlib_type_get_method_by_param_count(
+                    recipe_cls, "CreateRequiredItemQuickLookups", 0);
 
     set_ingredients =
             patchlib_type_get_method_by_param_count(recipe_cls, "SetIngredients", 1);
@@ -311,8 +488,22 @@ void terraria_recipe_manager_init() {
     set_defaults =
             patchlib_type_get_method_by_param_count(item_class, "SetDefaults", 2);
 
-    patchlib_install_prepost_hook(setup_recipes,
-                                  setup_recipes_prefix, NULL);
+    if (patchlib_is_valid(finalize_recipes)) {
+        patchlib_install_prepost_hook(finalize_recipes,
+                                      add_mod_recipes_prefix, NULL);
+        g_finalize_hook_active = true;
+        TEKLOG_INFO("recipe: hooked Recipe.CreateRequiredItemQuickLookups");
+    } else {
+        /* 兜底：找不到收尾方法时退回旧行为（会挤占原版索引，但至少能写入） */
+        TEKLOG_WARN("recipe: CreateRequiredItemQuickLookups not found, "
+                    "fallback to SetupRecipes prefix");
+    }
+
+    patch_handle_t setup_recipes = patchlib_type_get_method_by_param_count(
+            recipe_cls, "SetupRecipes", 0);
+    if (patchlib_is_valid(setup_recipes))
+        patchlib_install_prepost_hook(setup_recipes, setup_recipes_prefix,
+                                      NULL);
 
     patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
     recipe_f = patchlib_type_get_field(main_cls, "recipe");
@@ -390,6 +581,35 @@ void terraria_recipe_manager_init() {
     } else {
         TEKLOG_WARN("recipe: mobile >maxRecipes fix unavailable (max=%d)",
                     g_vanilla_max_recipes);
+    }
+
+    /* 向导补扫：字段与方法解析失败时只跳过补扫，不影响原版行为。 */
+    guide_item_f = patchlib_type_get_field(main_cls, "guideItem");
+    if (!patchlib_is_valid(guide_item_f)) {
+        patch_handle_t guide_item_prop =
+                patchlib_type_get_property(main_cls, "guideItem");
+        if (patchlib_is_valid(guide_item_prop)) {
+            m_get_guide_item =
+                    patchlib_property_get_get_method(guide_item_prop);
+            patchlib_free(guide_item_prop);
+        }
+    }
+    num_available_f = patchlib_type_get_field(main_cls, "numAvailableRecipes");
+    item_type_f = patchlib_type_get_field(item_class, "type");
+    required_item_f = patchlib_type_get_field(recipe_cls, "requiredItem");
+    m_collect_guide = patchlib_type_get_method_by_param_count(
+            recipe_cls, "CollectGuideRecipes", 0);
+    if (patchlib_is_valid(m_collect_guide) &&
+        patchlib_is_valid(m_get_available_recipe) &&
+        (patchlib_is_valid(guide_item_f) || patchlib_is_valid(m_get_guide_item)) &&
+        patchlib_is_valid(item_type_f) &&
+        patchlib_is_valid(required_item_f) &&
+        patchlib_is_valid(num_available_f)) {
+        patchlib_install_prepost_hook(m_collect_guide, collect_guide_prefix,
+                                      collect_guide_postfix);
+        TEKLOG_INFO("recipe: hooked Recipe.CollectGuideRecipes");
+    } else {
+        TEKLOG_WARN("recipe: mobile guide >maxRecipes scan unavailable");
     }
 #endif
 
