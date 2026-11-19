@@ -24,6 +24,10 @@ void terraria_npc_manager_resize(void);
 /** 为自定义 NPC 写入纹理 */
 void terraria_npc_manager_init_texture2d(void);
 
+/** 为自定义 NPC 写入 Lang._npcNameCache 本地化名称 */
+void terraria_npc_manager_init_localized_text(void);
+
+
 #ifdef __cplusplus
 }
 #endif

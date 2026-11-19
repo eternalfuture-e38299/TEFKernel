@@ -1022,6 +1022,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_field_get_value);
     TPF_KERNEL_SYMBOL(patchlib_field_set_value);
     TPF_KERNEL_SYMBOL(patchlib_field_get_type);
+    TPF_KERNEL_SYMBOL(patchlib_field_get_type_handle);
 
     // 方法操作API
     TPF_KERNEL_SYMBOL(patchlib_method_get_name);
@@ -1221,7 +1222,9 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_tile_manager_register_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_unregister_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_get_tile);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_find_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_id_get_count);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_set_merge);
 
     // gui
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);

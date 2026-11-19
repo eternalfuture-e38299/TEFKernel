@@ -1,23 +1,19 @@
 /*******************************************************************************
  * tefkernel - buff_manager
  *
- * 自定义 Buff（不占用原版 BuffID）
+ * 自定义 Buff（占用 BuffID.Count 之后的 ID）
  *
- * 为什么不用原版 buffType：
- *   手机端原生 Buff 栏（GUIBuffs）会把 buffType 里 >= BuffID.Count 的项过滤掉，
- *   而且原版 AddBuff/UpdateBuffs 对未知 type 有一堆按 type 索引的表与清理逻辑
- *   （IsFedState、MountType、buffImmune...），既容易越界也会误删。
- *
- * 现在改成：
- *   · runtime_id 只是本注册表里的稳定句柄，不写进 buffType；
- *   · 内核自己维护「玩家 -> 活跃 buff -> 剩余帧数」，每帧推进并回调 update；
- *   · 图标与倒计时由内核 GUI 覆盖层绘制；
- *   · 不扩容任何原版数组，不挂钩 AddBuff / FindBuffIndex / DelBuff。
- *     原版按 buff id 索引、长度 BuffID.Count 的数组（Main.buffNoSave /
- *     buffNoTimeDisplay / pvpBuff / lightPet / vanityPet / debuff、
- *     Player/NPC.buffImmune、TextureAssets.Buff、Lang._buffNameCache /
- *     _buffDescriptionCache、BuffID.Sets.*）只会收到原版 0..Count-1 的 id；
- *     自定义 buff 从不进入这些索引，因此无需扩容。
+ * 现在自定义 ID 会真正写进 Player.buffType / buffTime，由原版
+ * AddBuff/UpdateBuffs/存档/联机逻辑和原生 Buff 栏接管显示：
+ *   · 注册时按 loader/mod/name 排序分配 runtime_id = BuffID.Count + i；
+ *   · 启动时扩容 BuffID.Sets.* / TextureAssets.Buff / Lang 缓存 /
+ *     Main.* bool 表 / Player.buffImmune 等按 buff id 索引的原版数组；
+ *   · PC 直接抬 BuffID.Count（static readonly）；
+ *   · PE 的 GUIBuffs.Draw 把 buffType >= BuffID.Count 的项过滤/清零，
+ *     这是编译进指令里的常量，用 buff_pe_patch 内存补丁扩到自定义总数；
+ *   · 图标/倒计时/悬停提示全部交给原生 Buff 栏，内核不再手绘；
+ *   · 内核保留 apply/update 回调与按名字的 plr.tef 存档，
+ *     并设置 Main.buffNoSave[id] = true 防止原版按 runtime_id 存档。
  *******************************************************************************/
 
 #include "internal/terraria/content/buff_manager.h"
@@ -39,11 +35,17 @@
 #include "terraria/gui.h"
 #include "terraria/language_manager.h"
 
+#if defined(__ANDROID__)
+#include "internal/terraria/android/content/buff_pe_patch.h"
+#endif
+
 #define BUFF_ACTIVE_MAX 32
 
 tefstd_vector_t g_terraria_buff_registry;
 
 static patch_handle_t f_player_buff_type = PATCH_NULL;
+static patch_handle_t f_player_buff_time = PATCH_NULL;
+static patch_handle_t f_player_buff_immune = PATCH_NULL;
 static patch_handle_t f_main_player = PATCH_NULL;
 static patch_handle_t m_get_my_player = PATCH_NULL;
 static patch_hook_id_t h_player_update = PATCH_HOOK_INVALID_ID;
@@ -79,6 +81,7 @@ static unsigned g_frame_no;
 static bool g_ids_assigned = false;
 
 /* Lang._buffNameCache / _buffDescriptionCache（定长 BuffID.Count） */
+static patch_handle_t f_texture_buff = PATCH_NULL;   /* TextureAssets.Buff */
 static patch_handle_t f_buff_name_cache = PATCH_NULL;
 static patch_handle_t f_buff_description_cache = PATCH_NULL;
 /* LocalizedText.FromLanguageKey：桌面 (string)，手机 (short, string) */
@@ -267,6 +270,296 @@ static terraria_buff_handle_t *find_by_runtime_id(const int runtime_id) {
 }
 
 /* ------------------------------------------------------------------ */
+/* 原版 Buff 表扩容 / PE 常量补丁                                      */
+/* ------------------------------------------------------------------ */
+
+static bool buff_field_is_array(patch_handle_t field) {
+    patch_handle_t ft = patchlib_field_get_type_handle(field);
+    if (!patchlib_is_valid(ft)) return false;
+    const char *tn = patchlib_type_get_name(ft);
+    const bool result = tn && strstr(tn, "[]") != NULL;
+    patchlib_free(ft);
+    return result;
+}
+
+static void buff_resize_array_field(patch_handle_t field, const char *name,
+                                    const int base, const int new_size) {
+    if (!patchlib_is_valid(field) || !buff_field_is_array(field)) return;
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(field, NULL, &arr);
+    if (!patchlib_is_valid(arr)) return;
+    const size_t len = patchlib_array_length(arr);
+    if (len < (size_t) new_size && len + 16 >= (size_t) base) {
+        patch_handle_t bigger =
+                patchlib_array_resize(arr, (size_t) new_size, NULL);
+        if (patchlib_is_valid(bigger)) {
+            patchlib_field_set_value(field, NULL, &bigger);
+            TEKLOG_INFO("buff resize: %s %zu -> %d", name ? name : "?", len,
+                        new_size);
+            patchlib_free(bigger);
+        } else {
+            TEKLOG_WARN("buff resize: %s %zu -> %d failed",
+                        name ? name : "?", len, new_size);
+        }
+    }
+    patchlib_free(arr);
+}
+
+static void buff_resize_sets(const int base, const int new_size) {
+    patch_handle_t id_cls = patchlib_type_get_type("Terraria.ID", "BuffID");
+    if (!patchlib_is_valid(id_cls)) return;
+    patch_handle_t sets = patchlib_type_get_inner_type(id_cls, "Sets");
+    patchlib_free(id_cls);
+    if (!patchlib_is_valid(sets)) return;
+
+    tefstd_vector_t fields;
+    tefstd_vector_init(&fields, sizeof(patch_handle_t));
+    if (patchlib_type_get_fields(sets, false, &fields)) {
+        for (size_t i = 0; i < fields.size; ++i) {
+            patch_handle_t f = *(patch_handle_t *) tefstd_vector_at(&fields, i);
+            if (!patchlib_is_valid(f)) continue;
+            const char *name = patchlib_field_get_name(f);
+            if (name && (strcmp(name, "Factory") == 0 ||
+                         strcmp(name, "Count") == 0)) {
+                patchlib_free(f);
+                continue;
+            }
+            if (!patchlib_field_is_static(f) || patchlib_field_is_const(f) ||
+                !buff_field_is_array(f)) {
+                patchlib_free(f);
+                continue;
+            }
+            buff_resize_array_field(f, name, base, new_size);
+            patchlib_free(f);
+        }
+    }
+    tefstd_vector_destroy(&fields);
+
+    /* BuffID.Sets.Factory._size */
+    patch_handle_t f_factory = patchlib_type_get_field(sets, "Factory");
+    if (patchlib_is_valid(f_factory)) {
+        patch_handle_t factory = PATCH_NULL;
+        patchlib_field_get_value(f_factory, NULL, &factory);
+        if (patchlib_is_valid(factory)) {
+            patch_handle_t sf = patchlib_type_get_type(
+                    "Terraria.ID", "SetFactory");
+            patch_handle_t f_size = patchlib_is_valid(sf)
+                    ? patchlib_type_get_field(sf, "_size") : PATCH_NULL;
+            if (patchlib_is_valid(f_size)) {
+                int n = new_size;
+                patchlib_field_set_value(f_size, factory, &n);
+            }
+            patchlib_free(f_size);
+            patchlib_free(sf);
+            patchlib_free(factory);
+        }
+        patchlib_free(f_factory);
+    }
+    patchlib_free(sets);
+}
+
+/* 某些 BuffID.Sets 的 int 数组默认值不是 0（Factory.CreateIntSet 的 default）。
+ * array_resize 新槽一律补 0，会让自定义 buff 误命中：
+ *   MountType = 0  -> 每帧 SetMount(0)，冒出别的坐骑效果（1.4.5.8 实测）
+ * 这里把已知的非 0 默认值补回去。 */
+static void buff_fill_set_defaults(const int base, const int new_size) {
+    patch_handle_t id_cls = patchlib_type_get_type("Terraria.ID", "BuffID");
+    if (!patchlib_is_valid(id_cls)) return;
+    patch_handle_t sets = patchlib_type_get_inner_type(id_cls, "Sets");
+    patchlib_free(id_cls);
+    if (!patchlib_is_valid(sets)) return;
+
+    static const struct {
+        const char *name;
+        int value;
+    } defaults[] = {
+            {"MountType", -1},
+            {"SortingPriorityFoodBuffs", -1},
+    };
+    for (size_t i = 0; i < sizeof(defaults) / sizeof(defaults[0]); ++i) {
+        patch_handle_t f = patchlib_type_get_field(sets, defaults[i].name);
+        if (!patchlib_is_valid(f)) continue;
+        patch_handle_t arr = PATCH_NULL;
+        patchlib_field_get_value(f, NULL, &arr);
+        if (patchlib_is_valid(arr)) {
+            int value = defaults[i].value;
+            for (int j = base; j < new_size; ++j)
+                patchlib_array_set(arr, (size_t) j, &value);
+            TEKLOG_INFO("buff resize: %s[%d..%d] = %d",
+                        defaults[i].name, base, new_size - 1, value);
+        }
+        patchlib_free(arr);
+        patchlib_free(f);
+    }
+    patchlib_free(sets);
+}
+
+static void buff_resize_main_arrays(const int base, const int new_size) {
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (!patchlib_is_valid(main_cls)) return;
+    static const char *const names[] = {
+            "pvpBuff", "persistentBuff", "vanityPet", "lightPet",
+            "meleeBuff", "debuff", "buffNoSave", "buffNoTimeDisplay",
+            "buffDoubleApply", "buffAlpha"};
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+        patch_handle_t f = patchlib_type_get_field(main_cls, names[i]);
+        if (patchlib_is_valid(f)) {
+            buff_resize_array_field(f, names[i], base, new_size);
+            patchlib_free(f);
+        }
+    }
+    patchlib_free(main_cls);
+}
+
+static void buff_resize_instance_array(patch_handle_t inst,
+                                       patch_handle_t field,
+                                       const int new_size) {
+    if (!patchlib_is_valid(inst) || !patchlib_is_valid(field)) return;
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(field, inst, &arr);
+    if (!patchlib_is_valid(arr)) return;
+    if (patchlib_array_length(arr) < (size_t) new_size) {
+        patch_handle_t bigger =
+                patchlib_array_resize(arr, (size_t) new_size, NULL);
+        if (patchlib_is_valid(bigger)) {
+            patchlib_field_set_value(field, inst, &bigger);
+            patchlib_free(bigger);
+        }
+    }
+    patchlib_free(arr);
+}
+
+static void buff_resize_immune_arrays(const int new_size) {
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (!patchlib_is_valid(main_cls)) return;
+    patch_handle_t f_players = patchlib_type_get_field(main_cls, "player");
+    patch_handle_t f_npcs = patchlib_type_get_field(main_cls, "npc");
+    patch_handle_t player_cls = patchlib_type_get_type("Terraria", "Player");
+    patch_handle_t npc_cls = patchlib_type_get_type("Terraria", "NPC");
+    patch_handle_t f_player_immune = patchlib_is_valid(player_cls)
+            ? patchlib_type_get_field(player_cls, "buffImmune") : PATCH_NULL;
+    patch_handle_t f_npc_immune = patchlib_is_valid(npc_cls)
+            ? patchlib_type_get_field(npc_cls, "buffImmune") : PATCH_NULL;
+
+    patch_handle_t arrays[2] = {f_players, f_npcs};
+    patch_handle_t fields[2] = {f_player_immune, f_npc_immune};
+    for (int a = 0; a < 2; ++a) {
+        if (!patchlib_is_valid(arrays[a])) continue;
+        patch_handle_t arr = PATCH_NULL;
+        patchlib_field_get_value(arrays[a], NULL, &arr);
+        if (!patchlib_is_valid(arr)) continue;
+        const size_t len = patchlib_array_length(arr);
+        for (size_t i = 0; i < len; ++i) {
+            patch_handle_t inst = PATCH_NULL;
+            if (patchlib_array_at(arr, i, &inst) &&
+                patchlib_is_valid(inst)) {
+                buff_resize_instance_array(inst, fields[a], new_size);
+                patchlib_free(inst);
+            }
+        }
+        patchlib_free(arr);
+    }
+
+    patchlib_free(f_player_immune);
+    patchlib_free(f_npc_immune);
+    patchlib_free(f_players);
+    patchlib_free(f_npcs);
+    patchlib_free(player_cls);
+    patchlib_free(npc_cls);
+    patchlib_free(main_cls);
+}
+
+/* 自定义 buff 由内核 plr.tef 按名字存档；告诉原版不要把它写进 .plr，
+ * 避免卸载/增删 Mod 后 runtime_id 漂移读成别的 buff。 */
+static void buff_apply_flags(void) {
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (!patchlib_is_valid(main_cls)) return;
+    patch_handle_t f_no_save = patchlib_type_get_field(main_cls, "buffNoSave");
+    patch_handle_t f_debuff = patchlib_type_get_field(main_cls, "debuff");
+    patch_handle_t no_save = PATCH_NULL;
+    patch_handle_t debuff = PATCH_NULL;
+    if (patchlib_is_valid(f_no_save))
+        patchlib_field_get_value(f_no_save, NULL, &no_save);
+    if (patchlib_is_valid(f_debuff))
+        patchlib_field_get_value(f_debuff, NULL, &debuff);
+
+    const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_buff_handle_t **pp =
+                tefstd_vector_at(&g_terraria_buff_registry, i);
+        if (!pp || !*pp || (*pp)->runtime_id < 0) continue;
+        const size_t id = (size_t) (*pp)->runtime_id;
+        if (patchlib_is_valid(no_save)) {
+            bool value = true;
+            patchlib_array_set(no_save, id, &value);
+        }
+        if (patchlib_is_valid(debuff)) {
+            bool value = (*pp)->debuff;
+            patchlib_array_set(debuff, id, &value);
+        }
+    }
+    patchlib_free(no_save);
+    patchlib_free(debuff);
+    patchlib_free(f_no_save);
+    patchlib_free(f_debuff);
+    patchlib_free(main_cls);
+}
+
+static void buff_raise_count(const int new_size) {
+#if !defined(__ANDROID__)
+    patch_handle_t id_cls = patchlib_type_get_type("Terraria.ID", "BuffID");
+    if (!patchlib_is_valid(id_cls)) return;
+    patch_handle_t f_count = patchlib_type_get_field(id_cls, "Count");
+    if (patchlib_is_valid(f_count)) {
+        int current = 0;
+        patchlib_field_get_value(f_count, NULL, &current);
+        if (current < new_size) {
+            int value = new_size;
+            patchlib_field_set_value(f_count, NULL, &value);
+            TEKLOG_INFO("buff resize: BuffID.Count %d -> %d", current, new_size);
+        }
+        patchlib_free(f_count);
+    }
+    patchlib_free(id_cls);
+#else
+    (void) new_size;
+#endif
+}
+
+void terraria_buff_manager_resize(void) {
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    if (custom <= 0 || base <= 0) return;
+    const int total = base + custom;
+
+    /* 注意：先只扩数组，不抬 BuffID.Count。
+     * Main.Initialize 里的 ContentSamples.Initialize 会按 BuffID.Count
+     * 遍历 NPCDebuffImmunityData.ApplyToNPC 等逻辑；此时如果 Count 已经
+     * 变大，而某些实例数组还是旧长度，就会 IndexOutOfRange。
+     * Count 等 Main.Initialize 完全结束后再抬（raise_count）。 */
+    buff_resize_sets(base, total);
+    buff_fill_set_defaults(base, total);
+    buff_resize_main_arrays(base, total);
+    buff_resize_immune_arrays(total);
+    buff_apply_flags();
+
+#if defined(__ANDROID__)
+    terraria_buff_pe_patch_apply(base, total);
+#endif
+}
+
+void terraria_buff_manager_raise_count(void) {
+#if !defined(__ANDROID__)
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    if (custom <= 0 || base <= 0) return;
+    buff_raise_count(base + custom);
+#endif
+}
+
+/* ------------------------------------------------------------------ */
 /* 活跃 Buff                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -281,22 +574,51 @@ static active_buff_t *find_active(patch_handle_t player, const int runtime_id) {
 int terraria_buff_manager_add(terraria_buff_handle_t *buff_handle, patch_handle_t player, const int time) {
     if (!buff_handle || buff_handle->runtime_id < 0 || player == PATCH_NULL || time <= 0)
         return -1;
+    if (!patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
+        return -1;
 
-    active_buff_t *a = find_active(player, buff_handle->runtime_id);
-    if (!a) {
-        if (g_active_count >= BUFF_ACTIVE_MAX) {
-            TEKLOG_WARN("buff: active list is full (%d)", BUFF_ACTIVE_MAX);
-            return -1;
-        }
-        a = &g_active[g_active_count++];
-        a->player = PATCH_NULL;   /* 桌面版句柄是临时的，身份只用 who */
-        a->who = player_who(player);
-        a->buff_id = buff_handle->runtime_id;
-        a->time = 0;
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, player, &types);
+    patchlib_field_get_value(f_player_buff_time, player, &times);
+    if (!patchlib_is_valid(types) || !patchlib_is_valid(times)) {
+        patchlib_free(types);
+        patchlib_free(times);
+        return -1;
     }
-    if (time > a->time) a->time = time;
-    if (buff_handle->buff_ops.apply) buff_handle->buff_ops.apply(buff_handle, player, a->time);
-    return a->time;
+
+    const int id = buff_handle->runtime_id;
+    const size_t slots = patchlib_array_length(types);
+    int existing = -1;
+    int free_slot = -1;
+    for (size_t i = 0; i < slots; ++i) {
+        int type = 0;
+        if (!patchlib_array_at(types, i, &type)) continue;
+        if (type == id) { existing = (int) i; break; }
+        if (type == 0 && free_slot < 0) free_slot = (int) i;
+    }
+
+    const int slot = existing >= 0 ? existing : free_slot;
+    if (slot < 0) {
+        TEKLOG_WARN("buff: no free buffType slot for %s", buff_handle->internal_name);
+        patchlib_free(types);
+        patchlib_free(times);
+        return -1;
+    }
+
+    int current = 0;
+    if (existing >= 0) patchlib_array_at(times, (size_t) slot, &current);
+    const int next = time > current ? time : current;
+    patchlib_array_set(types, (size_t) slot, (void *) &id);
+    patchlib_array_set(times, (size_t) slot, (void *) &next);
+
+    patchlib_free(types);
+    patchlib_free(times);
+
+    if (buff_handle->buff_ops.apply)
+        buff_handle->buff_ops.apply(buff_handle, player, next);
+    return next;
 }
 
 static patch_handle_t local_player_obj(void);
@@ -305,19 +627,39 @@ static patch_handle_t local_player_obj(void);
  * 但两者都会调用 AchievementsHelper.HandleNurseService —— 这是唯一的“已付费治疗”信号。 */
 void terraria_buff_manager_clear_debuffs(patch_handle_t player) {
     if (player == PATCH_NULL) return;
-    const int who = player_who(player);
-    TEKLOG_INFO("buff: clear_debuffs who=%d active=%d", who, g_active_count);
-    for (int i = 0; i < g_active_count;) {
-        const int h_id = g_active[i].buff_id;
-        terraria_buff_handle_t *h = find_by_runtime_id(h_id);
-        if (g_active[i].who == who && h && h->debuff) {
-            TEKLOG_DEBUG("buff: nurse heal removed debuff %s", h->internal_name);
-            g_active[i] = g_active[g_active_count - 1];
-            g_active_count--;
-        } else {
-            i++;
-        }
+    if (!patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
+        return;
+
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, player, &types);
+    patchlib_field_get_value(f_player_buff_time, player, &times);
+    if (!patchlib_is_valid(types)) {
+        patchlib_free(times);
+        return;
     }
+
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    const size_t slots = patchlib_array_length(types);
+    int removed = 0;
+    for (size_t i = 0; i < slots; ++i) {
+        int type = 0;
+        if (!patchlib_array_at(types, i, &type)) continue;
+        const int nid = type - base;
+        if (nid < 0 || nid >= custom) continue;
+        terraria_buff_handle_t *h = find_by_runtime_id(type);
+        if (!h || !h->debuff) continue;
+        int zero = 0;
+        patchlib_array_set(types, i, &zero);
+        if (patchlib_is_valid(times)) patchlib_array_set(times, i, &zero);
+        removed++;
+    }
+    TEKLOG_INFO("buff: clear_debuffs removed=%d", removed);
+    patchlib_free(types);
+    patchlib_free(times);
 }
 
 /* 护士治疗成功 → 清自定义减益（原版只清 buffType 里的） */
@@ -333,62 +675,150 @@ static void nurse_service_postfix(patch_handle_t this, void **args, void *result
 void terraria_buff_manager_visit_active(patch_handle_t player,
                                         const terraria_buff_active_visitor_t visitor,
                                         void *user) {
-    if (!visitor || player == PATCH_NULL) return;
-    const int who = player_who(player);
-    for (int i = 0; i < g_active_count; ++i) {
-        if (g_active[i].who != who || g_active[i].time <= 0) continue;
-        terraria_buff_handle_t *h = find_by_runtime_id(g_active[i].buff_id);
-        if (h) visitor(user, h, g_active[i].time);
+    if (!visitor || player == PATCH_NULL ||
+        !patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
+        return;
+
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, player, &types);
+    patchlib_field_get_value(f_player_buff_time, player, &times);
+    if (!patchlib_is_valid(types)) {
+        patchlib_free(times);
+        return;
     }
+
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    const size_t slots = patchlib_array_length(types);
+    for (size_t i = 0; i < slots; ++i) {
+        int type = 0, time = 0;
+        if (!patchlib_array_at(types, i, &type)) continue;
+        const int nid = type - base;
+        if (nid < 0 || nid >= custom) continue;
+        if (patchlib_is_valid(times))
+            patchlib_array_at(times, i, &time);
+        if (time <= 0) continue;
+        terraria_buff_handle_t *h = find_by_runtime_id(type);
+        if (h) visitor(user, h, time);
+    }
+    patchlib_free(types);
+    patchlib_free(times);
 }
 
 int terraria_buff_manager_time(terraria_buff_handle_t *buff_handle, patch_handle_t player) {
-    if (!buff_handle || player == PATCH_NULL) return 0;
-    active_buff_t *a = find_active(player, buff_handle->runtime_id);
-    return a ? a->time : 0;
+    if (!buff_handle || player == PATCH_NULL ||
+        !patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
+        return 0;
+
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, player, &types);
+    patchlib_field_get_value(f_player_buff_time, player, &times);
+    int result = 0;
+    if (patchlib_is_valid(types) && patchlib_is_valid(times)) {
+        const size_t slots = patchlib_array_length(types);
+        for (size_t i = 0; i < slots; ++i) {
+            int type = 0;
+            if (!patchlib_array_at(types, i, &type)) continue;
+            if (type == buff_handle->runtime_id) {
+                patchlib_array_at(times, i, &result);
+                break;
+            }
+        }
+    }
+    patchlib_free(types);
+    patchlib_free(times);
+    return result;
 }
 
 void terraria_buff_manager_remove(terraria_buff_handle_t *buff_handle, patch_handle_t player) {
-    if (!buff_handle || player == PATCH_NULL) return;
-    for (int i = 0; i < g_active_count;) {
-        if (g_active[i].who == player_who(player) && g_active[i].buff_id == buff_handle->runtime_id) {
-            g_active[i] = g_active[g_active_count - 1];
-            g_active_count--;
-        } else {
-            i++;
+    if (!buff_handle || player == PATCH_NULL ||
+        !patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
+        return;
+
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, player, &types);
+    patchlib_field_get_value(f_player_buff_time, player, &times);
+    if (patchlib_is_valid(types)) {
+        const size_t slots = patchlib_array_length(types);
+        int zero = 0;
+        for (size_t i = 0; i < slots; ++i) {
+            int type = 0;
+            if (!patchlib_array_at(types, i, &type)) continue;
+            if (type != buff_handle->runtime_id) continue;
+            patchlib_array_set(types, i, &zero);
+            if (patchlib_is_valid(times)) patchlib_array_set(times, i, &zero);
+            break;
         }
     }
+    patchlib_free(types);
+    patchlib_free(times);
 }
 
 /* 每帧：推进这个玩家身上的自定义 Buff */
 static void player_tick(patch_handle_t this) {
-    if (!this || g_active_count == 0)
+    if (!this || !patchlib_is_valid(f_player_buff_type) ||
+        !patchlib_is_valid(f_player_buff_time))
         return;
-    for (int i = 0; i < g_active_count;) {
-        active_buff_t *a = &g_active[i];
-        if (a->who != player_who(this)) {
-            i++;
-            continue;
-        }
-        terraria_buff_handle_t *h = find_by_runtime_id(a->buff_id);
-        if (!h) {
-            g_active[i] = g_active[g_active_count - 1];
-            g_active_count--;
-            continue;
-        }
-        if (a->time > 0) a->time--;
-        if (a->time <= 0) {
-            TEKLOG_DEBUG("buff: %s 到期", h->internal_name);
-            g_active[i] = g_active[g_active_count - 1];
-            g_active_count--;
-            continue;
-        }
-        /* i 是内核 g_active[] 的下标，不是 player.buffType[] 的槽位。
-         * 模组不得拿它（或 runtime_id）去索引原版按 buff 槽位/id 定长的数组。 */
-        if (h->buff_ops.update)
-            h->buff_ops.update(h, this, i);
-        i++;
+
+    patch_handle_t types = PATCH_NULL;
+    patch_handle_t times = PATCH_NULL;
+    patchlib_field_get_value(f_player_buff_type, this, &types);
+    patchlib_field_get_value(f_player_buff_time, this, &times);
+    if (!patchlib_is_valid(types) || !patchlib_is_valid(times)) {
+        patchlib_free(types);
+        patchlib_free(times);
+        return;
     }
+
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    const size_t slots = patchlib_array_length(types);
+    int zero = 0;
+    for (size_t i = 0; i < slots; ++i) {
+        int type = 0, time = 0;
+        if (!patchlib_array_at(types, i, &type)) continue;
+        const int nid = type - base;
+        if (nid < 0 || nid >= custom) continue;
+        patchlib_array_at(times, i, &time);
+        if (time <= 0) continue;
+        terraria_buff_handle_t *h = find_by_runtime_id(type);
+        if (!h) {
+            /* Mod 卸载后残留的自定义 ID：清掉，避免原版继续绘制空图标 */
+            patchlib_array_set(types, i, &zero);
+            patchlib_array_set(times, i, &zero);
+            continue;
+        }
+        if (h->buff_ops.update)
+            h->buff_ops.update(h, this, (int) i);
+    }
+    patchlib_free(types);
+    patchlib_free(times);
+}
+
+static void buff_ensure_player_immune(patch_handle_t player) {
+    if (player == PATCH_NULL || !patchlib_is_valid(f_player_buff_immune))
+        return;
+    const int base = terraria_buff_id_get_count();
+    const int custom =
+            (int) tefstd_vector_size(&g_terraria_buff_registry);
+    buff_resize_instance_array(player, f_player_buff_immune, base + custom);
+}
+
+/* AddBuff/FindBuffIndex 会直接读 buffImmune[type]；PE 的构造函数按
+ * 常量 401 分配，新玩家实例在自定义 ID 上会越界。进原版 AddBuff 前补齐。 */
+static bool add_buff_prefix(patch_handle_t this, void **args,
+                            const patch_method_signature_t *sig, void *result) {
+    (void) args; (void) result; (void) sig;
+    buff_ensure_player_immune(this);
+    return true;
 }
 
 static void update_buffs_postfix(patch_handle_t this, void **args, void *result,
@@ -403,6 +833,34 @@ static void update_buffs_postfix(patch_handle_t this, void **args, void *result,
 
 void terraria_buff_manager_init_texture2d(void) {
     const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
+    if (count == 0) return;
+
+    /* 让原版 Buff 栏能直接按 buffType 取图标：扩容 TextureAssets.Buff，
+     * 再把自定义 ID 对应的 Asset 写进去。 */
+    patch_handle_t textures = PATCH_NULL;
+    patch_handle_t fallback = PATCH_NULL;
+    const int base = terraria_buff_id_get_count();
+    const int total = base + (int) count;
+    if (patchlib_is_valid(f_texture_buff)) {
+        patchlib_field_get_value(f_texture_buff, PATCH_NULL, &textures);
+        if (patchlib_is_valid(textures)) {
+            const size_t len = patchlib_array_length(textures);
+            if (len < (size_t) total) {
+                patch_handle_t bigger = patchlib_array_resize(
+                        textures, (size_t) total, NULL);
+                if (patchlib_is_valid(bigger)) {
+                    patchlib_field_set_value(f_texture_buff, PATCH_NULL,
+                                             &bigger);
+                    patchlib_free(textures);
+                    textures = bigger;
+                    TEKLOG_INFO("buff resize: TextureAssets.Buff %zu -> %d",
+                                len, total);
+                }
+            }
+            patchlib_array_at(textures, 0, &fallback);
+        }
+    }
+
     int done = 0;
     for (size_t i = 0; i < count; ++i) {
         terraria_buff_handle_t **pp = tefstd_vector_at(&g_terraria_buff_registry, i);
@@ -415,13 +873,19 @@ void terraria_buff_manager_init_texture2d(void) {
         /* C 结构体里的引用不算 GC root，必须用 GCHandle 钉住，否则贴图会被回收 */
         if (h->texture != PATCH_NULL && h->texture_pin == NULL && il2cpp_gchandle_new)
             h->texture_pin = il2cpp_gchandle_new(h->texture, false);
-        TEKLOG_INFO("buff: pin id=%d gchandle_new=%p texture=%p pin=%p",
-                    h->runtime_id, (void *) il2cpp_gchandle_new,
-                    (void *) h->texture, (void *) h->texture_pin);
 #endif
+        if (patchlib_is_valid(textures) && h->runtime_id >= 0) {
+            patch_handle_t use = patchlib_is_valid(h->texture)
+                    ? h->texture : fallback;
+            if (patchlib_is_valid(use))
+                patchlib_array_set(textures, (size_t) h->runtime_id, &use);
+        }
         if (h->texture != PATCH_NULL) done++;
     }
-    TEKLOG_INFO("buff textures: %d/%zu set", done, count);
+    patchlib_free(textures);
+    patchlib_free(fallback);
+    TEKLOG_INFO("buff textures: %d/%zu set, TextureAssets.Buff -> %d",
+                done, count, total);
 }
 
 /**
@@ -436,7 +900,8 @@ void terraria_buff_manager_init_texture2d(void) {
 static patch_handle_t expand_lang_cache(patch_handle_t field,
                                         patch_handle_t element_type,
                                         int base, int extra) {
-    if (field == PATCH_NULL || element_type == PATCH_NULL || extra <= 0)
+    (void) element_type;
+    if (field == PATCH_NULL || extra <= 0)
         return PATCH_NULL;
 
     patch_handle_t old_arr = PATCH_NULL;
@@ -447,27 +912,18 @@ static patch_handle_t expand_lang_cache(patch_handle_t field,
     const size_t old_len = patchlib_array_length(old_arr);
     const size_t new_len = (size_t) base + (size_t) extra;
     if (new_len <= old_len) {
-        /* 已经够大，不重复扩容 */
-        patchlib_free(old_arr);
-        return old_arr;   /* 注意：这里返回的是同一个句柄，调用方别再 free */
+        /* 已经够大，不重复扩容；句柄仍由字段持有，调用方别 free */
+        return old_arr;
     }
 
-    patch_handle_t new_arr = patchlib_array_create(new_len, element_type);
+    /* 用 resize 而不是 array_create + 逐元素拷贝：
+     * PE 上新建引用数组再回填会失败，resize 保类型且自动拷贝。 */
+    patch_handle_t new_arr = patchlib_array_resize(old_arr, new_len, NULL);
     if (new_arr == PATCH_NULL) {
         patchlib_free(old_arr);
         return PATCH_NULL;
     }
 
-    /* 拷贝原 0..old_len-1 */
-    for (size_t i = 0; i < old_len; ++i) {
-        patch_handle_t elem = PATCH_NULL;
-        if (patchlib_array_at(old_arr, i, &elem) && elem != PATCH_NULL) {
-            patchlib_array_set(new_arr, i, &elem);
-            patchlib_free(elem);
-        }
-    }
-
-    /* 把字段指针改指向新数组 */
     patchlib_field_set_value(field, PATCH_NULL, &new_arr);
     patchlib_free(old_arr);
     return new_arr;
@@ -485,6 +941,28 @@ void terraria_buff_manager_init_localized_text(void) {
     if (localized_text_cls == PATCH_NULL) {
         TEKLOG_WARN("buff l10n: LocalizedText type not found");
         return;
+    }
+
+    /* 诊断：字段是否解析到、当前数组长度 */
+    {
+        patch_handle_t cur = PATCH_NULL;
+        size_t name_len = 0, desc_len = 0;
+        if (patchlib_is_valid(f_buff_name_cache)) {
+            patchlib_field_get_value(f_buff_name_cache, PATCH_NULL, &cur);
+            if (patchlib_is_valid(cur)) name_len = patchlib_array_length(cur);
+            patchlib_free(cur);
+            cur = PATCH_NULL;
+        }
+        if (patchlib_is_valid(f_buff_description_cache)) {
+            patchlib_field_get_value(f_buff_description_cache, PATCH_NULL, &cur);
+            if (patchlib_is_valid(cur)) desc_len = patchlib_array_length(cur);
+            patchlib_free(cur);
+        }
+        TEKLOG_INFO("buff l10n: name_field=%d desc_field=%d "
+                    "name_len=%zu desc_len=%zu target=%d",
+                    patchlib_is_valid(f_buff_name_cache) ? 1 : 0,
+                    patchlib_is_valid(f_buff_description_cache) ? 1 : 0,
+                    name_len, desc_len, base + custom_count);
     }
 
     /* 2. 扩容两个缓存数组 */
@@ -1252,29 +1730,8 @@ void terraria_buff_manager_init(void) {
         if (!patchlib_is_valid(m_get_my_player))
             m_get_my_player = patchlib_type_get_method_by_param_count(main_cls, "get_myPlayer", 0);
 #if !defined(__ANDROID__)
-        /* PC 没有 GUIBuffs/GUIItemGrid，Buff 栏由 DrawInterface_Resources_Buffs 画 */
-        {
-            patch_handle_t d = patchlib_type_get_method_by_param_count(
-        main_cls, "DrawInterface_Resources_Buffs", 0);
-            if (patchlib_is_valid(d)) {
-                h_buff_bar = patchlib_install_prepost_hook(d, pc_buffs_draw_prefix,
-                                                           pc_buffs_draw_postfix);
-                TEKLOG_INFO("buff: hooked Main.DrawInterface_Resources_Buffs (%d)",
-                            (int) h_buff_bar);
-            } else {
-                TEKLOG_WARN("buff: Main.DrawInterface_Resources_Buffs not found (PC icons will not be displayed)");
-            }
-
-            /* 记录原版图标坐标（静态方法 4 参：drawBuffText, slot, x, y） */
-            patch_handle_t icon = patchlib_type_get_method_by_param_count(
-                    main_cls, "DrawBuffIcon", 4);
-            if (patchlib_is_valid(icon)) {
-                patchlib_install_prepost_hook(icon, pc_draw_buff_icon_prefix, NULL);
-                TEKLOG_INFO("buff: hooked Main.DrawBuffIcon (reference coordinates)");
-            } else {
-                TEKLOG_WARN("buff: Main.DrawBuffIcon not found (icon position will fall back to constants)");
-            }
-        }
+        /* 自定义 Buff 现在写进 buffType，由原版 DrawInterface_Resources_Buffs
+         * / DrawBuffIcon 直接绘制，不再安装内核手绘钩子。 */
 #endif
         patchlib_free(main_cls);
     }
@@ -1282,11 +1739,18 @@ void terraria_buff_manager_init(void) {
     patch_handle_t player_cls = patchlib_type_get_type("Terraria", "Player");
     if (patchlib_is_valid(player_cls)) {
         f_player_buff_type = patchlib_type_get_field(player_cls, "buffType");
+        f_player_buff_time = patchlib_type_get_field(player_cls, "buffTime");
+        f_player_buff_immune = patchlib_type_get_field(player_cls, "buffImmune");
         f_player_who_am_i = patchlib_type_get_field(player_cls, "whoAmI");
         patch_handle_t upd = patchlib_type_get_method_by_param_count(player_cls, "UpdateBuffs", 1);
         if (patchlib_is_valid(upd)) {
             h_player_update = patchlib_install_prepost_hook(upd, NULL, update_buffs_postfix);
             TEKLOG_INFO("buff: hooked Player.UpdateBuffs (%d)", (int) h_player_update);
+        }
+        patch_handle_t add = patchlib_type_get_method_by_param_count(player_cls, "AddBuff", 3);
+        if (patchlib_is_valid(add)) {
+            patchlib_install_prepost_hook(add, add_buff_prefix, NULL);
+            TEKLOG_INFO("buff: hooked Player.AddBuff (buffImmune resize)");
         }
         patchlib_free(player_cls);
     }
@@ -1325,33 +1789,16 @@ void terraria_buff_manager_init(void) {
         }
     }
 
-    /* 原生 Buff 栏接管 */
+    /* 原生 Buff 栏接管：自定义 buff 已写进 buffType，由 GUIBuffs 直接绘制。
+     * 原先的 GUIBuffs.Draw / ItemDraw / GUIItemGrid.Draw 手绘钩子不再安装。 */
+
+    /* TextureAssets.Buff（原版 Buff 栏按 buffType 取图标） */
     {
-        patch_handle_t gui = patchlib_type_get_type("", "GUIBuffs");
-        if (patchlib_is_valid(gui)) {
-            patch_handle_t d = patchlib_type_get_method_by_param_count(gui, "Draw", 0);
-            if (patchlib_is_valid(d)) {
-                h_buff_bar = patchlib_install_prepost_hook(d, buffs_draw_prefix,
-                                                           buffs_draw_postfix);
-                TEKLOG_INFO("buff: hooked GUIBuffs.Draw (%d)", (int) h_buff_bar);
-            }
-            patch_handle_t idraw = patchlib_type_get_method_by_param_count(gui, "ItemDraw", 4);
-            if (patchlib_is_valid(idraw)) {
-                patch_hook_id_t hid = patchlib_install_prepost_hook(
-                        idraw, buff_item_draw_prefix, buff_item_draw_postfix);
-                TEKLOG_INFO("buff: hooked GUIBuffs.ItemDraw (%d)", (int) hid);
-            }
-            patchlib_free(gui);
-        }
-        patch_handle_t grid = patchlib_type_get_type("", "GUIItemGrid");
-        if (patchlib_is_valid(grid)) {
-            patch_handle_t gd = patchlib_type_get_method_by_param_count(grid, "Draw", 6);
-            if (patchlib_is_valid(gd)) {
-                patch_hook_id_t hid =
-                        patchlib_install_prepost_hook(gd, item_grid_draw_prefix, NULL);
-                TEKLOG_INFO("buff: hooked GUIItemGrid.Draw (%d)", (int) hid);
-            }
-            patchlib_free(grid);
+        patch_handle_t tex_cls = patchlib_type_get_type(
+                "Terraria.GameContent", "TextureAssets");
+        if (patchlib_is_valid(tex_cls)) {
+            f_texture_buff = patchlib_type_get_field(tex_cls, "Buff");
+            patchlib_free(tex_cls);
         }
     }
 
@@ -1383,8 +1830,12 @@ void terraria_buff_manager_init(void) {
         }
     }
 
-TEKLOG_INFO("buff: init done (custom=%zu, does not occupy vanilla BuffID)",
-    tefstd_vector_size(&g_terraria_buff_registry));
+#if defined(__ANDROID__)
+    terraria_buff_pe_patch_init();
+#endif
+
+    TEKLOG_INFO("buff: init done (custom=%zu, native buff bar)",
+                tefstd_vector_size(&g_terraria_buff_registry));
 }
 
 void terraria_buff_manager_destroy(void) {
