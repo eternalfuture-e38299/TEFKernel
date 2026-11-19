@@ -818,7 +818,10 @@ static bool add_buff_prefix(patch_handle_t this, void **args,
                             const patch_method_signature_t *sig, void *result) {
     (void) args; (void) result; (void) sig;
     buff_ensure_player_immune(this);
-    return true;
+    /* patchlib 约定：prefix 返回 true = 跳过原函数，返回 false = 继续执行。
+     * 这里只做 buffImmune 扩容，必须让原版 Player.AddBuff 继续跑，
+     * 否则旗帜(MonsterBanner)/篝火/心形灯笼等所有原版 buff 都加不上。 */
+    return false;
 }
 
 static void update_buffs_postfix(patch_handle_t this, void **args, void *result,
