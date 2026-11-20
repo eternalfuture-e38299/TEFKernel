@@ -26,6 +26,7 @@
 - [🪝 Hook System](#-hook-system)
   - [Prefix/Postfix Hook](#prefixpostfix-hook)
   - [Skip Original Method Hook](#skip-original-method-hook)
+  - [Hook with Context](#hook-with-context-recommended-for-loadersframeworks)
 
 #### Field Operations (field.h)
 - [📊 Field Operations](#-field-operations-fieldh)
@@ -379,6 +380,44 @@ patch_hook_id_t hook_id = patchlib_install_prepost_hook(
     NULL  // No Postfix needed
 );
 ```
+
+### Hook with Context (recommended for loaders/frameworks)
+
+Plain callbacks have no `user` argument, so a single function serving multiple hooks
+cannot tell which one fired. `patchlib_install_prepost_hook_ex` takes an extra
+`void *user` at install time and passes it back untouched, so one dispatcher can
+serve any number of hooks:
+
+```c
+typedef struct {
+    int slot;
+    void *owner;
+} hook_ctx_t;
+
+static bool my_prefix_ex(void *user, patch_handle_t instance, void **args,
+                         const patch_method_signature_t *sig_info, void *result) {
+    hook_ctx_t *ctx = (hook_ctx_t *) user;
+    printf("hook %d fired on %s\n", ctx->slot, patchlib_method_get_name(sig_info->method));
+    return false;  // continue with the original method
+}
+
+static void my_postfix_ex(void *user, patch_handle_t instance, void **args,
+                          void *result, const patch_method_signature_t *sig_info) {
+    // ...
+}
+
+hook_ctx_t ctx = { .slot = 42, .owner = my_mod };
+patch_hook_id_t id = patchlib_install_prepost_hook_ex(
+    target_method,
+    my_prefix_ex,
+    my_postfix_ex,
+    &ctx            // owned by the caller; do not use after unloading the hook
+);
+```
+
+- One install uses one style only: plain callbacks (`patchlib_install_prepost_hook`)
+  or context callbacks (`_ex`).
+- The kernel never frees `user`; reclaim it yourself after unloading.
 
 **[⬆ Back to top](#-patchlib-user-guide)**
 

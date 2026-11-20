@@ -43,19 +43,25 @@ typedef struct patchlib_hook_handle_t {
     ffi_closure *closure;
     void *trampoline_func;     ///< 跳板函数
     patch_method_signature_t method_signature; ///< 函数签名
-    tefstd_vector_t prefixes;  ///< 前置补丁函数(void*)
-    tefstd_vector_t postfixes; ///< 后置补丁函数(void*)
+    tefstd_vector_t prefixes;  ///< 前置补丁函数(patchlib_hook_cb_t)
+    tefstd_vector_t postfixes; ///< 后置补丁函数(patchlib_hook_cb_t)
     bool is_hooked;            ///< 是否已挂钩
     ffi_type **arg_types;      ///< 保存 arg_types 数组
     size_t arg_types_count;    ///< 数组长度
     ffi_type *return_ffi_type; ///< 返回类型 ffi_type
 } patchlib_hook_handle_t;
 
+typedef struct patchlib_hook_cb_t {
+    void *fn;       ///< 回调函数指针（*_callback_t 或 *_callback_ex_t）
+    void *user;     ///< 传给 *_ex 回调的上下文；普通回调为 NULL
+    bool is_ex;     ///< true 表示 fn 是 *_ex 版本（第一个参数为 user）
+} patchlib_hook_cb_t;
+
 typedef struct patchlib_hook_node_t {
     patch_hook_id_t id;
     patchlib_hook_handle_t *handle;
-    void *prefix;
-    void *postfix;
+    patchlib_hook_cb_t prefix;
+    patchlib_hook_cb_t postfix;
 } patchlib_hook_node_t;
 
 static struct {
@@ -133,8 +139,8 @@ static patchlib_hook_handle_t *find_or_create_hook_handle(void *method) {
     handle->arg_types_count = 0;
     handle->return_ffi_type = NULL;
 
-    tefstd_vector_init(&handle->prefixes, sizeof(void *));
-    tefstd_vector_init(&handle->postfixes, sizeof(void *));
+    tefstd_vector_init(&handle->prefixes, sizeof(patchlib_hook_cb_t));
+    tefstd_vector_init(&handle->postfixes, sizeof(patchlib_hook_cb_t));
 
     if (!patchlib_method_get_signature(method, &handle->method_signature)) {
         TEKLOG_ERROR("Failed to get method signature for method: %p", method);
@@ -212,6 +218,33 @@ static void free_executable_memory(void *ptr, const size_t size) {
     }
 }
 
+/// 调用一个 Prefix 回调；命中 *_ex 版本时把 user 放在第一个参数。
+static inline bool invoke_prefix(const patchlib_hook_cb_t *cb, patch_handle_t instance,
+                                 void **args, const patch_method_signature_t *sig, void *ret) {
+    if (!cb || !cb->fn)
+        return false;
+    if (cb->is_ex) {
+        const prefix_callback_ex_t fn = (prefix_callback_ex_t) cb->fn;
+        return fn(cb->user, instance, args, sig, ret);
+    }
+    const prefix_callback_t fn = (prefix_callback_t) cb->fn;
+    return fn(instance, args, sig, ret);
+}
+
+/// 调用一个 Postfix 回调；命中 *_ex 版本时把 user 放在第一个参数。
+static inline void invoke_postfix(const patchlib_hook_cb_t *cb, patch_handle_t instance,
+                                  void **args, void *ret, const patch_method_signature_t *sig) {
+    if (!cb || !cb->fn)
+        return;
+    if (cb->is_ex) {
+        const postfix_callback_ex_t fn = (postfix_callback_ex_t) cb->fn;
+        fn(cb->user, instance, args, ret, sig);
+        return;
+    }
+    const postfix_callback_t fn = (postfix_callback_t) cb->fn;
+    fn(instance, args, ret, sig);
+}
+
 static void hook_dispatcher_static(ffi_cif *cif, void *ret, void **args, void *user_data) {
     const patchlib_hook_handle_t *handle = user_data;
 
@@ -219,13 +252,10 @@ static void hook_dispatcher_static(ffi_cif *cif, void *ret, void **args, void *u
 
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
     for (size_t i = 0; i < prefix_count; ++i) {
-        void **prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
-        if (prefix_ptr && *prefix_ptr) {
-            const prefix_callback_t prefix = *prefix_ptr;
-            if (prefix(NULL, args, &handle->method_signature, ret)) {
-                call_original = false;
-                break;
-            }
+        const patchlib_hook_cb_t *cb = tefstd_vector_at(&handle->prefixes, i);
+        if (invoke_prefix(cb, NULL, args, &handle->method_signature, ret)) {
+            call_original = false;
+            break;
         }
     }
 
@@ -235,11 +265,8 @@ static void hook_dispatcher_static(ffi_cif *cif, void *ret, void **args, void *u
 
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
     for (size_t i = 0; i < postfix_count; ++i) {
-        void **postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
-        if (postfix_ptr && *postfix_ptr) {
-            const postfix_callback_t postfix = *postfix_ptr;
-            postfix(NULL, args, ret, &handle->method_signature);
-        }
+        const patchlib_hook_cb_t *cb = tefstd_vector_at(&handle->postfixes, i);
+        invoke_postfix(cb, NULL, args, ret, &handle->method_signature);
     }
 }
 
@@ -253,13 +280,10 @@ static void hook_dispatcher(ffi_cif *cif, void *ret, void **args, void *user_dat
 
     const size_t prefix_count = tefstd_vector_size(&handle->prefixes);
     for (size_t i = 0; i < prefix_count; ++i) {
-        void **prefix_ptr = tefstd_vector_at(&handle->prefixes, i);
-        if (prefix_ptr && *prefix_ptr) {
-            const prefix_callback_t prefix = *prefix_ptr;
-            if (prefix(instance, actual_args, &handle->method_signature, ret)) {
-                call_original = false;
-                break;
-            }
+        const patchlib_hook_cb_t *cb = tefstd_vector_at(&handle->prefixes, i);
+        if (invoke_prefix(cb, instance, actual_args, &handle->method_signature, ret)) {
+            call_original = false;
+            break;
         }
     }
 
@@ -269,11 +293,8 @@ static void hook_dispatcher(ffi_cif *cif, void *ret, void **args, void *user_dat
 
     const size_t postfix_count = tefstd_vector_size(&handle->postfixes);
     for (size_t i = 0; i < postfix_count; ++i) {
-        void **postfix_ptr = tefstd_vector_at(&handle->postfixes, i);
-        if (postfix_ptr && *postfix_ptr) {
-            const postfix_callback_t postfix = *postfix_ptr;
-            postfix(instance, actual_args, ret, &handle->method_signature);
-        }
+        const patchlib_hook_cb_t *cb = tefstd_vector_at(&handle->postfixes, i);
+        invoke_postfix(cb, instance, actual_args, ret, &handle->method_signature);
     }
 }
 
@@ -368,8 +389,22 @@ static bool create_closure_from_signature(patchlib_hook_handle_t *handle) {
     return true;
 }
 
-patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix,
-                                              postfix_callback_t postfix) {
+/// 从向量中移除一个回调条目；按 (fn, user, is_ex) 精确匹配，
+/// 因此同一函数用不同 user 安装多次时也能各自卸载。
+static bool remove_callback(tefstd_vector_t *vec, const patchlib_hook_cb_t *cb) {
+    const size_t count = tefstd_vector_size(vec);
+    for (size_t i = 0; i < count; ++i) {
+        const patchlib_hook_cb_t *cur = tefstd_vector_at(vec, i);
+        if (cur && cur->fn == cb->fn && cur->user == cb->user && cur->is_ex == cb->is_ex) {
+            tefstd_vector_erase(vec, i, NULL);
+            return true;
+        }
+    }
+    return false;
+}
+
+static patch_hook_id_t install_prepost_internal(patch_handle_t method, void *prefix, void *postfix,
+                                                void *user, bool is_ex) {
     if (!patchlib_is_valid(method)) {
         TEKLOG_ERROR("Cannot install hook: method is NULL");
         return PATCH_HOOK_INVALID_ID;
@@ -420,17 +455,17 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
 
     node->id = g_hooks.next_hook_id++;
     node->handle = handle;
-    node->prefix = prefix;
-    node->postfix = postfix;
+    node->prefix = (patchlib_hook_cb_t) { .fn = prefix, .user = user, .is_ex = is_ex };
+    node->postfix = (patchlib_hook_cb_t) { .fn = postfix, .user = user, .is_ex = is_ex };
 
-    TEKLOG_DEBUG("Created hook node ID: %d", node->id);
+    TEKLOG_DEBUG("Created hook node ID: %d (ex=%d)", node->id, is_ex);
 
     if (prefix) {
-        tefstd_vector_push_back(&handle->prefixes, &prefix);
+        tefstd_vector_push_back(&handle->prefixes, &node->prefix);
         TEKLOG_DEBUG("Added prefix callback: %p", prefix);
     }
     if (postfix) {
-        tefstd_vector_push_back(&handle->postfixes, &postfix);
+        tefstd_vector_push_back(&handle->postfixes, &node->postfix);
         TEKLOG_DEBUG("Added postfix callback: %p", postfix);
     }
 
@@ -438,6 +473,16 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
     TEKLOG_INFO("Hook installed successfully with ID: %d for method: %p", node->id, method);
 
     return node->id;
+}
+
+patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix,
+                                              postfix_callback_t postfix) {
+    return install_prepost_internal(method, (void *) prefix, (void *) postfix, NULL, false);
+}
+
+patch_hook_id_t patchlib_install_prepost_hook_ex(patch_handle_t method, prefix_callback_ex_t prefix,
+                                                 postfix_callback_ex_t postfix, void *user) {
+    return install_prepost_internal(method, (void *) prefix, (void *) postfix, user, true);
 }
 
 bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
@@ -464,14 +509,14 @@ bool patchlib_uninstall_hook(patch_hook_id_t hook_id) {
 
     TEKLOG_DEBUG("Found hook node for method: %p", handle->method);
 
-    if (node->prefix) {
-        const bool removed = tefstd_vector_remove_value(&handle->prefixes, &node->prefix);
-        TEKLOG_DEBUG("Removed prefix callback: %p (success: %s)", node->prefix,
+    if (node->prefix.fn) {
+        const bool removed = remove_callback(&handle->prefixes, &node->prefix);
+        TEKLOG_DEBUG("Removed prefix callback: %p (success: %s)", node->prefix.fn,
                      removed ? "true" : "false");
     }
-    if (node->postfix) {
-        const bool removed = tefstd_vector_remove_value(&handle->postfixes, &node->postfix);
-        TEKLOG_DEBUG("Removed postfix callback: %p (success: %s)", node->postfix,
+    if (node->postfix.fn) {
+        const bool removed = remove_callback(&handle->postfixes, &node->postfix);
+        TEKLOG_DEBUG("Removed postfix callback: %p (success: %s)", node->postfix.fn,
                      removed ? "true" : "false");
     }
 
