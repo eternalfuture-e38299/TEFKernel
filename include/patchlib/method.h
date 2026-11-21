@@ -187,6 +187,23 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
                                    const patch_method_signature_t *sig_info);
 
 /**
+ * @brief 带上下文的 Prefix 回调
+ *
+ * 与 prefix_callback_t 完全相同，额外接收安装时传入的 `user` 指针。
+ * 用于一个回调函数服务多个 Hook 的场景（脚本加载器、通用分发器）。
+ */
+typedef bool (*prefix_callback_ex_t)(void *user, patch_handle_t instance, void **args,
+                                     const patch_method_signature_t *sig_info, void *result);
+
+/**
+ * @brief 带上下文的 Postfix 回调
+ *
+ * 与 postfix_callback_t 完全相同，额外接收安装时传入的 `user` 指针。
+ */
+typedef void (*postfix_callback_ex_t)(void *user, patch_handle_t instance, void **args,
+                                      void *result, const patch_method_signature_t *sig_info);
+
+/**
  * @brief 安装前缀和后缀 Hook (Prefix/Postfix Hook)
  *
  * 此函数允许你在目标函数 `method` 执行前后插入自定义逻辑。
@@ -230,6 +247,27 @@ typedef void (*postfix_callback_t)(patch_handle_t instance, void **args, void *r
  */
 DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook,
                 patch_handle_t method, prefix_callback_t prefix, postfix_callback_t postfix)
+
+/**
+ * @brief 安装带上下文的 Prefix/Postfix Hook
+ *
+ * 与 patchlib_install_prepost_hook 行为完全一致，区别在于回调会额外收到
+ * 安装时传入的 @p user 指针。这样同一个 C 函数可以服务任意多个 Hook，
+ * 无需为每个 Hook 生成独立的跳板函数。
+ *
+ * @param method  目标函数的句柄，不可为空。
+ * @param prefix  带上下文的 Prefix 回调，可为 NULL。
+ * @param postfix 带上下文的 Postfix 回调，可为 NULL。
+ * @param user    原样回传给 @p prefix / @p postfix 的上下文指针，可为 NULL。
+ * @return        成功返回唯一的 hook_id，失败返回 PATCH_HOOK_INVALID_ID。
+ *
+ * @note 至少 prefix 或 postfix 之一必须非空。
+ *       不要混用两套回调：一次安装只能用普通回调或带上下文回调。
+ *       `user` 的生命周期由调用方管理，内核不会释放它；卸载 Hook 后不应再使用。
+ */
+DEFINE_FUNCTION(patch_hook_id_t, patchlib_install_prepost_hook_ex,
+                patch_handle_t method, prefix_callback_ex_t prefix,
+                postfix_callback_ex_t postfix, void *user)
 
 /**
  * @brief 卸载指定的 Hook

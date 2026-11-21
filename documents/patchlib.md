@@ -26,6 +26,7 @@
 - [🪝 Hook 系统](#-hook-系统)
   - [Prefix/Postfix Hook](#prefixpostfix-hook)
   - [跳过原方法的 Hook](#跳过原方法的-hook)
+  - [带上下文的 Hook](#带上下文的-hook推荐给加载器框架)
 
 #### 字段操作 (field.h)
 - [📊 字段操作](#-字段操作-fieldh)
@@ -381,6 +382,43 @@ patch_hook_id_t hook_id = patchlib_install_prepost_hook(
     NULL  // 不需要 Postfix
 );
 ```
+
+### 带上下文的 Hook（推荐给加载器/框架）
+
+普通回调没有 `user` 参数，同一个函数服务多个 Hook 时无法判断"我是哪一个"。
+`patchlib_install_prepost_hook_ex` 在安装时多收一个 `void *user`，分发时原样回传，
+因此一个通用分发函数就能服务任意数量的 Hook：
+
+```c
+// 上下文：加载器可以把槽位、脚本状态等塞进来
+typedef struct {
+    int slot;
+    void *owner;
+} hook_ctx_t;
+
+static bool my_prefix_ex(void *user, patch_handle_t instance, void **args,
+                         const patch_method_signature_t *sig_info, void *result) {
+    hook_ctx_t *ctx = (hook_ctx_t *) user;
+    printf("hook %d fired on %s\n", ctx->slot, patchlib_method_get_name(sig_info->method));
+    return false;  // 继续执行原方法
+}
+
+static void my_postfix_ex(void *user, patch_handle_t instance, void **args,
+                          void *result, const patch_method_signature_t *sig_info) {
+    // ...
+}
+
+hook_ctx_t ctx = { .slot = 42, .owner = my_mod };
+patch_hook_id_t id = patchlib_install_prepost_hook_ex(
+    target_method,
+    my_prefix_ex,
+    my_postfix_ex,
+    &ctx            // 生命周期由调用方管理，卸载后不得再使用
+);
+```
+
+- 同一次安装只能使用一种风格：普通回调（`patchlib_install_prepost_hook`）或带上下文回调（`_ex`）。
+- 内核不会释放 `user`；卸载 Hook 后请自行回收。
 
 **[⬆ 回到顶部](#-patchlib-使用指南)**
 
