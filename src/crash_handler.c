@@ -326,6 +326,27 @@ static void log_frame_addr(const char *tag, uintptr_t addr) {
     }
 }
 
+/* 打印某个地址落在哪一段 /proc/self/maps 里。
+ * 匿名 mmap（libffi closure / memdl 模块）在这里会显示 anon 名字或模块路径，
+ * 比只有裸地址更容易判断是「LuaLoader 闭包」还是「KernelLoader 模块」。 */
+static void log_addr_mapping(const char *tag, uintptr_t addr) {
+    if (!addr) return;
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f) return;
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start = 0, end = 0;
+        if (sscanf(line, "%lx-%lx", &start, &end) == 2 &&
+            addr >= start && addr < end) {
+            size_t n = strlen(line);
+            while (n && (line[n - 1] == '\n' || line[n - 1] == '\r')) line[--n] = 0;
+            CRASH_LOG("%s map: %s", tag, line);
+            break;
+        }
+    }
+    fclose(f);
+}
+
 static void dump_crashed_stack(const ucontext_t *uc) {
     if (!uc) return;
 #if defined(__aarch64__)
@@ -334,6 +355,8 @@ static void dump_crashed_stack(const ucontext_t *uc) {
     uintptr_t sp = (uintptr_t) uc->uc_mcontext.sp;
     uintptr_t fp = (uintptr_t) uc->uc_mcontext.regs[29];
     CRASH_LOG("Crashed PC: 0x%tx", pc);
+    log_addr_mapping("Fault PC", (uintptr_t) pc);
+    log_addr_mapping("Crashed LR", lr);
     log_frame_addr("Crashed LR (caller)", lr);
 
     /* 原始栈顶 16 个字：pc=0 时 [sp] 往往就是返回地址 */
