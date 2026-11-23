@@ -349,7 +349,14 @@ static void log_addr_mapping(const char *tag, uintptr_t addr) {
 
 static void dump_crashed_stack(const ucontext_t *uc) {
     if (!uc) return;
-#if defined(__aarch64__)
+#if defined(__aarch64__) && defined(__APPLE__)
+    /* Darwin 的 uc_mcontext 是 mcontext_t*，寄存器在 __ss 里；
+     * Linux/Android 则是内嵌结构体，字段名也不同。 */
+    const uintptr_t pc = (uintptr_t) uc->uc_mcontext->__ss.__pc;
+    const uintptr_t lr = (uintptr_t) uc->uc_mcontext->__ss.__lr;
+    uintptr_t sp = (uintptr_t) uc->uc_mcontext->__ss.__sp;
+    uintptr_t fp = (uintptr_t) uc->uc_mcontext->__ss.__fp;
+#elif defined(__aarch64__)
     const uintptr_t pc = (uintptr_t) uc->uc_mcontext.pc;
     const uintptr_t lr = (uintptr_t) uc->uc_mcontext.regs[30];
     uintptr_t sp = (uintptr_t) uc->uc_mcontext.sp;
