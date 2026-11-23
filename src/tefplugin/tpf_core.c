@@ -1220,6 +1220,7 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_buff_manager_time);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_remove);
     TPF_KERNEL_SYMBOL(terraria_buff_manager_clear_debuffs);
+    TPF_KERNEL_SYMBOL(terraria_buff_manager_refresh_display_text);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_register_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_unregister_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_get_tile);

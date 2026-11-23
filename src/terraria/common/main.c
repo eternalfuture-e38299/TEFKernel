@@ -164,8 +164,13 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
     if (custom_count == 0 && custom_proj == 0 && custom_buff == 0 && custom_npc == 0)
         return;
     TEKLOG_INFO("Main.Initialize completed, final resizing pass...");
-    if (custom_count > 0)
+    if (custom_count > 0) {
         terraria_item_manager_resize(true);
+        /* 自定义物品的 Lang 缓存必须在这里填上：
+         * ContentSamples.Initialize / Item.SetDefaults → RebuildTooltip
+         * 会读取 _itemTooltipCache[自定义 id]。 */
+        terraria_item_manager_init_localized_text();
+    }
     if (custom_proj > 0)
         terraria_projectile_manager_resize();
     if (custom_npc > 0)
@@ -175,6 +180,11 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
     if (custom_buff > 0) {
         terraria_buff_manager_resize();
         terraria_buff_manager_raise_count();
+        /* 语言在 Program.RunGame 阶段就已加载；这里先把 Lang._buffNameCache /
+         * _buffDescriptionCache 扩到自定义 id，否则接下来的
+         * ContentSamples.Initialize → 自定义物品 Item.SetDefaults /
+         * RebuildTooltip 里一旦碰到 buffType>=401 就会越界闪退。 */
+        terraria_buff_manager_init_localized_text();
         TEKLOG_INFO("Custom buff tables resized and BuffID.Count raised");
     }
 }

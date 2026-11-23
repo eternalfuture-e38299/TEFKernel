@@ -28,6 +28,7 @@
 #include "internal/log.h"
 #include "internal/terraria/entity.h"
 #include "patchlib/field.h"
+#include "patchlib/il2cpp_api.h"
 #include "patchlib/method.h"
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
@@ -311,6 +312,13 @@ static void buff_resize_sets(const int base, const int new_size) {
     patch_handle_t sets = patchlib_type_get_inner_type(id_cls, "Sets");
     patchlib_free(id_cls);
     if (!patchlib_is_valid(sets)) return;
+#if defined(__ANDROID__)
+    /* 和 tile_manager 一样：PE 的静态构造是惰性的，没初始化时字段全是 null，
+     * 扩容会被静默跳过，等 cctor 跑完就还是旧长度。这里先强制初始化。 */
+    if (il2cpp_runtime_class_init) {
+        il2cpp_runtime_class_init((void *) sets);
+    }
+#endif
 
     tefstd_vector_t fields;
     tefstd_vector_init(&fields, sizeof(patch_handle_t));
@@ -383,7 +391,8 @@ static void buff_fill_set_defaults(const int base, const int new_size) {
         patchlib_field_get_value(f, NULL, &arr);
         if (patchlib_is_valid(arr)) {
             int value = defaults[i].value;
-            for (int j = base; j < new_size; ++j)
+            const size_t len = patchlib_array_length(arr);
+            for (int j = base; j < new_size && (size_t) j < len; ++j)
                 patchlib_array_set(arr, (size_t) j, &value);
             TEKLOG_INFO("buff resize: %s[%d..%d] = %d",
                         defaults[i].name, base, new_size - 1, value);
@@ -538,15 +547,23 @@ void terraria_buff_manager_resize(void) {
      * 遍历 NPCDebuffImmunityData.ApplyToNPC 等逻辑；此时如果 Count 已经
      * 变大，而某些实例数组还是旧长度，就会 IndexOutOfRange。
      * Count 等 Main.Initialize 完全结束后再抬（raise_count）。 */
+    TEKLOG_INFO("buff resize: start base=%d total=%d", base, total);
+    TEKLOG_INFO("buff resize: [1/6] BuffID.Sets");
     buff_resize_sets(base, total);
+    TEKLOG_INFO("buff resize: [2/6] Sets defaults");
     buff_fill_set_defaults(base, total);
+    TEKLOG_INFO("buff resize: [3/6] Main arrays");
     buff_resize_main_arrays(base, total);
+    TEKLOG_INFO("buff resize: [4/6] buffImmune");
     buff_resize_immune_arrays(total);
+    TEKLOG_INFO("buff resize: [5/6] flags");
     buff_apply_flags();
 
 #if defined(__ANDROID__)
+    TEKLOG_INFO("buff resize: [6/6] GUIBuffs patch");
     terraria_buff_pe_patch_apply(base, total);
 #endif
+    TEKLOG_INFO("buff resize: done");
 }
 
 void terraria_buff_manager_raise_count(void) {
@@ -835,6 +852,7 @@ static void update_buffs_postfix(patch_handle_t this, void **args, void *result,
 /* ------------------------------------------------------------------ */
 
 void terraria_buff_manager_init_texture2d(void) {
+    TEKLOG_INFO("buff textures: enter");
     const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
     if (count == 0) return;
 
@@ -933,6 +951,7 @@ static patch_handle_t expand_lang_cache(patch_handle_t field,
 }
 
 void terraria_buff_manager_init_localized_text(void) {
+    TEKLOG_INFO("buff l10n: enter");
     const int base = terraria_buff_id_get_count();
     const int custom_count = (int) tefstd_vector_size(&g_terraria_buff_registry);
     if (custom_count <= 0)
@@ -971,8 +990,10 @@ void terraria_buff_manager_init_localized_text(void) {
     /* 2. 扩容两个缓存数组 */
     patch_handle_t name_cache = expand_lang_cache(
             f_buff_name_cache, localized_text_cls, base, custom_count);
+    TEKLOG_INFO("buff l10n: name_cache=%d", patchlib_is_valid(name_cache) ? 1 : 0);
     patch_handle_t desc_cache = expand_lang_cache(
             f_buff_description_cache, localized_text_cls, base, custom_count);
+    TEKLOG_INFO("buff l10n: desc_cache=%d", patchlib_is_valid(desc_cache) ? 1 : 0);
 
     if (name_cache == PATCH_NULL && desc_cache == PATCH_NULL) {
         patchlib_free(localized_text_cls);
@@ -994,8 +1015,10 @@ void terraria_buff_manager_init_localized_text(void) {
         if (name_cache != PATCH_NULL) {
             char *name_key_buf = terraria_entity_make_key(TEF_ENTITY(current), "buff_name");
             if (name_key_buf) {
+                TEKLOG_INFO("buff l10n: get name text %s", name_key_buf);
                 patch_handle_t name_lt =
                         terraria_language_manager_get_localized_text(name_key_buf);
+                TEKLOG_INFO("buff l10n: name text=%d", patchlib_is_valid(name_lt) ? 1 : 0);
                 if (patchlib_is_valid(name_lt))
                     patchlib_array_set(name_cache, target_index, &name_lt);
                 patchlib_free(name_lt);
@@ -1008,8 +1031,10 @@ void terraria_buff_manager_init_localized_text(void) {
             patchlib_is_valid(m_from_language_key)) {
             char *desc_key_buf = terraria_entity_make_key(TEF_ENTITY(current), "buff_tooltip");
             if (desc_key_buf) {
+                TEKLOG_INFO("buff l10n: get desc text %s", desc_key_buf);
                 patch_handle_t desc_key_str = patchlib_string_create(desc_key_buf);
                 patch_handle_t desc_lt = terraria_language_manager_get_localized_text(desc_key_str);
+                TEKLOG_INFO("buff l10n: desc text=%d", patchlib_is_valid(desc_lt) ? 1 : 0);
                 if (patchlib_is_valid(desc_lt))
                     patchlib_array_set(desc_cache, target_index, &desc_lt);
                 patchlib_free(desc_lt);
@@ -1025,6 +1050,13 @@ void terraria_buff_manager_init_localized_text(void) {
     patchlib_free(localized_text_cls);
 
     TEKLOG_INFO("buff l10n: %d custom buffs localized (base=%d)", custom_count, base);
+}
+
+/* 语言切换后由加载器调用：重新把 name / description 写进 Lang 缓存。
+ * 直接复用 init_localized_text（幂等），避免每个 buff 各写一套逻辑。 */
+void terraria_buff_manager_refresh_display_text(terraria_buff_handle_t *buff_handle) {
+    (void) buff_handle;
+    terraria_buff_manager_init_localized_text();
 }
 
 /* ------------------------------------------------------------------ */
@@ -1808,7 +1840,9 @@ void terraria_buff_manager_init(void) {
     // 初始化本地化相关
     {
         /* Lang 静态字段：_buffNameCache / _buffDescriptionCache */
-        patch_handle_t lang_cls = patchlib_type_get_type("Terraria.Localization", "Lang");
+        patch_handle_t lang_cls = patchlib_type_get_type("Terraria", "Lang");
+        if (!patchlib_is_valid(lang_cls))
+            lang_cls = patchlib_type_get_type("Terraria.Localization", "Lang");
         if (patchlib_is_valid(lang_cls)) {
             f_buff_name_cache = patchlib_type_get_field(lang_cls, "_buffNameCache");
             f_buff_description_cache = patchlib_type_get_field(lang_cls, "_buffDescriptionCache");
