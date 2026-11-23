@@ -33,8 +33,10 @@
 #include "patchlib/property.h"
 #include "patchlib/struct/array.h"
 #include "patchlib/type.h"
+#include "terraria/asset.h"
 #include "terraria/gui.h"
 #include "terraria/language_manager.h"
+#include "terraria/texture2d.h"
 
 #if defined(__ANDROID__)
 #include "internal/terraria/android/content/buff_pe_patch.h"
@@ -882,6 +884,7 @@ void terraria_buff_manager_init_texture2d(void) {
         }
     }
 
+    patch_handle_t tex2d_cls = terraria_texture2d_get_class();
     int done = 0;
     for (size_t i = 0; i < count; ++i) {
         terraria_buff_handle_t **pp = tefstd_vector_at(&g_terraria_buff_registry, i);
@@ -896,10 +899,19 @@ void terraria_buff_manager_init_texture2d(void) {
             h->texture_pin = il2cpp_gchandle_new(h->texture, false);
 #endif
         if (patchlib_is_valid(textures) && h->runtime_id >= 0) {
-            patch_handle_t use = patchlib_is_valid(h->texture)
-                    ? h->texture : fallback;
+            /* TextureAssets.Buff 的元素类型是 Asset<Texture2D>，加载器返回的是
+             * 裸 Texture2D。直接塞进去原生 Buff 栏读不到 .Value，图标会是空白。
+             * 这里先包一层 Asset；fallback 本来就是 Asset。 */
+            patch_handle_t owned_asset = PATCH_NULL;
+            patch_handle_t use = PATCH_NULL;
+            if (patchlib_is_valid(h->texture) && patchlib_is_valid(tex2d_cls)) {
+                owned_asset = terraria_asset_create(tex2d_cls, h->texture);
+                if (patchlib_is_valid(owned_asset)) use = owned_asset;
+            }
+            if (!patchlib_is_valid(use)) use = fallback;
             if (patchlib_is_valid(use))
                 patchlib_array_set(textures, (size_t) h->runtime_id, &use);
+            if (patchlib_is_valid(owned_asset)) patchlib_free(owned_asset);
         }
         if (h->texture != PATCH_NULL) done++;
     }
