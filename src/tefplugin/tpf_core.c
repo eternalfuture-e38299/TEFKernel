@@ -1036,7 +1036,6 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(patchlib_method_get_signature);
     TPF_KERNEL_SYMBOL(patchlib_method_signature_free);
     TPF_KERNEL_SYMBOL(patchlib_install_prepost_hook);
-    TPF_KERNEL_SYMBOL(patchlib_install_prepost_hook_ex);
     TPF_KERNEL_SYMBOL(patchlib_uninstall_hook);
 
     // 属性操作API
