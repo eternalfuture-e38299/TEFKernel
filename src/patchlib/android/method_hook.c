@@ -397,6 +397,29 @@ static bool create_closure_from_signature(patchlib_hook_handle_t *handle) {
     return true;
 }
 
+/* 校验回调指针是否落在可执行映射里。
+ * 崩溃现场出现过 PC 落在 [anon:scudo:primary]（堆）的情况：某个模块把
+ * 堆对象指针当成函数指针传进来了。安装时直接拒绝并打印，避免之后跳飞。 */
+static bool is_executable_address(const void *ptr) {
+    if (!ptr) return false;
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f) return true; /* 读不到 maps 就不拦，保持旧行为 */
+    const uintptr_t addr = (uintptr_t) ptr;
+    char line[512];
+    bool ok = false;
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start = 0, end = 0;
+        char perms[8] = {0};
+        if (sscanf(line, "%lx-%lx %7s", &start, &end, perms) == 3 &&
+            addr >= start && addr < end) {
+            ok = perms[2] == 'x';
+            break;
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
 patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_callback_t prefix,
                                               postfix_callback_t postfix) {
     if (!patchlib_is_valid(method)) {
@@ -406,6 +429,22 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
 
     if (!prefix && !postfix) {
         TEKLOG_ERROR("Cannot install hook: both prefix and postfix are NULL");
+        return PATCH_HOOK_INVALID_ID;
+    }
+
+    const char *method_name = il2cpp_method_get_name(method);
+    if (prefix && !is_executable_address((const void *) prefix)) {
+        TEKLOG_ERROR("hook install: prefix %p is not executable "
+                     "(method=%p %s) — caller passed a data/heap pointer",
+                     (void *) prefix, (void *) method,
+                     method_name ? method_name : "?");
+        return PATCH_HOOK_INVALID_ID;
+    }
+    if (postfix && !is_executable_address((const void *) postfix)) {
+        TEKLOG_ERROR("hook install: postfix %p is not executable "
+                     "(method=%p %s) — caller passed a data/heap pointer",
+                     (void *) postfix, (void *) method,
+                     method_name ? method_name : "?");
         return PATCH_HOOK_INVALID_ID;
     }
 
@@ -464,7 +503,10 @@ patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, prefix_call
     }
 
     tefstd_hashmap_put(&g_hooks.hooks, &node->id, &node);
-    TEKLOG_INFO("Hook installed successfully with ID: %d for method: %p", node->id, method);
+    TEKLOG_INFO("Hook installed successfully with ID: %d for method: %p %s "
+                "(prefix=%p postfix=%p)", node->id, method,
+                method_name ? method_name : "?", (void *) prefix,
+                (void *) postfix);
 
     return node->id;
 }
