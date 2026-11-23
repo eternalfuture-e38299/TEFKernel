@@ -24,14 +24,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#else
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
 
 #include "internal/log.h"
 #include "patchlib/il2cpp_api.h"
@@ -143,176 +135,14 @@ patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, cons
     return result;
 }
 
-/* ---------------------------------------------------------------------------
- * 桌面端 patchlib_install_prepost_hook_ex
- *
- * tefloader 的 Harmony 只认普通回调（不带 user）。这里为每个 _ex Hook 生成
- * 一小段机器码跳板：把 (instance,args,sig/result) 重排成
- * (user,instance,args,...,result/sig)，再尾跳真正的 _ex 回调。
- *
- * 这样 LuaLoader 用「单分发函数 + user 槽位」的设计在 PC 上也能工作，
- * 不需要回到 1024 个静态函数的旧方案，也没有数量上限。
- *
- * 支持：x86_64 SysV(Linux)、x86_64 Win64、aarch64 AAPCS64。
- * 其它架构返回 INVALID（不影响库加载）。
- * ------------------------------------------------------------------------- */
-typedef struct {
-    patch_hook_id_t id;
-    void *pre;
-    void *post;
-    size_t size;
-} ex_tramp_t;
-
-static ex_tramp_t *g_ex_tramps = NULL;
-static size_t g_ex_count = 0;
-static size_t g_ex_cap = 0;
-
-static void *tef_alloc_exec(size_t size) {
-#if defined(_WIN32) || defined(_WIN64)
-    return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
-                        PAGE_EXECUTE_READWRITE);
-#else
-    void *p = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    return p == MAP_FAILED ? NULL : p;
-#endif
-}
-
-static void tef_free_exec(void *p, size_t size) {
-    if (!p) return;
-#if defined(_WIN32) || defined(_WIN64)
-    (void) size;
-    VirtualFree(p, 0, MEM_RELEASE);
-#else
-    munmap(p, size);
-#endif
-}
-
-static void put_u64(unsigned char *p, uint64_t v) {
-    memcpy(p, &v, sizeof(v));
-}
-
-static void *make_ex_tramp(const void *fn, void *user) {
-    if (!fn) return NULL;
-#if defined(__x86_64__) || defined(_M_X64)
-    /* 两种 x86_64 ABI 的普通/带 user 参数顺序刚好都能用同一套重排：
-     *   SysV : rdi,rsi,rdx,rcx        -> rdi=user,rsi,rdx,rcx,r8
-     *   Win64: rcx,rdx,r8,r9(+stack)  -> rcx=user,rdx,r8,r9,5th=stack
-     */
-    const size_t size = 96;
-    unsigned char *code = (unsigned char *) tef_alloc_exec(size);
-    if (!code) return NULL;
-    size_t n = 0;
-#if defined(_WIN32) || defined(_WIN64)
-    /* sub rsp, 0x38 */
-    code[n++] = 0x48; code[n++] = 0x83; code[n++] = 0xEC; code[n++] = 0x38;
-    /* mov [rsp+0x20], r9  (result/sig 放第 5 个参数) */
-    code[n++] = 0x4C; code[n++] = 0x89; code[n++] = 0x4C; code[n++] = 0x24; code[n++] = 0x20;
-    /* mov r9, r8 */
-    code[n++] = 0x4D; code[n++] = 0x89; code[n++] = 0xC1;
-    /* mov r8, rdx */
-    code[n++] = 0x49; code[n++] = 0x89; code[n++] = 0xD0;
-    /* mov rdx, rcx */
-    code[n++] = 0x48; code[n++] = 0x89; code[n++] = 0xCA;
-    /* movabs rcx, user */
-    code[n++] = 0x48; code[n++] = 0xB9; put_u64(code + n, (uint64_t) (uintptr_t) user); n += 8;
-    /* movabs rax, fn */
-    code[n++] = 0x48; code[n++] = 0xB8; put_u64(code + n, (uint64_t) (uintptr_t) fn); n += 8;
-    /* call rax */
-    code[n++] = 0xFF; code[n++] = 0xD0;
-    /* add rsp, 0x38; ret */
-    code[n++] = 0x48; code[n++] = 0x83; code[n++] = 0xC4; code[n++] = 0x38;
-    code[n++] = 0xC3;
-#else
-    /* SysV: r8=rcx; rcx=rdx; rdx=rsi; rsi=rdi; rdi=user; jmp fn */
-    code[n++] = 0x49; code[n++] = 0x89; code[n++] = 0xC8;
-    code[n++] = 0x48; code[n++] = 0x89; code[n++] = 0xD1;
-    code[n++] = 0x48; code[n++] = 0x89; code[n++] = 0xF2;
-    code[n++] = 0x48; code[n++] = 0x89; code[n++] = 0xFE;
-    code[n++] = 0x48; code[n++] = 0xBF; put_u64(code + n, (uint64_t) (uintptr_t) user); n += 8;
-    code[n++] = 0x48; code[n++] = 0xB8; put_u64(code + n, (uint64_t) (uintptr_t) fn); n += 8;
-    code[n++] = 0xFF; code[n++] = 0xE0;
-#endif
-    __builtin___clear_cache((char *) code, (char *) code + n);
-    return code;
-#elif defined(__aarch64__)
-    /* x4=x3; x3=x2; x2=x1; x1=x0; x0=user; x9=fn; br x9 */
-    const size_t size = 96;
-    uint32_t *code = (uint32_t *) tef_alloc_exec(size);
-    if (!code) return NULL;
-    size_t n = 0;
-    code[n++] = 0xAA0303E4u;  /* mov x4, x3 */
-    code[n++] = 0xAA0203E3u;  /* mov x3, x2 */
-    code[n++] = 0xAA0103E2u;  /* mov x2, x1 */
-    code[n++] = 0xAA0003E1u;  /* mov x1, x0 */
-    const uint64_t u = (uint64_t) (uintptr_t) user;
-    const uint64_t f = (uint64_t) (uintptr_t) fn;
-    code[n++] = 0xD2800000u | ((uint32_t) (u & 0xFFFF) << 5);
-    code[n++] = 0xF2A00000u | ((uint32_t) ((u >> 16) & 0xFFFF) << 5);
-    code[n++] = 0xF2C00000u | ((uint32_t) ((u >> 32) & 0xFFFF) << 5);
-    code[n++] = 0xF2E00000u | ((uint32_t) ((u >> 48) & 0xFFFF) << 5);
-    code[n++] = 0xD2800009u | ((uint32_t) (f & 0xFFFF) << 5);
-    code[n++] = 0xF2A00009u | ((uint32_t) ((f >> 16) & 0xFFFF) << 5);
-    code[n++] = 0xF2C00009u | ((uint32_t) ((f >> 32) & 0xFFFF) << 5);
-    code[n++] = 0xF2E00009u | ((uint32_t) ((f >> 48) & 0xFFFF) << 5);
-    code[n++] = 0xD61F0120u;  /* br x9 */
-    __builtin___clear_cache((char *) code, (char *) code + n * 4);
-    return code;
-#else
-    (void) fn; (void) user;
-    return NULL;
-#endif
-}
-
-static int remember_tramp(patch_hook_id_t id, void *pre, void *post, size_t size) {
-    if (g_ex_count == g_ex_cap) {
-        const size_t cap = g_ex_cap ? g_ex_cap * 2 : 16;
-        ex_tramp_t *next = (ex_tramp_t *) realloc(g_ex_tramps, cap * sizeof(*next));
-        if (!next) return 0;
-        g_ex_tramps = next;
-        g_ex_cap = cap;
-    }
-    g_ex_tramps[g_ex_count++] = (ex_tramp_t){ id, pre, post, size };
-    return 1;
-}
-
-static void forget_tramp(patch_hook_id_t id) {
-    for (size_t i = 0; i < g_ex_count; ++i) {
-        if (g_ex_tramps[i].id != id) continue;
-        tef_free_exec(g_ex_tramps[i].pre, g_ex_tramps[i].size);
-        tef_free_exec(g_ex_tramps[i].post, g_ex_tramps[i].size);
-        g_ex_tramps[i] = g_ex_tramps[--g_ex_count];
-        return;
-    }
-}
-
+/* 桌面端的 Hook 由 tefloader 的 Harmony 实现，il2cpp_hook_method 没有 user 上下文。
+ * 这个符号必须定义：tpf_core 会无条件注册它，缺符号会导致 dlopen 整个内核失败。 */
 patch_hook_id_t patchlib_install_prepost_hook_ex(patch_handle_t method,
         prefix_callback_ex_t prefix, postfix_callback_ex_t postfix, void *user) {
-    if (!patchlib_is_valid(method)) return PATCH_HOOK_INVALID_ID;
-    if (!prefix && !postfix) return PATCH_HOOK_INVALID_ID;
-
-    void *pre = prefix ? make_ex_tramp((const void *) prefix, user) : NULL;
-    void *post = postfix ? make_ex_tramp((const void *) postfix, user) : NULL;
-    if ((prefix && !pre) || (postfix && !post)) {
-        tef_free_exec(pre, 96);
-        tef_free_exec(post, 96);
-        TEKLOG_WARN("patchlib_install_prepost_hook_ex: unsupported arch or OOM");
-        return PATCH_HOOK_INVALID_ID;
-    }
-
-    const patch_hook_id_t id = patchlib_install_prepost_hook(
-            method, (prefix_callback_t) pre, (postfix_callback_t) post);
-    if (id == PATCH_HOOK_INVALID_ID) {
-        tef_free_exec(pre, 96);
-        tef_free_exec(post, 96);
-        return PATCH_HOOK_INVALID_ID;
-    }
-    if (!remember_tramp(id, pre, post, 96)) {
-        TEKLOG_WARN("patchlib_install_prepost_hook_ex: track table OOM (hook works, tramp leaks)");
-    }
-    TEKLOG_DEBUG("patchlib_install_prepost_hook_ex: hook=%d pre=%p post=%p user=%p",
-                 (int) id, pre, post, user);
-    return id;
+    (void) method; (void) prefix; (void) postfix;
+    TEKLOG_WARN("patchlib_install_prepost_hook_ex: desktop Harmony hook has no user "
+                "context (user=%p), hook skipped", user);
+    return PATCH_HOOK_INVALID_ID;
 }
 
 patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, const prefix_callback_t prefix, const postfix_callback_t postfix) {
@@ -470,7 +300,6 @@ bool patchlib_uninstall_hook(const patch_hook_id_t hook_id) {
     const bool result = il2cpp_unhook_method(hook_id);
 
     if (result) {
-        forget_tramp(hook_id);
         TEKLOG_DEBUG("Hook uninstalled successfully: hook_id=%d", hook_id);
     } else {
         TEKLOG_ERROR("Failed to uninstall hook: hook_id=%d", hook_id);
