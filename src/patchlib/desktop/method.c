@@ -135,16 +135,6 @@ patch_handle_t patchlib_method_make_generic_instance(patch_handle_t method, cons
     return result;
 }
 
-/* 桌面端的 Hook 由 tefloader 的 Harmony 实现，il2cpp_hook_method 没有 user 上下文。
- * 这个符号必须定义：tpf_core 会无条件注册它，缺符号会导致 dlopen 整个内核失败。 */
-patch_hook_id_t patchlib_install_prepost_hook_ex(patch_handle_t method,
-        prefix_callback_ex_t prefix, postfix_callback_ex_t postfix, void *user) {
-    (void) method; (void) prefix; (void) postfix;
-    TEKLOG_WARN("patchlib_install_prepost_hook_ex: desktop Harmony hook has no user "
-                "context (user=%p), hook skipped", user);
-    return PATCH_HOOK_INVALID_ID;
-}
-
 patch_hook_id_t patchlib_install_prepost_hook(patch_handle_t method, const prefix_callback_t prefix, const postfix_callback_t postfix) {
     TEKLOG_DEBUG("=== [START] patchlib_install_prepost_hook ===");
     TEKLOG_DEBUG("Parameters:");
