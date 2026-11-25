@@ -82,6 +82,10 @@ static patch_handle_t m_get_guide_item = PATCH_NULL;/* Main.guideItem（属性�
 static patch_handle_t item_type_f = PATCH_NULL;     /* Item.type */
 static patch_handle_t required_item_f = PATCH_NULL; /* Recipe.requiredItem */
 static patch_handle_t num_available_f = PATCH_NULL; /* Main.numAvailableRecipes */
+/* 手机端 Main.numAvailableRecipes 是静态属性（get/set 转发到
+ * LocalUserGameState），没有同名字段；这里同时保留字段与属性两条路径。 */
+static patch_handle_t m_get_num_available = PATCH_NULL;
+static patch_handle_t m_set_num_available = PATCH_NULL;
 
 static int g_vanilla_max_recipes = 3700;
 static int g_old_focus_recipe = 0;
@@ -186,6 +190,37 @@ static patch_handle_t invoke_object_static(patch_handle_t method) {
     patch_handle_t out = PATCH_NULL;
     patchlib_method_invoke_args(method, PATCH_NULL, &out, NULL);
     return out;
+}
+
+/* Main.numAvailableRecipes：桌面端是静态字段，手机端是静态属性
+ * （getter/setter 转发到 LocalUserGameState 实例）。两种都支持。 */
+static int read_num_available_recipes(void) {
+    int value = 0;
+    if (patchlib_is_valid(num_available_f))
+        patchlib_field_get_value(num_available_f, PATCH_NULL, &value);
+    else if (patchlib_is_valid(m_get_num_available))
+        patchlib_method_invoke_args(m_get_num_available, PATCH_NULL, &value,
+                                    NULL);
+    return value;
+}
+
+static bool num_available_recipes_available(void) {
+    return patchlib_is_valid(num_available_f) ||
+           (patchlib_is_valid(m_get_num_available) &&
+            patchlib_is_valid(m_set_num_available));
+}
+
+static void write_num_available_recipes(int value) {
+    if (patchlib_is_valid(num_available_f)) {
+        patchlib_field_set_value(num_available_f, PATCH_NULL, &value);
+        return;
+    }
+    if (patchlib_is_valid(m_set_num_available)) {
+        int v = value;
+        void *set_args[1] = {&v};
+        patchlib_method_invoke_args(m_set_num_available, PATCH_NULL, NULL,
+                                    set_args);
+    }
 }
 
 /* 手机端 availableRecipe / availableRecipeY 长度都是 maxRecipes(3700)，
@@ -393,9 +428,7 @@ static void collect_guide_postfix(patch_handle_t this, void **args,
     if (!patchlib_is_valid(available)) return;
     const size_t available_len = patchlib_array_length(available);
 
-    int num_available = 0;
-    if (patchlib_is_valid(num_available_f))
-        patchlib_field_get_value(num_available_f, PATCH_NULL, &num_available);
+    int num_available = read_num_available_recipes();
 
     patch_handle_t recipes = PATCH_NULL;
     patchlib_field_get_value(recipe_f, PATCH_NULL, &recipes);
@@ -432,7 +465,7 @@ static void collect_guide_postfix(patch_handle_t this, void **args,
 
             if (!matched) continue;
             if ((size_t) num_available >= available_len) break;
-            const int index = i;
+            int index = i;
             if (patchlib_array_set(available, (size_t) num_available, &index)) {
                 ++num_available;
                 ++added;
@@ -441,8 +474,8 @@ static void collect_guide_postfix(patch_handle_t this, void **args,
         patchlib_free(recipes);
     }
 
-    if (added > 0 && patchlib_is_valid(num_available_f))
-        patchlib_field_set_value(num_available_f, PATCH_NULL, &num_available);
+    if (added > 0)
+        write_num_available_recipes(num_available);
     if (added > 0)
         TEKLOG_INFO("recipe: guide >maxRecipes appended %d (total=%d)",
                     added, total);
@@ -595,6 +628,17 @@ void terraria_recipe_manager_init() {
         }
     }
     num_available_f = patchlib_type_get_field(main_cls, "numAvailableRecipes");
+    if (!patchlib_is_valid(num_available_f)) {
+        patch_handle_t num_available_prop =
+                patchlib_type_get_property(main_cls, "numAvailableRecipes");
+        if (patchlib_is_valid(num_available_prop)) {
+            m_get_num_available =
+                    patchlib_property_get_get_method(num_available_prop);
+            m_set_num_available =
+                    patchlib_property_get_set_method(num_available_prop);
+            patchlib_free(num_available_prop);
+        }
+    }
     item_type_f = patchlib_type_get_field(item_class, "type");
     required_item_f = patchlib_type_get_field(recipe_cls, "requiredItem");
     m_collect_guide = patchlib_type_get_method_by_param_count(
@@ -604,7 +648,7 @@ void terraria_recipe_manager_init() {
         (patchlib_is_valid(guide_item_f) || patchlib_is_valid(m_get_guide_item)) &&
         patchlib_is_valid(item_type_f) &&
         patchlib_is_valid(required_item_f) &&
-        patchlib_is_valid(num_available_f)) {
+        num_available_recipes_available()) {
         patchlib_install_prepost_hook(m_collect_guide, collect_guide_prefix,
                                       collect_guide_postfix);
         TEKLOG_INFO("recipe: hooked Recipe.CollectGuideRecipes");
