@@ -47,10 +47,7 @@ tefstd_vector_t g_terraria_buff_registry;
 static patch_handle_t f_player_buff_type = PATCH_NULL;
 static patch_handle_t f_player_buff_time = PATCH_NULL;
 static patch_handle_t f_player_buff_immune = PATCH_NULL;
-static patch_handle_t f_main_player = PATCH_NULL;
-static patch_handle_t m_get_my_player = PATCH_NULL;
 static patch_hook_id_t h_player_update = PATCH_HOOK_INVALID_ID;
-static patch_handle_t f_main_my_player = PATCH_NULL;  /* PC 是 Main.myPlayer 字段 */
 static patch_handle_t f_player_who_am_i = PATCH_NULL; /* Player.whoAmI */
 static bool g_ids_assigned = false;
 
@@ -611,10 +608,10 @@ int terraria_buff_manager_add(terraria_buff_handle_t *buff_handle, patch_handle_
     return next;
 }
 
-static patch_handle_t local_player_obj(void);
-
-/* 护士治疗成功：PC 走 Main.NPCChatText_DoNurseHeal，手机走 GUINPCDialogue.Option1Clicked，
- * 但两者都会调用 AchievementsHelper.HandleNurseService —— 这是唯一的“已付费治疗”信号。 */
+/* 供加载器/Mod 手动清除玩家身上的自定义减益。
+ * 护士治疗不需要它：自定义 buff 现在已经真正写进 Player.buffType，
+ * Main.debuff 已扩容，buff_pe_patch 也把 BuffID.Count 比较改成了总数，
+ * 原版 NPCChatText_DoNurseHeal 的循环会自己清理。 */
 void terraria_buff_manager_clear_debuffs(patch_handle_t player) {
     if (player == PATCH_NULL) return;
     if (!patchlib_is_valid(f_player_buff_type) ||
@@ -650,16 +647,6 @@ void terraria_buff_manager_clear_debuffs(patch_handle_t player) {
     TEKLOG_INFO("buff: clear_debuffs removed=%d", removed);
     patchlib_free(types);
     patchlib_free(times);
-}
-
-/* 护士治疗成功 → 清自定义减益（原版只清 buffType 里的） */
-static void nurse_service_postfix(patch_handle_t this, void **args, void *result,
-                                  const patch_method_signature_t *sig) {
-    (void) this; (void) args; (void) result; (void) sig;
-    patch_handle_t local = local_player_obj();
-    if (local == PATCH_NULL) return;
-    terraria_buff_manager_clear_debuffs(local);
-    patchlib_free(local);
 }
 
 void terraria_buff_manager_visit_active(patch_handle_t player,
@@ -1049,49 +1036,8 @@ void terraria_buff_manager_refresh_display_text(terraria_buff_handle_t *buff_han
 /* 原版 GUIBuffs 与原版 MouseText 处理；内核不再安装任何手绘钩子。       */
 /* ------------------------------------------------------------------ */
 
-static int main_my_player(void) {
-    unsigned char buf[64] = {0};
-    if (m_get_my_player != PATCH_NULL) {
-        patchlib_method_invoke_args(m_get_my_player, NULL, buf, NULL);
-        int my = 0;
-        memcpy(&my, buf, sizeof(my));
-        return my;
-    }
-    if (f_main_my_player != PATCH_NULL) {
-        patchlib_field_get_value(f_main_my_player, NULL, buf);
-        int my = 0;
-        memcpy(&my, buf, sizeof(my));
-        return my;
-    }
-    return -1;
-}
-
-static patch_handle_t local_player_obj(void) {
-    if (f_main_player == PATCH_NULL) return PATCH_NULL;
-    const int my = main_my_player();
-    if (my < 0) return PATCH_NULL;
-    patch_handle_t players = PATCH_NULL;
-    patchlib_field_get_value(f_main_player, NULL, &players);
-    if (players == PATCH_NULL) return PATCH_NULL;
-    patch_handle_t local = PATCH_NULL;
-    patchlib_array_at(players, (size_t) my, &local);
-    patchlib_free(players);
-    return local;
-}
-
 void terraria_buff_manager_init(void) {
     tefstd_vector_init(&g_terraria_buff_registry, sizeof(terraria_buff_handle_t *));
-
-    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
-    if (patchlib_is_valid(main_cls)) {
-        f_main_player = patchlib_type_get_field(main_cls, "player");
-        f_main_my_player = patchlib_type_get_field(main_cls, "myPlayer");
-        m_get_my_player =
-                patchlib_type_get_method_by_param_count(main_cls, "get_myPlayer", 0);
-        if (!patchlib_is_valid(m_get_my_player))
-            m_get_my_player = patchlib_type_get_method_by_param_count(main_cls, "get_myPlayer", 0);
-        patchlib_free(main_cls);
-    }
 
     patch_handle_t player_cls = patchlib_type_get_type("Terraria", "Player");
     if (patchlib_is_valid(player_cls)) {
@@ -1110,24 +1056,6 @@ void terraria_buff_manager_init(void) {
             TEKLOG_INFO("buff: hooked Player.AddBuff (buffImmune resize)");
         }
         patchlib_free(player_cls);
-    }
-
-    /* 护士治疗成功（PC/手机共同入口）：AchievementsHelper.HandleNurseService(int) */
-    {
-        patch_handle_t t_helper = patchlib_type_get_type(
-                "Terraria.GameContent.Achievements", "AchievementsHelper");
-        if (patchlib_is_valid(t_helper)) {
-            patch_handle_t m_service = patchlib_type_get_method_by_param_count(
-                    t_helper, "HandleNurseService", 1);
-            if (patchlib_is_valid(m_service)) {
-                const patch_hook_id_t hid =
-                        patchlib_install_prepost_hook(m_service, NULL, nurse_service_postfix);
-                TEKLOG_INFO("buff: hooked AchievementsHelper.HandleNurseService id=%d", (int) hid);
-            } else {
-                TEKLOG_WARN("buff: AchievementsHelper.HandleNurseService not found");
-            }
-            patchlib_free(t_helper);
-        }
     }
 
     /* 原生 Buff 栏接管：自定义 buff 已写进 buffType，由 GUIBuffs 直接绘制。
