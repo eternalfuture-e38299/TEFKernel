@@ -450,17 +450,29 @@ static void buff_resize_immune_arrays(const int new_size) {
 
 /* 自定义 buff 由内核 plr.tef 按名字存档；告诉原版不要把它写进 .plr，
  * 避免卸载/增删 Mod 后 runtime_id 漂移读成别的 buff。 */
+static patch_handle_t buff_main_bool_array(patch_handle_t main_cls,
+                                           const char *name) {
+    patch_handle_t field = patchlib_type_get_field(main_cls, name);
+    patch_handle_t array = PATCH_NULL;
+    if (patchlib_is_valid(field))
+        patchlib_field_get_value(field, PATCH_NULL, &array);
+    patchlib_free(field);
+    return array;
+}
+
 static void buff_apply_flags(void) {
     patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
     if (!patchlib_is_valid(main_cls)) return;
-    patch_handle_t f_no_save = patchlib_type_get_field(main_cls, "buffNoSave");
-    patch_handle_t f_debuff = patchlib_type_get_field(main_cls, "debuff");
-    patch_handle_t no_save = PATCH_NULL;
-    patch_handle_t debuff = PATCH_NULL;
-    if (patchlib_is_valid(f_no_save))
-        patchlib_field_get_value(f_no_save, NULL, &no_save);
-    if (patchlib_is_valid(f_debuff))
-        patchlib_field_get_value(f_debuff, NULL, &debuff);
+
+    patch_handle_t no_save =
+            buff_main_bool_array(main_cls, "buffNoSave");
+    patch_handle_t debuff =
+            buff_main_bool_array(main_cls, "debuff");
+    patch_handle_t pvp = buff_main_bool_array(main_cls, "pvpBuff");
+    patch_handle_t light_pet = buff_main_bool_array(main_cls, "lightPet");
+    patch_handle_t vanity_pet = buff_main_bool_array(main_cls, "vanityPet");
+    patch_handle_t no_time =
+            buff_main_bool_array(main_cls, "buffNoTimeDisplay");
 
     const size_t count = tefstd_vector_size(&g_terraria_buff_registry);
     for (size_t i = 0; i < count; ++i) {
@@ -468,19 +480,32 @@ static void buff_apply_flags(void) {
                 tefstd_vector_at(&g_terraria_buff_registry, i);
         if (!pp || !*pp || (*pp)->runtime_id < 0) continue;
         const size_t id = (size_t) (*pp)->runtime_id;
-        if (patchlib_is_valid(no_save)) {
-            bool value = true;
+        bool value = true;
+        if (patchlib_is_valid(no_save))
             patchlib_array_set(no_save, id, &value);
-        }
-        if (patchlib_is_valid(debuff)) {
-            bool value = (*pp)->debuff;
+        value = (*pp)->debuff;
+        if (patchlib_is_valid(debuff))
             patchlib_array_set(debuff, id, &value);
-        }
+        value = (*pp)->pvp;
+        if (patchlib_is_valid(pvp))
+            patchlib_array_set(pvp, id, &value);
+        value = (*pp)->light_pet;
+        if (patchlib_is_valid(light_pet))
+            patchlib_array_set(light_pet, id, &value);
+        value = (*pp)->vanity_pet;
+        if (patchlib_is_valid(vanity_pet))
+            patchlib_array_set(vanity_pet, id, &value);
+        value = (*pp)->no_time_display;
+        if (patchlib_is_valid(no_time))
+            patchlib_array_set(no_time, id, &value);
     }
-    patchlib_free(no_save);
+
+    patchlib_free(no_time);
+    patchlib_free(vanity_pet);
+    patchlib_free(light_pet);
+    patchlib_free(pvp);
     patchlib_free(debuff);
-    patchlib_free(f_no_save);
-    patchlib_free(f_debuff);
+    patchlib_free(no_save);
     patchlib_free(main_cls);
 }
 
