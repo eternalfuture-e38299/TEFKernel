@@ -206,6 +206,8 @@ static terraria_item_handle_t unknown_item = {
 
 static patch_handle_t f_type = PATCH_NULL;
 static patch_handle_t f_stack = PATCH_NULL;
+static patch_handle_t f_material = PATCH_NULL;       // Item.material (bool)
+static patch_handle_t f_is_a_material = PATCH_NULL;  // ItemID.Sets.IsAMaterial (bool[])
 static patch_handle_t m_reset_stats = PATCH_NULL;
 static patch_handle_t m_rebuild_tooltip = PATCH_NULL; // void RebuildTooltip()
 static patch_handle_t f_item_animations = PATCH_NULL; // Main.itemAnimations (DrawAnimation[])
@@ -670,6 +672,27 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
     // ⭐ 关键：强制恢复 type（SetDefaults 内部可能把它清空了）
     TEKLOG_INFO("item defaults: [1] restore type");
     patchlib_field_set_value(f_type, this, args[0]);
+
+    /* 1.4.6 的 Item.SetDefaults 会先把 >= ItemID.Count 的 type 置 0，
+     * 之后才执行 material = ItemID.Sets.IsAMaterial[type]，于是所有自定义
+     * 物品的 material 恒为 false。手机端向导的“材料选择”列表
+     * （GUICraftGuide.RefreshItems）只看 item.material，导致 Mod 材料不出现。
+     * 这里在 type 恢复后按原始 id 重新同步一次。 */
+    if (patchlib_is_valid(f_material) && patchlib_is_valid(f_is_a_material) &&
+        args_type >= 0) {
+        patch_handle_t materials = PATCH_NULL;
+        patchlib_field_get_value(f_is_a_material, PATCH_NULL, &materials);
+        if (patchlib_is_valid(materials)) {
+            const size_t len = patchlib_array_length(materials);
+            if ((size_t) args_type < len) {
+                bool is_material = false;
+                if (patchlib_array_at(materials, (size_t) args_type,
+                                      &is_material))
+                    patchlib_field_set_value(f_material, this, &is_material);
+            }
+            patchlib_free(materials);
+        }
+    }
 
     // 设置堆叠数
     TEKLOG_INFO("item defaults: [2] stack");
@@ -1641,6 +1664,16 @@ void terraria_item_manager_init() {
     patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
     f_type = patchlib_type_get_field(item_class, "type");
     f_stack = patchlib_type_get_field(item_class, "stack");
+    f_material = patchlib_type_get_field(item_class, "material");
+    {
+        patch_handle_t item_id_sets =
+                patchlib_type_get_inner_type(item_id_class, "Sets");
+        if (patchlib_is_valid(item_id_sets)) {
+            f_is_a_material =
+                    patchlib_type_get_field(item_id_sets, "IsAMaterial");
+            patchlib_free(item_id_sets);
+        }
+    }
     m_rebuild_tooltip = patchlib_type_get_method_by_param_count(item_class, "RebuildTooltip", 0);
     TEKLOG_INFO("item: RebuildTooltip method=%p", m_rebuild_tooltip);
     m_reset_stats =
