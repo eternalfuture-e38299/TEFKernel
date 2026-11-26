@@ -48,6 +48,9 @@
 #include <signal.h>
 #include <pthread.h>
 
+/* 崩溃现场：绕过日志队列直接写文件/logcat，信号处理器里也安全 */
+#define CRASH_LOG(...) tefkernel_log_crash_printf(TEFKERNEL_LOG_LEVEL_CRITICAL, __VA_ARGS__)
+
 // 平台特定头文件
 #if defined(PLATFORM_WINDOWS)
     #include <windows.h>
@@ -146,12 +149,12 @@ void tefkernel_crumb(const char *fmt, ...) {
 static void dump_crumbs(void) {
     const unsigned seq = __atomic_load_n(&g_crumb_seq, __ATOMIC_RELAXED);
     if (seq == 0) return;
-    TEKLOG_CRITICAL("Recent events (last %u):",
+    CRASH_LOG("Recent events (last %u):",
                     seq < CRUMB_SLOTS ? seq : CRUMB_SLOTS);
     const unsigned first = seq > CRUMB_SLOTS ? seq - CRUMB_SLOTS : 0;
     for (unsigned i = first; i < seq; ++i) {
         const char *s = g_crumbs[i % CRUMB_SLOTS];
-        if (s[0]) TEKLOG_CRITICAL("  [%u] %s", i, s);
+        if (s[0]) CRASH_LOG("  [%u] %s", i, s);
     }
 }
 
@@ -175,7 +178,7 @@ static _Unwind_Reason_Code android_unwind_callback(struct _Unwind_Context *conte
 
 // 获取调用栈
 static void print_backtrace(void) {
-    TEKLOG_CRITICAL("Call stack:");
+    CRASH_LOG("Call stack:");
 
     #if defined(PLATFORM_WINDOWS)
         void* stack[MAX_BACKTRACE_DEPTH];
@@ -192,10 +195,10 @@ static void print_backtrace(void) {
 
             DWORD64 displacement = 0;
             if (SymFromAddr(process, (DWORD64)stack[i], &displacement, symbol)) {
-                TEKLOG_CRITICAL("  #%02d: %s+0x%llX [0x%p]",
+                CRASH_LOG("  #%02d: %s+0x%llX [0x%p]",
                                i, symbol->Name, displacement, stack[i]);
             } else {
-                TEKLOG_CRITICAL("  #%02d: 0x%p", i, stack[i]);
+                CRASH_LOG("  #%02d: 0x%p", i, stack[i]);
             }
         }
 
@@ -215,15 +218,15 @@ static void print_backtrace(void) {
                  * （libil2cpp 局部函数、内核 static 函数）退化成裸地址，离线无法符号化。 */
                 const uintptr_t offset = (uintptr_t) buffer[i] - (uintptr_t) info.dli_fbase;
                 if (info.dli_sname != NULL) {
-                    TEKLOG_CRITICAL("  #%02d: %s (%s+0x%tx) [%s+0x%tx]",
+                    CRASH_LOG("  #%02d: %s (%s+0x%tx) [%s+0x%tx]",
                                    i, info.dli_fname, info.dli_sname,
                                    (char*)buffer[i] - (char*)info.dli_saddr,
                                    info.dli_fname, offset);
                 } else {
-                    TEKLOG_CRITICAL("  #%02d: %s+0x%tx", i, info.dli_fname, offset);
+                    CRASH_LOG("  #%02d: %s+0x%tx", i, info.dli_fname, offset);
                 }
             } else {
-                TEKLOG_CRITICAL("  #%02d: 0x%p", i, buffer[i]);
+                CRASH_LOG("  #%02d: 0x%p", i, buffer[i]);
             }
         }
 
@@ -234,7 +237,7 @@ static void print_backtrace(void) {
 
         if (symbols != NULL) {
             for (int i = 0; i < frames; i++) {
-                TEKLOG_CRITICAL("  #%02d: %s", i, symbols[i]);
+                CRASH_LOG("  #%02d: %s", i, symbols[i]);
             }
             free(symbols);
         }
@@ -274,10 +277,10 @@ static LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *exception_info)
         default: break;
     }
 
-    TEKLOG_CRITICAL("========================================");
-    TEKLOG_CRITICAL("CRASH DETECTED - Windows Exception");
-    TEKLOG_CRITICAL("Exception: %s (0x%08X)", code_name, code);
-    TEKLOG_CRITICAL("Address: 0x%p", exception_info->ExceptionRecord->ExceptionAddress);
+    CRASH_LOG("========================================");
+    CRASH_LOG("CRASH DETECTED - Windows Exception");
+    CRASH_LOG("Exception: %s (0x%08X)", code_name, code);
+    CRASH_LOG("Address: 0x%p", exception_info->ExceptionRecord->ExceptionAddress);
 
     if (code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_IN_PAGE_ERROR) {
         ULONG_PTR type = exception_info->ExceptionRecord->ExceptionInformation[0];
@@ -288,14 +291,13 @@ static LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *exception_info)
         else if (type == 1) access_type = "WRITE";
         else if (type == 8) access_type = "EXECUTE";
 
-        TEKLOG_CRITICAL("Access violation: %s at 0x%p",
+        CRASH_LOG("Access violation: %s at 0x%p",
                        access_type, (void*)addr);
     }
 
     print_backtrace();
-    TEKLOG_CRITICAL("========================================");
+    CRASH_LOG("========================================");
 
-    tefkernel_log_cleanup();
     pthread_mutex_unlock(&g_crash_mutex);
 
     exit(EXIT_FAILURE);
@@ -304,13 +306,107 @@ static LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *exception_info)
 
 #else // POSIX 系统 (Linux/macOS/Android)
 
+/* 从崩溃时的 ucontext 直接读现场：PC=0 时 _Unwind_Backtrace 只能拿到
+ * 信号处理函数自己的栈，看不到是谁调到 0。这里打印 LR 和崩溃栈的原始返回地址。 */
+static void log_frame_addr(const char *tag, uintptr_t addr) {
+    if (!addr) {
+        CRASH_LOG("%s: 0x0", tag);
+        return;
+    }
+    Dl_info di;
+    if (dladdr((void *) addr, &di) != 0 && di.dli_fname) {
+        const uintptr_t off = addr - (uintptr_t) di.dli_fbase;
+        if (di.dli_sname)
+            CRASH_LOG("%s: %s (%s+0x%tx)", tag, di.dli_fname, di.dli_sname,
+                      (uintptr_t) addr - (uintptr_t) di.dli_saddr);
+        else
+            CRASH_LOG("%s: %s+0x%tx", tag, di.dli_fname, off);
+    } else {
+        CRASH_LOG("%s: 0x%tx", tag, addr);
+    }
+}
+
+/* 打印某个地址落在哪一段 /proc/self/maps 里。
+ * 匿名 mmap（libffi closure / memdl 模块）在这里会显示 anon 名字或模块路径，
+ * 比只有裸地址更容易判断是「LuaLoader 闭包」还是「KernelLoader 模块」。 */
+static void log_addr_mapping(const char *tag, uintptr_t addr) {
+    if (!addr) return;
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f) return;
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start = 0, end = 0;
+        if (sscanf(line, "%lx-%lx", &start, &end) == 2 &&
+            addr >= start && addr < end) {
+            size_t n = strlen(line);
+            while (n && (line[n - 1] == '\n' || line[n - 1] == '\r')) line[--n] = 0;
+            CRASH_LOG("%s map: %s", tag, line);
+            break;
+        }
+    }
+    fclose(f);
+}
+
+static void dump_crashed_stack(const ucontext_t *uc) {
+    if (!uc) return;
+#if defined(__aarch64__) && defined(__APPLE__)
+    /* Darwin 的 uc_mcontext 是 mcontext_t*，寄存器在 __ss 里；
+     * Linux/Android 则是内嵌结构体，字段名也不同。 */
+    const uintptr_t pc = (uintptr_t) uc->uc_mcontext->__ss.__pc;
+    const uintptr_t lr = (uintptr_t) uc->uc_mcontext->__ss.__lr;
+    uintptr_t sp = (uintptr_t) uc->uc_mcontext->__ss.__sp;
+    uintptr_t fp = (uintptr_t) uc->uc_mcontext->__ss.__fp;
+#elif defined(__aarch64__)
+    const uintptr_t pc = (uintptr_t) uc->uc_mcontext.pc;
+    const uintptr_t lr = (uintptr_t) uc->uc_mcontext.regs[30];
+    uintptr_t sp = (uintptr_t) uc->uc_mcontext.sp;
+    uintptr_t fp = (uintptr_t) uc->uc_mcontext.regs[29];
+    CRASH_LOG("Crashed PC: 0x%tx", pc);
+    log_addr_mapping("Fault PC", (uintptr_t) pc);
+    log_addr_mapping("Crashed LR", lr);
+    log_frame_addr("Crashed LR (caller)", lr);
+
+    /* 原始栈顶 16 个字：pc=0 时 [sp] 往往就是返回地址 */
+    if (sp) {
+        for (int i = 0; i < 16; ++i) {
+            const uintptr_t addr = sp + (uintptr_t)(i * 8);
+            if ((addr & 7) != 0) break;
+            const uintptr_t v = *(const uintptr_t *) addr;
+            char tag[32];
+            snprintf(tag, sizeof(tag), "  stack[sp+%02d]", i * 8);
+            log_frame_addr(tag, v);
+        }
+    }
+
+    /* x29 帧链：AArch64 上 [fp] = 上一层 fp，[fp+8] = 返回地址 */
+    for (int i = 0; i < 32 && fp; ++i) {
+        if ((fp & 7) != 0 || fp < sp || fp - sp > 8 * 1024 * 1024) break;
+        const uintptr_t next = *(const uintptr_t *) fp;
+        const uintptr_t ret = *(const uintptr_t *) (fp + 8);
+        char tag[32];
+        snprintf(tag, sizeof(tag), "  fp[%02d] ret", i);
+        log_frame_addr(tag, ret);
+        if (next <= fp) break;
+        fp = next;
+    }
+#endif
+}
+
 static void posix_signal_handler(int signal_code, siginfo_t *info, void *context) {
     /* 运行时自己的空引用/除零检查：低地址故障直接还给原 handler。
      * 不做日志，避免每次 NullReferenceException 刷屏。 */
     if (signal_code != SIGABRT && info &&
-        (uintptr_t) info->si_addr < 0x10000 &&
-        crash_forward_to_previous(signal_code, info, context))
-        return;
+        (uintptr_t) info->si_addr < 0x10000) {
+        /* 低地址 = 空指针/空函数指针。以前为了躲 IL2CPP 自己处理的空引用检查
+         * 直接转给原 handler，结果真正的致命空指针也不留栈。
+         * 现在只记一条 WARN，然后继续走完整崩溃处理（crumbs + backtrace）。 */
+        static volatile int low_logged = 0;
+        if (low_logged < 4) {
+            low_logged++;
+            CRASH_LOG("[WARN] low-address fault (null deref): signal=%d addr=%p",
+                      signal_code, info->si_addr);
+        }
+    }
 
     if (g_crash_in_progress) return;
     g_crash_in_progress = 1;
@@ -328,10 +424,10 @@ static void posix_signal_handler(int signal_code, siginfo_t *info, void *context
         default: break;
     }
 
-    TEKLOG_CRITICAL("========================================");
-    TEKLOG_CRITICAL("CRASH DETECTED - Signal: %s (%d)", signal_name, signal_code);
-    TEKLOG_CRITICAL("Fault address: %p", info->si_addr);
-    TEKLOG_CRITICAL("PID: %d", getpid());
+    CRASH_LOG("========================================");
+    CRASH_LOG("CRASH DETECTED - Signal: %s (%d)", signal_name, signal_code);
+    CRASH_LOG("Fault address: %p", info->si_addr);
+    CRASH_LOG("PID: %d", getpid());
 
 #if defined(PLATFORM_ANDROID) || defined(PLATFORM_LINUX)
     /* 打印故障现场的 PC / SP，backtrace 在信号帧上常常不完整，
@@ -349,12 +445,13 @@ static void posix_signal_handler(int signal_code, siginfo_t *info, void *context
 #else
         const void *pc = NULL, *sp = NULL, *bp = NULL;
 #endif
-        TEKLOG_CRITICAL("Fault PC: %p  SP: %p  BP: %p", pc, sp, bp);
+        CRASH_LOG("Fault PC: %p  SP: %p  BP: %p", pc, sp, bp);
+        dump_crashed_stack((const ucontext_t *) context);
         if (pc) {
             Dl_info pc_info;
             if (dladdr(pc, &pc_info) != 0 && pc_info.dli_fname) {
                 const uintptr_t off = (uintptr_t) pc - (uintptr_t) pc_info.dli_fbase;
-                TEKLOG_CRITICAL("Fault PC module: %s+0x%tx", pc_info.dli_fname, off);
+                CRASH_LOG("Fault PC module: %s+0x%tx", pc_info.dli_fname, off);
             }
         }
     }
@@ -365,7 +462,7 @@ static void posix_signal_handler(int signal_code, siginfo_t *info, void *context
         Dl_info self_info;
         if (dladdr((void *) &posix_signal_handler, &self_info) != 0 &&
             self_info.dli_fbase != NULL) {
-            TEKLOG_CRITICAL("Kernel base: %p (%s)", self_info.dli_fbase,
+            CRASH_LOG("Kernel base: %p (%s)", self_info.dli_fbase,
                             self_info.dli_fname ? self_info.dli_fname : "?");
         }
     }
@@ -373,9 +470,8 @@ static void posix_signal_handler(int signal_code, siginfo_t *info, void *context
 
     dump_crumbs();
     print_backtrace();
-    TEKLOG_CRITICAL("========================================");
+    CRASH_LOG("========================================");
 
-    tefkernel_log_cleanup();
 
     pthread_mutex_unlock(&g_crash_mutex);
 

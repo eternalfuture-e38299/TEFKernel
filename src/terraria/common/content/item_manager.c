@@ -206,6 +206,8 @@ static terraria_item_handle_t unknown_item = {
 
 static patch_handle_t f_type = PATCH_NULL;
 static patch_handle_t f_stack = PATCH_NULL;
+static patch_handle_t f_material = PATCH_NULL;       // Item.material (bool)
+static patch_handle_t f_is_a_material = PATCH_NULL;  // ItemID.Sets.IsAMaterial (bool[])
 static patch_handle_t m_reset_stats = PATCH_NULL;
 static patch_handle_t m_rebuild_tooltip = PATCH_NULL; // void RebuildTooltip()
 static patch_handle_t f_item_animations = PATCH_NULL; // Main.itemAnimations (DrawAnimation[])
@@ -634,6 +636,19 @@ void terraria_item_manager_apply_prefix_classes(void) {
     TEKLOG_INFO("prefix: %d declared item(s) classified", done);
 }
 
+static bool item_tooltip_cache_ready(const int type) {
+    if (!patchlib_is_valid(f_item_tooltip_cache) || type < 0) return false;
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(f_item_tooltip_cache, PATCH_NULL, &arr);
+    if (!patchlib_is_valid(arr)) return false;
+    patch_handle_t text = PATCH_NULL;
+    const bool ok = patchlib_array_at(arr, (size_t) type, &text) &&
+                    patchlib_is_valid(text);
+    if (patchlib_is_valid(text)) patchlib_free(text);
+    patchlib_free(arr);
+    return ok;
+}
+
 static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
                                  const patch_method_signature_t *sig_info) {
     // 检查 args 是否有效
@@ -655,13 +670,37 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
     tefkernel_crumb("item SetDefaults custom id=%d nid=%d", args_type, nid);
 
     // ⭐ 关键：强制恢复 type（SetDefaults 内部可能把它清空了）
+    TEKLOG_INFO("item defaults: [1] restore type");
     patchlib_field_set_value(f_type, this, args[0]);
 
+    /* 1.4.6 的 Item.SetDefaults 会先把 >= ItemID.Count 的 type 置 0，
+     * 之后才执行 material = ItemID.Sets.IsAMaterial[type]，于是所有自定义
+     * 物品的 material 恒为 false。手机端向导的“材料选择”列表
+     * （GUICraftGuide.RefreshItems）只看 item.material，导致 Mod 材料不出现。
+     * 这里在 type 恢复后按原始 id 重新同步一次。 */
+    if (patchlib_is_valid(f_material) && patchlib_is_valid(f_is_a_material) &&
+        args_type >= 0) {
+        patch_handle_t materials = PATCH_NULL;
+        patchlib_field_get_value(f_is_a_material, PATCH_NULL, &materials);
+        if (patchlib_is_valid(materials)) {
+            const size_t len = patchlib_array_length(materials);
+            if ((size_t) args_type < len) {
+                bool is_material = false;
+                if (patchlib_array_at(materials, (size_t) args_type,
+                                      &is_material))
+                    patchlib_field_set_value(f_material, this, &is_material);
+            }
+            patchlib_free(materials);
+        }
+    }
+
     // 设置堆叠数
+    TEKLOG_INFO("item defaults: [2] stack");
     int stack = 1;
     patchlib_field_set_value(f_stack, this, &stack);
 
     // 调用自定义物品的 set_defaults
+    TEKLOG_INFO("item defaults: [3] custom callback");
     terraria_item_handle_t **item_handle_ptr =
             tefstd_vector_at(&g_terraria_item_registry, nid);
     if (item_handle_ptr && *item_handle_ptr) {
@@ -670,6 +709,7 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
             item_handle->item_ops.set_defaults(item_handle, this);
         }
     }
+    TEKLOG_INFO("item defaults: [4] custom callback done");
 
     /* 帧动画：物品声明了 anim_frames 就按需注册。
      * 注意游戏 InitializeItemAnimations() 会把 itemAnimations 整表清空，
@@ -680,8 +720,15 @@ static void set_defaults_postfix(patch_handle_t this, void **args, void *result,
             register_item_animation(ih, args_type);
     }
 
-    if (patchlib_is_valid(m_rebuild_tooltip))
+    /* Lang 缓存还没填到自定义 id 时不要调 RebuildTooltip，否则 GetTooltip
+     * 返回 null → NullReferenceException（ContentSamples 阶段必现）。 */
+    const bool tip_ready = item_tooltip_cache_ready(args_type);
+    TEKLOG_INFO("item defaults: [5] tooltip cache ready=%d", tip_ready ? 1 : 0);
+    if (patchlib_is_valid(m_rebuild_tooltip) && tip_ready) {
+        TEKLOG_INFO("item defaults: [6] RebuildTooltip");
         patchlib_method_invoke_args(m_rebuild_tooltip, this, PATCH_NULL, NULL);
+        TEKLOG_INFO("item defaults: [7] RebuildTooltip done");
+    }
 }
 
 /* GetRollablePrefixes 钩子：自定义物品按需补归类（数组此时已扩容） */
@@ -1617,6 +1664,16 @@ void terraria_item_manager_init() {
     patch_handle_t item_class = patchlib_type_get_type("Terraria", "Item");
     f_type = patchlib_type_get_field(item_class, "type");
     f_stack = patchlib_type_get_field(item_class, "stack");
+    f_material = patchlib_type_get_field(item_class, "material");
+    {
+        patch_handle_t item_id_sets =
+                patchlib_type_get_inner_type(item_id_class, "Sets");
+        if (patchlib_is_valid(item_id_sets)) {
+            f_is_a_material =
+                    patchlib_type_get_field(item_id_sets, "IsAMaterial");
+            patchlib_free(item_id_sets);
+        }
+    }
     m_rebuild_tooltip = patchlib_type_get_method_by_param_count(item_class, "RebuildTooltip", 0);
     TEKLOG_INFO("item: RebuildTooltip method=%p", m_rebuild_tooltip);
     m_reset_stats =
@@ -2585,6 +2642,18 @@ void terraria_item_manager_init_localized_text() {
     patchlib_field_get_value(f_item_name_cache, PATCH_NULL, &array_item_name_cache);
     patchlib_field_get_value(f_item_tooltip_cache, PATCH_NULL, &array_item_tooltip_cache);
 
+    /* _itemTooltipCache 的元素类型是 ItemTooltip（不是 LocalizedText）。
+     * 没有 tooltip 的物品必须填 ItemTooltip.None，绝不能写 LocalizedText。 */
+    patch_handle_t tooltip_none = PATCH_NULL;
+    patch_handle_t tooltip_cls = patchlib_type_get_type("Terraria.UI", "ItemTooltip");
+    if (patchlib_is_valid(tooltip_cls)) {
+        patch_handle_t f_none = patchlib_type_get_field(tooltip_cls, "None");
+        if (patchlib_is_valid(f_none))
+            patchlib_field_get_value(f_none, PATCH_NULL, &tooltip_none);
+        patchlib_free(f_none);
+        patchlib_free(tooltip_cls);
+    }
+
     const int org_count = terraria_item_id_get_count();
 
     for (int i = 0; i < tefstd_vector_size(&g_terraria_item_registry); ++i) {
@@ -2603,38 +2672,42 @@ void terraria_item_manager_init_localized_text() {
 
         int target_index = org_count + i;
 
-        patch_handle_t item_name_key =
+        patch_handle_t item_name =
                 terraria_language_manager_get_localized_text(item_name_key_buffer);
-
-        patchlib_array_set(array_item_name_cache, target_index, &item_name_key);
-        patchlib_free(item_name_key);
+        patchlib_array_set(array_item_name_cache, target_index, &item_name);
         free(item_name_key_buffer);
 
-        if (current->has_tooltip && patchlib_is_valid(m_from_language_key)) {
-            char *item_tooltip_key_buffer = terraria_entity_make_key(TEF_ENTITY(current), "item_tooltip");
-            if (!item_tooltip_key_buffer)
-                continue;
-
-            patch_handle_t item_tooltip_key_str =
-                    patchlib_string_create(item_tooltip_key_buffer);
-            patch_handle_t item_tooltip = PATCH_NULL;
-
+        /* 工具提示：不管有没有写 tooltip，都必须放一个非 null 的 LocalizedText。
+         * 否则 Lang.GetTooltip(自定义 id) 会返回 null，Item.RebuildTooltip()
+         * （内核在 Item.SetDefaults 后置里会调）直接 NullReferenceException。 */
+        patch_handle_t item_tooltip = PATCH_NULL;
+        if (patchlib_is_valid(m_from_language_key)) {
+            char *item_tooltip_key_buffer =
+                    terraria_entity_make_key(TEF_ENTITY(current), "item_tooltip");
+            if (item_tooltip_key_buffer) {
+                patch_handle_t item_tooltip_key_str =
+                        patchlib_string_create(item_tooltip_key_buffer);
+                patch_handle_t text = PATCH_NULL;
 #if __ANDROID__
-            int16_t tooltip_id = (int16_t) target_index;
-            void *args[2] = {&tooltip_id, &item_tooltip_key_str};
+                int16_t tooltip_id = (int16_t) target_index;
+                void *args[2] = {&tooltip_id, &item_tooltip_key_str};
 #else
-            void *args[1] = {&item_tooltip_key_str};
+                void *args[1] = {&item_tooltip_key_str};
 #endif
-            patchlib_method_invoke_args(m_from_language_key, NULL, &item_tooltip, args);
-
-            if (patchlib_is_valid(item_tooltip))
-                patchlib_array_set(array_item_tooltip_cache, target_index, &item_tooltip);
-
-            patchlib_free(item_tooltip);
-            patchlib_free(item_tooltip_key_str);
-            free(item_tooltip_key_buffer);
+                patchlib_method_invoke_args(m_from_language_key, NULL, &text, args);
+                if (patchlib_is_valid(text)) item_tooltip = text;
+                patchlib_free(item_tooltip_key_str);
+                free(item_tooltip_key_buffer);
+            }
         }
+        const bool tooltip_is_none = !patchlib_is_valid(item_tooltip);
+        if (tooltip_is_none) item_tooltip = tooltip_none;  /* ItemTooltip.None */
+        if (patchlib_is_valid(item_tooltip))
+            patchlib_array_set(array_item_tooltip_cache, target_index, &item_tooltip);
+        if (!tooltip_is_none) patchlib_free(item_tooltip);
+        patchlib_free(item_name);
     }
+    if (patchlib_is_valid(tooltip_none)) patchlib_free(tooltip_none);
 
     patchlib_free(array_item_tooltip_cache);
     patchlib_free(array_item_name_cache);

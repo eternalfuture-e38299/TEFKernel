@@ -74,6 +74,13 @@ void tefkernel_log_init(const char *filename);
  */
 void tefkernel_log_cleanup(void);
 
+/**
+ * @brief 崩溃现场专用：绕过日志线程/队列，直接 write() 到日志文件与 logcat
+ * @note 可在信号处理器里调用（不加锁、不 malloc、不依赖 stdio 缓冲）
+ */
+void tefkernel_log_crash_printf(tefkernel_log_level_t level, const char *fmt, ...)
+__attribute__((__format__(printf, 2, 3)));
+
 // 宏
 
 #if !defined(NDEBUG)

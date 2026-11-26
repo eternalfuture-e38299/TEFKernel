@@ -427,6 +427,14 @@ public abstract class Program
                 Logger.Info("Server mode: skipping Harmony patch, initializing kernel directly");
                 try
                 {
+                    // 服务端此时还未进入 Program.LaunchGame，Program.SavePath 仍是 null。
+                    // 内核安装 Hook 时（Harmony 解析 Main/Lang 成员）会提前触发
+                    // Terraria.Main 的静态构造，而 Main..cctor 用 SavePath 拼
+                    // WorldPath/PlayerPath，null 会抛 ArgumentNullException 并把
+                    // Main 类型永久标记为初始化失败，随后 LaunchGame 再访问必然抛
+                    // TypeInitializationException。这里先按游戏同样的规则填好路径。
+                    PresetSavePath(targetAssembly, args);
+
                     // 与 SetupLoggingPrefix 保持一致：先把内核依赖的 C# API 注册进去，
                     // 否则内核里的函数指针是空的，init 过程中会空指针崩溃。
                     Initialization.RegisterAllApis();
@@ -489,6 +497,52 @@ public abstract class Program
             Logger.Critical($"Execution failed: {ex}");
             Logger.Error($"Message: {ex.Message}");
             Logger.Debug($"Stack trace:\n{ex.StackTrace}");
+        }
+    }
+
+    /// <summary>
+    ///     服务端内核提前初始化时，Terraria.Program.SavePath 还没被 LaunchGame 赋值。
+    ///     按游戏同样的规则先填好，避免 Main..cctor 因 Path.Combine(null, ...) 失败。
+    /// </summary>
+    private static void PresetSavePath(Assembly targetAssembly, string[] gameArgs)
+    {
+        try
+        {
+            var programType = targetAssembly.GetType("Terraria.Program");
+            var savePathField = programType?.GetField("SavePath",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (savePathField == null)
+            {
+                Logger.Warning("Server mode: Terraria.Program.SavePath not found");
+                return;
+            }
+
+            if (savePathField.GetValue(null) is string existing && existing.Length > 0)
+                return;
+
+            string? saveDir = null;
+            for (var i = 0; i + 1 < gameArgs.Length; i++)
+                if (gameArgs[i].Equals("-savedirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    saveDir = gameArgs[i + 1];
+                    break;
+                }
+
+            if (string.IsNullOrEmpty(saveDir))
+            {
+                var xdg = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+                var basePath = !string.IsNullOrEmpty(xdg)
+                    ? xdg
+                    : Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? ".", ".local", "share");
+                saveDir = Path.Combine(basePath, "Terraria");
+            }
+
+            savePathField.SetValue(null, saveDir);
+            Logger.Info($"Server mode: preset Program.SavePath = {saveDir}");
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Server mode: failed to preset Program.SavePath: {ex.Message}");
         }
     }
 

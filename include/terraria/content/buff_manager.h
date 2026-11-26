@@ -136,6 +136,13 @@ DEFINE_FUNCTION(int, terraria_buff_id_get_count)
 /**
  * @brief 清除某玩家身上的全部自定义减益（护士治疗等场景）
  */
+/**
+ * @brief 语言切换后刷新自定义 Buff 的显示名 / 说明
+ * @param buff_handle 自定义 Buff（为 NULL 时刷新全部已注册 Buff）
+ * @note 加载器在语言回调里调用；早期内核没有这个符号，模块拿到 NULL 指针会直接跳 0 崩溃。
+ */
+DEFINE_FUNCTION(void, terraria_buff_manager_refresh_display_text, terraria_buff_handle_t* buff_handle)
+
 DEFINE_FUNCTION(void, terraria_buff_manager_clear_debuffs, patch_handle_t player)
 
 

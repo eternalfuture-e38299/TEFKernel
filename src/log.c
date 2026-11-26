@@ -56,6 +56,14 @@
 #include <io.h>
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#define tef_file_write _write
+#define tef_file_fileno _fileno
+#else
+#define tef_file_write write
+#define tef_file_fileno fileno
+#endif
+
 // 日志队列节点
 // ReSharper disable once CppUseInternalLinkage
 typedef struct log_node_t {
@@ -82,6 +90,7 @@ typedef struct {
 // 全局日志上下文
 typedef struct {
     FILE* log_file;
+    int log_fd;          /* 崩溃时绕过 stdio 直接 write 用 */
     log_queue_t queue;
 #if POSIX_THREADS
     pthread_t thread_id;
@@ -475,10 +484,13 @@ static unsigned __stdcall log_thread(void* arg)
 
         // 若批次内包含错误或崩溃日志，立即刷盘保全现场；
         // 否则依托 64KB stdio 缓冲，在队列空闲超时（2秒）时再集中刷盘，避免闪存 I/O 频繁竞争
-        if (ctx->log_file && dirty && has_critical) {
+        if (ctx->log_file && dirty) {
+            /* 之前的策略是只有 ERROR/CRITICAL 或 2 秒空闲才刷盘，
+             * 硬崩溃时最多丢 64KB。现在每批都刷，代价是一次 write。 */
             fflush(ctx->log_file);
             dirty = 0;
         }
+        (void) has_critical;
     }
 
     // 清理阶段：处理队列中剩余的消息
@@ -531,6 +543,7 @@ void tefkernel_log_init(const char* filename) {
     if (filename && generate_filename(g_log_ctx.filename, sizeof(g_log_ctx.filename), filename) > 0) {
         // 创建新文件
         g_log_ctx.log_file = fopen(g_log_ctx.filename, "w");
+        g_log_ctx.log_fd = g_log_ctx.log_file ? tef_file_fileno(g_log_ctx.log_file) : -1;
 
         if (g_log_ctx.log_file) {
             // 设置 64KB 缓冲区，避免无缓冲导致每次写入都陷入内核态
@@ -557,6 +570,7 @@ void tefkernel_log_init(const char* filename) {
 #endif
             g_log_ctx.filename[0] = '\0';
             g_log_ctx.log_file = NULL;
+            g_log_ctx.log_fd = -1;
         }
     } else {
         g_log_ctx.filename[0] = '\0';
@@ -587,6 +601,7 @@ void tefkernel_log_init(const char* filename) {
         if (g_log_ctx.log_file) {
             fclose(g_log_ctx.log_file);
             g_log_ctx.log_file = NULL;
+            g_log_ctx.log_fd = -1;
         }
         log_queue_destroy(&g_log_ctx.queue);
         return;
@@ -675,6 +690,35 @@ void tefkernel_log_write_net(const tefkernel_log_level_t level, const char *file
 #endif
 }
 
+
+/* ------------------------------------------------------------------ */
+/* 崩溃现场直写：不经过队列/日志线程，避免死锁与丢日志                   */
+/* ------------------------------------------------------------------ */
+void tefkernel_log_crash_printf(const tefkernel_log_level_t level, const char *fmt, ...) {
+    char buf[2048];
+    int n = 0;
+    if (fmt) {
+        va_list ap;
+        va_start(ap, fmt);
+        n = vsnprintf(buf, sizeof(buf) - 2, fmt, ap);
+        va_end(ap);
+    } else {
+        buf[0] = '\0';
+    }
+    if (n < 0) n = 0;
+    if ((size_t) n > sizeof(buf) - 2) n = (int) sizeof(buf) - 2;
+    buf[n++] = '\n';
+    buf[n] = '\0';
+
+#if ANDROID_PLATFORM
+    __android_log_write(get_android_log_level(level), ANDROID_LOG_TAG, buf);
+#endif
+    const int fd = g_log_ctx.log_fd;
+    if (fd >= 0) {
+        /* async-signal-safe */
+        (void) !tef_file_write(fd, buf, (size_t) n);
+    }
+}
 
 void tefkernel_log_cleanup(void) {
     if (g_log_ctx.running) {

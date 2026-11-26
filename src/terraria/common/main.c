@@ -40,6 +40,15 @@ static patch_handle_t cur_release = PATCH_NULL;
 static patch_handle_t instance = PATCH_NULL;
 static patch_handle_t local_player = PATCH_NULL;
 
+/* 内容扩容 + 语言缓存填充是否已经完成。
+ * 手机端 LoadContent_Deferred 会在 LaunchGame 之后、Main.Initialize 期间
+ * 再跑一次 Lang.InitializeLegacyLocalization；此时内核已把
+ * _itemNameCache/_buffDescriptionCache 等扩到 base+custom，原版
+ * FillNameCacheArray 会把 IdClass.Count 这个常量字段也写进缓存：
+ * 第一个自定义 id 拿到 "BuffDescription.Count"/"ItemName.Count" 这类
+ * 未翻译 key，其余自定义槽被重置成 Empty。扩容完成后再补一遍即可。 */
+static bool g_lang_caches_ready = false;
+
 static bool initialize_prefix(patch_handle_t this, void **args,
                                const patch_method_signature_t *sig_info, void *result) {
     if (tefstd_vector_size(&g_terraria_tile_registry)) {
@@ -164,8 +173,13 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
     if (custom_count == 0 && custom_proj == 0 && custom_buff == 0 && custom_npc == 0)
         return;
     TEKLOG_INFO("Main.Initialize completed, final resizing pass...");
-    if (custom_count > 0)
+    if (custom_count > 0) {
         terraria_item_manager_resize(true);
+        /* 自定义物品的 Lang 缓存必须在这里填上：
+         * ContentSamples.Initialize / Item.SetDefaults → RebuildTooltip
+         * 会读取 _itemTooltipCache[自定义 id]。 */
+        terraria_item_manager_init_localized_text();
+    }
     if (custom_proj > 0)
         terraria_projectile_manager_resize();
     if (custom_npc > 0)
@@ -175,8 +189,16 @@ static void initialize_postfix(patch_handle_t this, void **args, void *result,
     if (custom_buff > 0) {
         terraria_buff_manager_resize();
         terraria_buff_manager_raise_count();
+        /* 语言在 Program.RunGame 阶段就已加载；这里先把 Lang._buffNameCache /
+         * _buffDescriptionCache 扩到自定义 id，否则接下来的
+         * ContentSamples.Initialize → 自定义物品 Item.SetDefaults /
+         * RebuildTooltip 里一旦碰到 buffType>=401 就会越界闪退。 */
+        terraria_buff_manager_init_localized_text();
         TEKLOG_INFO("Custom buff tables resized and BuffID.Count raised");
     }
+
+    /* 之后的 Lang.InitializeLegacyLocalization 若再跑，需要重新填充。 */
+    g_lang_caches_ready = true;
 }
 
 
@@ -298,13 +320,56 @@ static void initialize_almost_everything_postfix(patch_handle_t this, void **arg
     /* 图格后期联动（物品掉落自动关联 / DerivedPlacementDetails / 合并 / 自发光 / 小地图） */
     terraria_tile_manager_post_setup_content();
 
+    /* 扩容与首次填充已完成；此后再有 legacy 本地化重建就重新填。 */
+    g_lang_caches_ready = true;
 }
 
 static bool g_is_server = false;
 
+static void legacy_localization_postfix(patch_handle_t this, void **args,
+                                        void *result,
+                                        const patch_method_signature_t *sig_info) {
+    (void) this;
+    (void) args;
+    (void) result;
+    (void) sig_info;
+    if (!g_lang_caches_ready)
+        return;
+
+    /* 各函数都是幂等的：只按 runtime_id 重写缓存，不重复扩容。 */
+    terraria_item_manager_init_localized_text();
+    terraria_projectile_manager_init_localized_text();
+    terraria_buff_manager_init_localized_text();
+    terraria_npc_manager_init_localized_text();
+    terraria_prefix_manager_init_localized_text();
+}
+
+/// 服务端在进入 Program.LaunchGame 之前就初始化内核；安装 Hook 时会提前触发
+/// Terraria.Main 的静态构造，而 Main..cctor 需要 Program.SavePath 非空。
+/// 旧版加载器没有预置该字段，会得到难以理解的 TypeInitializationException，
+/// 这里给出明确提示。
+static void warn_if_save_path_missing(void) {
+    patch_handle_t program_type = patchlib_type_get_type("Terraria", "Program");
+    if (!patchlib_is_valid(program_type))
+        return;
+    patch_handle_t save_path = patchlib_type_get_field(program_type, "SavePath");
+    if (patchlib_is_valid(save_path)) {
+        patch_handle_t value = PATCH_NULL;
+        patchlib_field_get_value(save_path, PATCH_NULL, &value);
+        if (!patchlib_is_valid(value))
+            TEKLOG_WARN("Program.SavePath is NULL before server kernel init; "
+                        "update tefloader (>= the build with SavePath preset) or the server "
+                        "will fail with Terraria.Main TypeInitializationException");
+        patchlib_free(save_path);
+    }
+    patchlib_free(program_type);
+}
+
 void terraria_main_init(const bool is_server) {
     g_is_server = is_server;
     TEKLOG_DEBUG("terraria_main_init: is_server=%d", is_server);
+    if (is_server)
+        warn_if_save_path_missing();
 
     patch_scope {
         patch_own(main_class, patchlib_type_get_type("Terraria", "Main"));
@@ -368,7 +433,29 @@ void terraria_main_init(const bool is_server) {
             else
                 TEKLOG_ERROR("Failed to install Initialize_AlmostEverything hook");
         }
-    }   /* 逆序释放：load_content_method → initialize_method →
+
+        /* Lang.InitializeLegacyLocalization 可能在内容扩容后被再次调用
+         * （手机端 LoadContent_Deferred），会覆盖自定义 id 的名字/说明缓存。 */
+        patch_own(lang_class, patchlib_type_get_type("Terraria", "Lang"));
+        if (patchlib_is_valid(lang_class)) {
+            patch_own(legacy_localization,
+                      patchlib_type_get_method_by_param_count(
+                              lang_class, "InitializeLegacyLocalization", 0));
+            if (patchlib_is_valid(legacy_localization)) {
+                patch_hook_id_t hook_id = patchlib_install_prepost_hook(
+                        legacy_localization, NULL, legacy_localization_postfix);
+                if (hook_id != PATCH_HOOK_INVALID_ID)
+                    TEKLOG_INFO("Lang.InitializeLegacyLocalization hook installed, ID: %d",
+                                hook_id);
+                else
+                    TEKLOG_ERROR("Failed to install Lang.InitializeLegacyLocalization hook");
+            } else {
+                TEKLOG_WARN("Lang.InitializeLegacyLocalization not found");
+            }
+        } else {
+            TEKLOG_WARN("Terraria.Lang not found");
+        }
+    }   /* 逆序释放：legacy_localization → lang_class → load_content_method → initialize_method →
            local_player_property → game_class → main_class */
 
     TEKLOG_DEBUG("terraria_main_init completed");
