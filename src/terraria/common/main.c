@@ -344,9 +344,32 @@ static void legacy_localization_postfix(patch_handle_t this, void **args,
     terraria_prefix_manager_init_localized_text();
 }
 
+/// 服务端在进入 Program.LaunchGame 之前就初始化内核；安装 Hook 时会提前触发
+/// Terraria.Main 的静态构造，而 Main..cctor 需要 Program.SavePath 非空。
+/// 旧版加载器没有预置该字段，会得到难以理解的 TypeInitializationException，
+/// 这里给出明确提示。
+static void warn_if_save_path_missing(void) {
+    patch_handle_t program_type = patchlib_type_get_type("Terraria", "Program");
+    if (!patchlib_is_valid(program_type))
+        return;
+    patch_handle_t save_path = patchlib_type_get_field(program_type, "SavePath");
+    if (patchlib_is_valid(save_path)) {
+        patch_handle_t value = PATCH_NULL;
+        patchlib_field_get_value(save_path, PATCH_NULL, &value);
+        if (!patchlib_is_valid(value))
+            TEKLOG_WARN("Program.SavePath is NULL before server kernel init; "
+                        "update tefloader (>= the build with SavePath preset) or the server "
+                        "will fail with Terraria.Main TypeInitializationException");
+        patchlib_free(save_path);
+    }
+    patchlib_free(program_type);
+}
+
 void terraria_main_init(const bool is_server) {
     g_is_server = is_server;
     TEKLOG_DEBUG("terraria_main_init: is_server=%d", is_server);
+    if (is_server)
+        warn_if_save_path_missing();
 
     patch_scope {
         patch_own(main_class, patchlib_type_get_type("Terraria", "Main"));
