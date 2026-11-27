@@ -80,6 +80,7 @@ static void resize_all_type_tile_arrays(patch_handle_t target_type,
 static void tile_geometry(const terraria_tile_handle_t *tile, int *w, int *h);
 static bool tile_has_geometry(const terraria_tile_handle_t *tile);
 static bool tile_is_multitile(const terraria_tile_handle_t *tile);
+static bool tile_is_extended(const terraria_tile_handle_t *tile);
 static void apply_tile_object_geometry(patch_handle_t cls, patch_handle_t obj,
                                        const terraria_tile_handle_t *tile);
 static void tile_resize_impl(int total);
@@ -844,8 +845,9 @@ static void apply_tile_flags(patch_handle_t main_type) {
         const bool is_frame_important =
                 tile->frame_important ||
                 tile->object_style != TERRARIA_TILE_OBJECT_NONE ||
-                tile_has_geometry(tile) || tile->interactable ||
-                tile->container;
+                tile_has_geometry(tile) ||
+                (tile_is_extended(tile) &&
+                 (tile->interactable || tile->container));
         const bool is_lighted =
                 tile->lighted ||
                 tile->light_r > 0.0f || tile->light_g > 0.0f ||
@@ -868,7 +870,8 @@ static void apply_tile_flags(patch_handle_t main_type) {
         set_main_tile_flag(main_type, "tileSpelunker", id, tile->spelunker);
         set_main_tile_flag(main_type, "tileBouncy", id, tile->bouncy);
         set_main_tile_flag(main_type, "tileBlendAll", id, tile->blend_all);
-        set_main_tile_flag(main_type, "tileContainer", id, tile->container);
+        set_main_tile_flag(main_type, "tileContainer", id,
+                           tile_is_extended(tile) && tile->container);
         set_main_tile_flag(main_type, "tileShine2", id, tile->shine > 0);
         set_main_tile_int(main_type, "tileShine", id,
                           tile->shine > 0 ? tile->shine : 0);
@@ -879,7 +882,7 @@ static void apply_tile_flags(patch_handle_t main_type) {
                     (tile->solid && !tile->solid_top && !is_frame_important);
             set_tile_set_bool(sets_type, "BlockMergesWithMergeAllBlock",
                               id, merge_with_all);
-            if (tile->container)
+            if (tile_is_extended(tile) && tile->container)
                 set_tile_set_bool(sets_type, "IsAContainer", id, true);
             if (tile->object_style == TERRARIA_TILE_OBJECT_PLATFORM) {
                 set_tile_set_bool(sets_type, "Platforms", id, true);
@@ -1253,7 +1256,54 @@ static void map_helper_init_postfix(patch_handle_t this, void **args,
     apply_custom_tile_map_entries();
 }
 
-bool terraria_tile_manager_register_tile(terraria_tile_handle_t *tile) {
+/* ---------------- 扩展字段开关（ABI 渐进升级） ----------------
+ * 旧模块用旧头文件编译，分配的句柄比新结构体小；直接读新字段会越界。
+ * 只有显式调用 register_tile_ext 的句柄才允许读取扩展字段。 */
+#define TILE_EXT_MAX 1024
+typedef struct {
+    const terraria_tile_handle_t *tile;
+    bool extended;
+} tile_ext_entry_t;
+
+static tile_ext_entry_t g_tile_ext[TILE_EXT_MAX];
+static size_t g_tile_ext_count = 0;
+
+static bool tile_is_extended(const terraria_tile_handle_t *tile) {
+    if (!tile) return false;
+    for (size_t i = 0; i < g_tile_ext_count; ++i)
+        if (g_tile_ext[i].tile == tile)
+            return g_tile_ext[i].extended;
+    return false;
+}
+
+static void tile_ext_set(const terraria_tile_handle_t *tile, bool extended) {
+    if (!tile) return;
+    for (size_t i = 0; i < g_tile_ext_count; ++i) {
+        if (g_tile_ext[i].tile == tile) {
+            g_tile_ext[i].extended = extended;
+            return;
+        }
+    }
+    if (g_tile_ext_count >= TILE_EXT_MAX) {
+        TEKLOG_WARN("tile ext table full (%d)", TILE_EXT_MAX);
+        return;
+    }
+    g_tile_ext[g_tile_ext_count].tile = tile;
+    g_tile_ext[g_tile_ext_count].extended = extended;
+    g_tile_ext_count++;
+}
+
+static void tile_ext_remove(const terraria_tile_handle_t *tile) {
+    for (size_t i = 0; i < g_tile_ext_count; ++i) {
+        if (g_tile_ext[i].tile == tile) {
+            g_tile_ext[i] = g_tile_ext[g_tile_ext_count - 1];
+            g_tile_ext_count--;
+            return;
+        }
+    }
+}
+
+static bool register_tile_impl(terraria_tile_handle_t *tile, bool extended) {
     if (!tile || !tile->parent_modloader_id ||
         !tile->parent_id || !tile->internal_name) {
         return false;
@@ -1270,14 +1320,33 @@ bool terraria_tile_manager_register_tile(terraria_tile_handle_t *tile) {
 
         if (tiles_match(*existing_ptr, tile)) {
             tile->runtime_id = (*existing_ptr)->runtime_id;
+            tile_ext_remove(*existing_ptr);
             *existing_ptr = tile;
+            tile_ext_set(tile, extended);
             return true;
         }
     }
 
     tile->runtime_id = -1;
-    return tefstd_vector_push_back(
+    const bool ok = tefstd_vector_push_back(
             &g_terraria_tile_registry, &tile);
+    if (ok)
+        tile_ext_set(tile, extended);
+    return ok;
+}
+
+bool terraria_tile_manager_register_tile(terraria_tile_handle_t *tile) {
+    return register_tile_impl(tile, false);
+}
+
+bool terraria_tile_manager_register_tile_ext(terraria_tile_handle_t *tile,
+                                             size_t struct_size) {
+    if (!tile || struct_size < sizeof(terraria_tile_handle_t)) {
+        TEKLOG_ERROR("register_tile_ext: struct_size %zu < %zu（请用新头文件重新编译）",
+                     struct_size, sizeof(terraria_tile_handle_t));
+        return false;
+    }
+    return register_tile_impl(tile, true);
 }
 
 bool terraria_tile_manager_unregister_tile(terraria_tile_handle_t *tile) {
@@ -1296,6 +1365,8 @@ bool terraria_tile_manager_unregister_tile(terraria_tile_handle_t *tile) {
 
         const bool removed = tefstd_vector_erase(
                 &g_terraria_tile_registry, i, PATCH_NULL);
+        if (removed)
+            tile_ext_remove(tile);
         if (removed && g_ids_assigned) {
             terraria_tile_manager_assign_ids();
             terraria_tile_manager_resize();
@@ -1677,11 +1748,14 @@ static void tile_style_size(terraria_tile_object_style_t style, int *w, int *h) 
 static void tile_geometry(const terraria_tile_handle_t *tile, int *w, int *h) {
     int sw = 1, sh = 1;
     tile_style_size(tile->object_style, &sw, &sh);
-    if (w) *w = tile->tile_width > 0 ? tile->tile_width : sw;
-    if (h) *h = tile->tile_height > 0 ? tile->tile_height : sh;
+    const bool ext = tile_is_extended(tile);
+    if (w) *w = (ext && tile->tile_width > 0) ? tile->tile_width : sw;
+    if (h) *h = (ext && tile->tile_height > 0) ? tile->tile_height : sh;
 }
 
 static bool tile_has_geometry(const terraria_tile_handle_t *tile) {
+    if (!tile_is_extended(tile))
+        return false;
     return tile->tile_width > 0 || tile->tile_height > 0 ||
            tile->origin_x != 0 || tile->origin_y != 0 ||
            tile->coordinate_width > 0 || tile->coordinate_padding > 0 ||
@@ -3376,11 +3450,12 @@ static patch_handle_t g_f_player_use_happened = PATCH_NULL;
 static patch_handle_t g_m_player_open_chest = PATCH_NULL;
 
 static bool tile_is_container(const terraria_tile_handle_t *t) {
-    return t && t->container && t->runtime_id >= g_vanilla_tile_count;
+    return t && tile_is_extended(t) && t->container &&
+           t->runtime_id >= g_vanilla_tile_count;
 }
 
 static bool tile_is_interactive(const terraria_tile_handle_t *t) {
-    return t && (t->container || t->interactable);
+    return t && tile_is_extended(t) && (t->container || t->interactable);
 }
 
 static void ensure_container_api(void) {
@@ -3850,7 +3925,7 @@ static void ensure_interaction_hooks(void) {
         terraria_tile_handle_t *t =
                 *(terraria_tile_handle_t **)tefstd_vector_at(
                         &g_terraria_tile_registry, i);
-        if (!t) continue;
+        if (!t || !tile_is_extended(t)) continue;
         if (t->container) any_container = true;
         if (t->interactable || t->container) any_interactive = true;
     }

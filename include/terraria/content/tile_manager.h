@@ -12,6 +12,7 @@
 #include "../../tef_api.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -191,6 +192,16 @@ typedef struct terraria_tile_handle_t {
  */
 DEFINE_FUNCTION(bool, terraria_tile_manager_register_tile,
                 terraria_tile_handle_t *tile)
+
+/**
+ * 注册带“扩展字段”的图格（多格几何 / 交互 / 容器）。
+ *
+ * terraria_tile_handle_t 在 1.4.5 追加了新字段；为了让旧模块（用旧头文件编译、
+ * 只调用 register_tile）仍然安全，旧接口注册的句柄不会读取任何新字段。
+ * 需要新能力时必须用本函数，并把 sizeof(*tile) 传进来。
+ */
+DEFINE_FUNCTION(bool, terraria_tile_manager_register_tile_ext,
+                terraria_tile_handle_t *tile, size_t struct_size)
 
 /** Remove a previously registered tile. */
 DEFINE_FUNCTION(bool, terraria_tile_manager_unregister_tile,
