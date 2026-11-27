@@ -3208,7 +3208,8 @@ static bool read_tile_at(int x, int y, unsigned short *out_type,
     patchlib_free(tile);
 
     if (out_type) *out_type = type;
-    if (out_active) *out_active = (header & 1) != 0 && type != 0;
+    /* 1.4.6: Tile.active() == (sTileHeader & 0x20) != 0 */
+    if (out_active) *out_active = (header & 0x20) != 0 && type != 0;
     if (out_frame_x) *out_frame_x = fx;
     if (out_frame_y) *out_frame_y = fy;
     return true;
