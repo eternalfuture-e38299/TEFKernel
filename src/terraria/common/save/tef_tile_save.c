@@ -617,7 +617,51 @@ static void load_file_format_header_postfix(patch_handle_t this, void **args,
     }
 
     *target = bigger;
-    TEKLOG_INFO("tef_tile_save: importance %zu -> %d", length, required);
+
+    /* 关键：新增的位默认是 false。自定义图格如果 frameImportant，
+     * 存档里是写了 frameX/frameY 的（SaveTiles 用运行时 Main.tileFrameImportant），
+     * 但 PE 的存档头被编译期常量写死成 754 位，读档时 importance[754] 只能靠
+     * 我们补。若补成 false，LoadWorldTiles 会跳过本该读取的帧数据，
+     * 之后整段字节错位 → 世界加载失败（表现为“坏档”）。
+     *
+     * 这里按运行时 Main.tileFrameImportant（内核 apply_tile_flags 已按注册
+     * 图格设好）补齐 [length, required) 区间。 */
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    patch_handle_t f_imp = PATCH_NULL;
+    patch_handle_t src_imp = PATCH_NULL;
+    if (patchlib_is_valid(main_cls)) {
+        f_imp = patchlib_type_get_field(main_cls, "tileFrameImportant");
+        if (patchlib_is_valid(f_imp)) {
+            patchlib_field_get_value(f_imp, PATCH_NULL, &src_imp);
+        }
+    }
+    const size_t src_len =
+            patchlib_is_valid(src_imp) ? patchlib_array_length(src_imp) : 0;
+    int filled = 0, frame_important_added = 0;
+    for (size_t i = length; i < (size_t)required; ++i) {
+        unsigned char byte = 0;
+        if (i < src_len && patchlib_is_valid(src_imp)) {
+            unsigned char src_byte = 0;
+            if (patchlib_array_at(src_imp, i, &src_byte)) {
+                byte = src_byte ? 1 : 0;
+            }
+        }
+        if (patchlib_array_set(bigger, i, &byte)) {
+            ++filled;
+            if (byte)
+                ++frame_important_added;
+        }
+    }
+    if (patchlib_is_valid(src_imp))
+        patchlib_free(src_imp);
+    if (patchlib_is_valid(f_imp))
+        patchlib_free(f_imp);
+    if (patchlib_is_valid(main_cls))
+        patchlib_free(main_cls);
+
+    TEKLOG_INFO("tef_tile_save: importance %zu -> %d "
+                "(filled=%d, frameImportant=%d)",
+                length, required, filled, frame_important_added);
     patchlib_free(bigger);
 }
 #endif /* __ANDROID__ */
