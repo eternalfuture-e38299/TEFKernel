@@ -905,6 +905,8 @@ static void resize_all_type_tile_arrays(patch_handle_t target_type,
     }
 #endif
 
+    const char *target_name = patchlib_type_get_name(target_type);
+
     tefstd_vector_t fields;
     tefstd_vector_init(&fields, sizeof(patch_handle_t));
     patchlib_type_get_fields(target_type, false, &fields);
@@ -931,6 +933,15 @@ static void resize_all_type_tile_arrays(patch_handle_t target_type,
             if (patchlib_is_valid(field_type)) {
                 patchlib_free(field_type);
             }
+            patchlib_free(field);
+            continue;
+        }
+
+        /* TextureAssets.Tile 必须在原版 LoadTextures 之后再扩，否则原版会去
+         * 加载不存在的 Images/Tiles_<自定义ID>。由 init_textures 负责。 */
+        if (target_name && strcmp(target_name, "TextureAssets") == 0 &&
+            strcmp(patchlib_field_get_name(field), "Tile") == 0) {
+            if (patchlib_is_valid(field_type)) patchlib_free(field_type);
             patchlib_free(field);
             continue;
         }
@@ -1567,7 +1578,19 @@ static void fill_unregistered_tile_assets(patch_handle_t textures,
     patchlib_free(fallback);
 }
 
+static bool g_tile_textures_hooked = false;
+
+static void tile_init_textures_impl(void);
+
 void terraria_tile_manager_init_textures(void) {
+    /* 如果 LoadTextures 后置钩子安装成功，就等它加载完原版贴图再扩数组，
+     * 否则原版会去加载不存在的 Images/Tiles_<自定义ID>。 */
+    if (g_tile_textures_hooked)
+        return;
+    tile_init_textures_impl();
+}
+
+static void tile_init_textures_impl(void) {
     const size_t custom_count =
             tefstd_vector_size(&g_terraria_tile_registry);
     const int total = g_tile_capacity > 0
@@ -3358,6 +3381,7 @@ static void validate_multitile_at(int i, int j, terraria_tile_handle_t *h) {
 static patch_hook_id_t h_player_tile_use = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_tile_object_place = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_world_kill_tile = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_tile_load_textures = PATCH_HOOK_INVALID_ID;
 
 static patch_handle_t g_chest_cls = PATCH_NULL;
 static patch_handle_t g_chest_item_field = PATCH_NULL;
@@ -3909,6 +3933,16 @@ static void ensure_interaction_hooks(void) {
     }
 }
 
+static void tile_load_textures_postfix(patch_handle_t this, void **args,
+                                       void *result,
+                                       const patch_method_signature_t *sig) {
+    (void)this;
+    (void)args;
+    (void)result;
+    (void)sig;
+    tile_init_textures_impl();
+}
+
 /* ---------------- 生命周期 ---------------- */
 
 void terraria_tile_manager_init(void) {
@@ -4003,6 +4037,28 @@ void terraria_tile_manager_init(void) {
         patchlib_free(wg);
     }
 
+    /* 原版加载贴图后再扩 TextureAssets.Tile，避免 LoadAsset(Images/Tiles_<自定义ID>) */
+    if (patchlib_is_valid(g_tile_textures_field)) {
+        patch_handle_t ai = patchlib_type_get_type(
+                "Terraria.Initializers", "AssetInitializer");
+        if (patchlib_is_valid(ai)) {
+            /* 挂在 Load(bool) 之后：它只在资源加载流程结束时调用一次，
+             * 移动端即使内部多次 LoadTextures 也不会在扩数组后重复加载。 */
+            patch_handle_t m = patchlib_type_get_method_by_param_count(ai, "Load", 1);
+            if (patchlib_is_valid(m)) {
+                h_tile_load_textures = patchlib_install_prepost_hook(
+                        m, NULL, tile_load_textures_postfix);
+                if (h_tile_load_textures != PATCH_HOOK_INVALID_ID) {
+                    g_tile_textures_hooked = true;
+                    TEKLOG_INFO("tile textures: deferred to LoadTextures postfix (hook=%d)",
+                                (int)h_tile_load_textures);
+                }
+                patchlib_free(m);
+            }
+            patchlib_free(ai);
+        }
+    }
+
     /* MapHelper：初始化补扩 + 自定义图例背景过滤 */
     patch_handle_t map_helper =
             patchlib_type_get_type("Terraria.Map", "MapHelper");
@@ -4057,6 +4113,7 @@ void terraria_tile_manager_destroy(void) {
         &h_player_tile_use,
         &h_tile_object_place,
         &h_world_kill_tile,
+        &h_tile_load_textures,
 #if !defined(__ANDROID__)
         &h_apply_tile_light,
 #endif
