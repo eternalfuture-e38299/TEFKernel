@@ -28,8 +28,7 @@ terraria_tile_handle_t bed = {
     .draw_y_offset = 0,
     .anchor_wall = false,       /* true = 不需要下方支撑 */
 };
-/* 新能力必须用 _ext 注册（旧接口为兼容旧模块，不会读取任何新增字段） */
-terraria_tile_manager_register_tile_ext(&bed, sizeof(bed));
+terraria_tile_manager_register_tile(&bed);
 ```
 
 TEFKernel 会：
@@ -87,8 +86,4 @@ terraria_tile_manager_get_origin(&chest, x, y, &ox, &oy);
 
 PC 用 `Item[]` 槽位，Android 用 `ChestItem[]`（值类型结构），差异已在内核内部处理。
 
-> 注意：
-> 1. 世界尚未加载时（`Main.tile` 为 null）槽位接口会安全返回 false；
-> 2. `terraria_tile_handle_t` 在 1.4.5 追加了字段，旧模块若只用
->    `terraria_tile_manager_register_tile()` 注册，内核不会读取新字段（安全，
->    但多格/交互/容器不生效）；要用新能力请改用 `_ext` 并传入 `sizeof(*tile)`。
+> 注意：世界尚未加载时（`Main.tile` 为 null）槽位接口会安全返回 false。
