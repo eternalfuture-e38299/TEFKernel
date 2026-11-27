@@ -3257,9 +3257,21 @@ static bool tile_is_support_tile(int type) {
         f_solid = patchlib_type_get_field(main_cls, "tileSolid");
     if (!patchlib_is_valid(f_table))
         f_table = patchlib_type_get_field(main_cls, "tileTable");
+    static patch_handle_t f_platforms = PATCH_NULL;
+    if (!patchlib_is_valid(f_platforms)) {
+        patch_handle_t tid = patchlib_type_get_type("Terraria.ID", "TileID");
+        if (patchlib_is_valid(tid)) {
+            patch_handle_t sets = patchlib_type_get_inner_type(tid, "Sets");
+            if (patchlib_is_valid(sets)) {
+                f_platforms = patchlib_type_get_field(sets, "Platforms");
+                patchlib_free(sets);
+            }
+            patchlib_free(tid);
+        }
+    }
     bool ok = false;
-    patch_handle_t fields[2] = {f_solid, f_table};
-    for (int i = 0; i < 2 && !ok; ++i) {
+    patch_handle_t fields[3] = {f_solid, f_table, f_platforms};
+    for (int i = 0; i < 3 && !ok; ++i) {
         if (!patchlib_is_valid(fields[i]))
             continue;
         patch_handle_t arr = PATCH_NULL;
