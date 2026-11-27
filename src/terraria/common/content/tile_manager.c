@@ -3395,6 +3395,7 @@ static patch_hook_id_t h_player_tile_use = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_tile_object_place = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_world_kill_tile = PATCH_HOOK_INVALID_ID;
 static patch_hook_id_t h_tile_load_textures = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_interaction_range = PATCH_HOOK_INVALID_ID;
 
 static patch_handle_t g_chest_cls = PATCH_NULL;
 static patch_handle_t g_chest_item_field = PATCH_NULL;
@@ -3813,6 +3814,99 @@ static void player_set_bool(patch_handle_t field, patch_handle_t player,
     patchlib_field_set_value(field, player, &v);
 }
 
+/* 原版 IsInInteractionRangeToMultiTileHitbox 只认识 BasicChest 等固定类型，
+ * 自定义容器会得到空矩形并每帧判定“太远”而关闭箱子。这里用自己的几何覆盖。 */
+static bool player_reach_contains(patch_handle_t player, int tx, int ty) {
+    static patch_handle_t f_range_x = PATCH_NULL, f_range_y = PATCH_NULL;
+    static patch_handle_t f_pos = PATCH_NULL, f_w = PATCH_NULL, f_h = PATCH_NULL;
+    if (!patchlib_is_valid(f_range_x)) {
+        patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            f_range_x = patchlib_type_get_field(main_cls, "tileRangeX");
+            f_range_y = patchlib_type_get_field(main_cls, "tileRangeY");
+            patchlib_free(main_cls);
+        }
+        if (patchlib_is_valid(g_player_cls)) {
+            f_pos = patchlib_type_get_field(g_player_cls, "position");
+            f_w = patchlib_type_get_field(g_player_cls, "width");
+            f_h = patchlib_type_get_field(g_player_cls, "height");
+        }
+    }
+    if (!patchlib_is_valid(f_pos) || !patchlib_is_valid(f_w) || !patchlib_is_valid(f_h))
+        return true;
+    struct { float x, y; } pos = {0, 0};
+    int pw = 0, ph = 0;
+    patchlib_field_get_value(f_pos, player, &pos);
+    patchlib_field_get_value(f_w, player, &pw);
+    patchlib_field_get_value(f_h, player, &ph);
+
+    int rx = 0, ry = 0;
+    if (patchlib_is_valid(f_range_x))
+        patchlib_field_get_value(f_range_x, PATCH_NULL, &rx);
+    if (patchlib_is_valid(f_range_y))
+        patchlib_field_get_value(f_range_y, PATCH_NULL, &ry);
+    if (rx > 20) rx = 20;
+    if (ry > 20) ry = 20;
+
+    const float lx = pos.x / 16.0f;
+    const float ly = pos.y / 16.0f;
+    const int min_x = (int)lx - rx;
+    const int max_x = (int)((pos.x + pw) / 16.0f + 1.0f) - 1 + rx;
+    const int min_y = (int)ly - ry;
+    const int max_y = (int)((pos.y + ph) / 16.0f + 1.0f) - 1 + ry;
+    return tx >= min_x && tx <= max_x && ty >= min_y && ty <= max_y;
+}
+
+/* 原版查找/关闭箱子时用：给自定义容器返回真实的命中范围判定。 */
+static bool interaction_range_prefix(patch_handle_t this, void **args,
+                                     const patch_method_signature_t *sig,
+                                     void *result) {
+    (void)sig;
+    if (!args || !args[0] || !args[1] || !result || !patchlib_is_valid(this))
+        return false;
+    const int cx = *(const int *)args[0];
+    const int cy = *(const int *)args[1];
+
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(cx, cy, &type, &active, &fx, &fy) || !active)
+        return false;
+    terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+    if (!tile_is_container(h))
+        return false;
+
+    int w = 1, hh = 1;
+    tile_geometry(h, &w, &hh);
+    /* 容器矩形：以 origin 为左上角，按格数换算像素，再像原版一样内缩 1px */
+    const float left = (float)cx * 16.0f + 1.0f;
+    const float top = (float)cy * 16.0f + 1.0f;
+    const float right = (float)(cx + w) * 16.0f - 1.0f;
+    const float bottom = (float)(cy + hh) * 16.0f - 1.0f;
+
+    struct { float x, y; } pos = {0, 0};
+    int pw = 0, ph = 0;
+    if (patchlib_is_valid(g_player_cls)) {
+        static patch_handle_t f_pos = PATCH_NULL, f_w = PATCH_NULL, f_h = PATCH_NULL;
+        if (!patchlib_is_valid(f_pos)) {
+            f_pos = patchlib_type_get_field(g_player_cls, "position");
+            f_w = patchlib_type_get_field(g_player_cls, "width");
+            f_h = patchlib_type_get_field(g_player_cls, "height");
+        }
+        if (patchlib_is_valid(f_pos)) patchlib_field_get_value(f_pos, this, &pos);
+        if (patchlib_is_valid(f_w)) patchlib_field_get_value(f_w, this, &pw);
+        if (patchlib_is_valid(f_h)) patchlib_field_get_value(f_h, this, &ph);
+    }
+    const float center_x = pos.x + (float)pw * 0.5f;
+    const float center_y = pos.y + (float)ph * 0.5f;
+    const float cxp = center_x < left ? left : (center_x > right ? right : center_x);
+    const float cyp = center_y < top ? top : (center_y > bottom ? bottom : center_y);
+    const int tx = (int)(cxp / 16.0f);
+    const int ty = (int)(cyp / 16.0f);
+    *(bool *)result = player_reach_contains(this, tx, ty);
+    return true;
+}
+
 static void consume_tile_use(patch_handle_t player) {
     player_set_bool(g_f_player_release_use, player, false);
     player_set_bool(g_f_player_use_happened, player, true);
@@ -3927,6 +4021,22 @@ static void ensure_interaction_hooks(void) {
                 patchlib_free(m);
             }
             patchlib_free(obj);
+        }
+    }
+
+    if (h_interaction_range == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t player_cls = patchlib_type_get_type("Terraria", "Player");
+        if (patchlib_is_valid(player_cls)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    player_cls, "IsInInteractionRangeToMultiTileHitbox", 2);
+            if (patchlib_is_valid(m)) {
+                h_interaction_range = patchlib_install_prepost_hook(
+                        m, interaction_range_prefix, NULL);
+                TEKLOG_INFO("tile container: interaction range hook=%d",
+                            (int)h_interaction_range);
+                patchlib_free(m);
+            }
+            patchlib_free(player_cls);
         }
     }
 
@@ -4127,6 +4237,7 @@ void terraria_tile_manager_destroy(void) {
         &h_tile_object_place,
         &h_world_kill_tile,
         &h_tile_load_textures,
+        &h_interaction_range,
 #if !defined(__ANDROID__)
         &h_apply_tile_light,
 #endif
