@@ -1226,6 +1226,12 @@ void tpf_init_libtefkernel() {
     TPF_KERNEL_SYMBOL(terraria_tile_manager_find_tile);
     TPF_KERNEL_SYMBOL(terraria_tile_id_get_count);
     TPF_KERNEL_SYMBOL(terraria_tile_manager_set_merge);
+    TPF_KERNEL_SYMBOL(terraria_tile_manager_get_origin);
+    TPF_KERNEL_SYMBOL(terraria_tile_container_slot_count);
+    TPF_KERNEL_SYMBOL(terraria_tile_container_index);
+    TPF_KERNEL_SYMBOL(terraria_tile_container_get_slot);
+    TPF_KERNEL_SYMBOL(terraria_tile_container_set_slot);
+    TPF_KERNEL_SYMBOL(terraria_tile_container_clear);
 
     // gui
     TPF_KERNEL_SYMBOL(terraria_gui_add_draw);

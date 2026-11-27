@@ -59,6 +59,15 @@ typedef struct terraria_tile_ops_t {
      */
     bool (*get_light)(terraria_tile_handle_t *tile, int x, int y,
                       float *out_r, float *out_g, float *out_b);
+
+    /**
+     * 右键（使用键）交互回调，仅在 interactable == true 时调用。
+     * x/y 是玩家点击的那一格（多格图格时不一定是最左上角）。
+     * 返回 true 表示已处理，TEFKernel 会吞掉这次使用键事件；
+     * 返回 false 则继续交给原版逻辑。
+     */
+    bool (*on_interact)(terraria_tile_handle_t *tile, int x, int y,
+                        int player_index);
 } terraria_tile_ops_t;
 
 typedef struct terraria_tile_handle_t {
@@ -137,6 +146,41 @@ typedef struct terraria_tile_handle_t {
     unsigned char map_g;
     unsigned char map_b;
     bool has_map_name;
+
+    /* ================= 多格图格（TileObjectData 几何） =================
+     * 0 表示沿用 object_style 预设；tile_width/tile_height > 0 时覆盖预设尺寸。
+     * 例如 4x2 的床：tile_width=4, tile_height=2。
+     * 未设置坐标参数时使用 Terraria 家具的通用默认值：
+     *   coordinate_width=16, coordinate_padding=2, 每行高度=16。 */
+    int tile_width;
+    int tile_height;
+    /** 纹理原点（相对左上角，单位：格），一般 0,0。 */
+    int origin_x;
+    int origin_y;
+    /** 每格的像素宽/高与间隔（0 = 16 / 16 / 2）。 */
+    int coordinate_width;
+    int coordinate_padding;
+    const int *coordinate_heights;   /**< 可选：每行像素高度数组 */
+    int coordinate_height_count;
+    /** 横向排布样式（多套纹理时使用）；0 表示不修改。 */
+    int style_wrap_limit;
+    int style_multiplier;
+    int style_line_skip;
+    int draw_y_offset;
+    bool style_horizontal;
+    /** 不需要下方支撑（墙挂类图格）。 */
+    bool anchor_wall;
+
+    /* ================= 交互图格 ================= */
+    /** 允许右键交互；需要在 tile_ops.on_interact 里处理。 */
+    bool interactable;
+
+    /* ================= 物品槽位（容器） =================
+     * container=true 时，放下后会像箱子一样创建 Chest 记录，
+     * 右键打开、破坏时校验/清理，槽位通过下面三个接口读写。
+     * container_slots: 1..40，0 表示 40。 */
+    bool container;
+    int container_slots;
 } terraria_tile_handle_t;
 
 /**
@@ -166,6 +210,35 @@ DEFINE_FUNCTION(int, terraria_tile_id_get_count, void)
 /** Set symmetric Main.tileMerge[a][b] and ChecksForMerge flags at runtime. */
 DEFINE_FUNCTION(void, terraria_tile_manager_set_merge,
                 int tile_a, int tile_b, bool merge)
+
+/* ==================== 容器（物品槽位） ==================== */
+
+/** 计算 (x,y) 所在多格图格的左上角坐标（非多格图格返回自身）。 */
+DEFINE_FUNCTION(void, terraria_tile_manager_get_origin,
+                terraria_tile_handle_t *tile, int x, int y,
+                int *out_x, int *out_y)
+
+/** 返回该容器实际可用的槽位数（container_slots，0 视为 40）。 */
+DEFINE_FUNCTION(int, terraria_tile_container_slot_count,
+                terraria_tile_handle_t *tile)
+
+/** 查找 (x,y) 所在容器对应的 Chest 索引，没有则返回 -1。 */
+DEFINE_FUNCTION(int, terraria_tile_container_index,
+                terraria_tile_handle_t *tile, int x, int y)
+
+/** 读取槽位；成功返回 true。 */
+DEFINE_FUNCTION(bool, terraria_tile_container_get_slot,
+                terraria_tile_handle_t *tile, int x, int y, int slot,
+                int *out_item_id, int *out_stack, int *out_prefix)
+
+/** 写入槽位；item_id <= 0 表示清空该槽。成功返回 true。 */
+DEFINE_FUNCTION(bool, terraria_tile_container_set_slot,
+                terraria_tile_handle_t *tile, int x, int y, int slot,
+                int item_id, int stack, int prefix)
+
+/** 清空整个容器。 */
+DEFINE_FUNCTION(bool, terraria_tile_container_clear,
+                terraria_tile_handle_t *tile, int x, int y)
 
 #ifdef __cplusplus
 }

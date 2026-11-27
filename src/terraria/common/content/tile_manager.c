@@ -12,11 +12,13 @@
 #include "internal/terraria/entity.h"
 #include "patchlib/field.h"
 #include "patchlib/method.h"
+#include "patchlib/property.h"
 #include "patchlib/struct/array.h"
 #if defined(__ANDROID__)
 #include "patchlib/il2cpp_api.h"
 #endif
 #include "patchlib/struct/list.h"
+#include "patchlib/struct/string.h"
 #include "patchlib/type.h"
 #include "terraria/asset.h"
 #include "terraria/language_manager.h"
@@ -77,6 +79,11 @@ tefstd_vector_t g_terraria_tile_registry;
 /* 提前声明 */
 static void resize_all_type_tile_arrays(patch_handle_t target_type,
                                         int new_size);
+static void tile_geometry(const terraria_tile_handle_t *tile, int *w, int *h);
+static bool tile_has_geometry(const terraria_tile_handle_t *tile);
+static bool tile_is_multitile(const terraria_tile_handle_t *tile);
+static void apply_tile_object_geometry(patch_handle_t cls, patch_handle_t obj,
+                                       const terraria_tile_handle_t *tile);
 static void tile_resize_impl(int total);
 static bool set_bool_array_element(patch_handle_t array, size_t index,
                                    bool value);
@@ -838,7 +845,9 @@ static void apply_tile_flags(patch_handle_t main_type) {
         const int id = tile->runtime_id;
         const bool is_frame_important =
                 tile->frame_important ||
-                tile->object_style != TERRARIA_TILE_OBJECT_NONE;
+                tile->object_style != TERRARIA_TILE_OBJECT_NONE ||
+                tile_has_geometry(tile) || tile->interactable ||
+                tile->container;
         const bool is_lighted =
                 tile->lighted ||
                 tile->light_r > 0.0f || tile->light_g > 0.0f ||
@@ -861,6 +870,7 @@ static void apply_tile_flags(patch_handle_t main_type) {
         set_main_tile_flag(main_type, "tileSpelunker", id, tile->spelunker);
         set_main_tile_flag(main_type, "tileBouncy", id, tile->bouncy);
         set_main_tile_flag(main_type, "tileBlendAll", id, tile->blend_all);
+        set_main_tile_flag(main_type, "tileContainer", id, tile->container);
         set_main_tile_flag(main_type, "tileShine2", id, tile->shine > 0);
         set_main_tile_int(main_type, "tileShine", id,
                           tile->shine > 0 ? tile->shine : 0);
@@ -871,6 +881,15 @@ static void apply_tile_flags(patch_handle_t main_type) {
                     (tile->solid && !tile->solid_top && !is_frame_important);
             set_tile_set_bool(sets_type, "BlockMergesWithMergeAllBlock",
                               id, merge_with_all);
+            if (tile->container)
+                set_tile_set_bool(sets_type, "IsAContainer", id, true);
+            /* 容器/可交互图格要参与高亮描边：PE 的触摸命中与智能光标高亮
+             * 都会查 Main.IsInteractionHighlighted，而它依赖
+             * TileID.Sets.HasOutlines + TextureAssets.HighlightMask。
+             * 之前只扩了 HighlightMask 数组，没置 HasOutlines，所以既不亮
+             * 也点不到。 */
+            if (tile->container || tile->interactable)
+                set_tile_set_bool(sets_type, "HasOutlines", id, true);
             if (tile->object_style == TERRARIA_TILE_OBJECT_PLATFORM) {
                 set_tile_set_bool(sets_type, "Platforms", id, true);
             } else if (tile->object_style == TERRARIA_TILE_OBJECT_TORCH) {
@@ -894,6 +913,8 @@ static void resize_all_type_tile_arrays(patch_handle_t target_type,
         il2cpp_runtime_class_init((void *)target_type);
     }
 #endif
+
+    const char *target_name = patchlib_type_get_name(target_type);
 
     tefstd_vector_t fields;
     tefstd_vector_init(&fields, sizeof(patch_handle_t));
@@ -921,6 +942,15 @@ static void resize_all_type_tile_arrays(patch_handle_t target_type,
             if (patchlib_is_valid(field_type)) {
                 patchlib_free(field_type);
             }
+            patchlib_free(field);
+            continue;
+        }
+
+        /* TextureAssets.Tile 必须在原版 LoadTextures 之后再扩，否则原版会去
+         * 加载不存在的 Images/Tiles_<自定义ID>。由 init_textures 负责。 */
+        if (target_name && strcmp(target_name, "TextureAssets") == 0 &&
+            strcmp(patchlib_field_get_name(field), "Tile") == 0) {
+            if (patchlib_is_valid(field_type)) patchlib_free(field_type);
             patchlib_free(field);
             continue;
         }
@@ -1198,6 +1228,11 @@ static void resize_instance_type_tables(int new_size) {
 
 /* 前向声明 */
 static void apply_custom_tile_map_entries(void);
+static void validate_multitile_at(int i, int j, terraria_tile_handle_t *h);
+static void ensure_interaction_hooks(void);
+static bool read_tile_at(int x, int y, unsigned short *out_type,
+                         bool *out_active, short *out_frame_x,
+                         short *out_frame_y);
 
 /* MapHelper.Initialize 在 Main.Initialize 体内才跑，之前扩容会被跳过，
  * 于是 tileOptionCounts/tileLookup 停在 754（地图保存/加载按
@@ -1552,7 +1587,19 @@ static void fill_unregistered_tile_assets(patch_handle_t textures,
     patchlib_free(fallback);
 }
 
+static bool g_tile_textures_hooked = false;
+
+static void tile_init_textures_impl(void);
+
 void terraria_tile_manager_init_textures(void) {
+    /* 如果 LoadTextures 后置钩子安装成功，就等它加载完原版贴图再扩数组，
+     * 否则原版会去加载不存在的 Images/Tiles_<自定义ID>。 */
+    if (g_tile_textures_hooked)
+        return;
+    tile_init_textures_impl();
+}
+
+static void tile_init_textures_impl(void) {
     const size_t custom_count =
             tefstd_vector_size(&g_terraria_tile_registry);
     const int total = g_tile_capacity > 0
@@ -1635,15 +1682,174 @@ static void set_tile_property_bool(patch_handle_t type, patch_handle_t obj,
     }
 }
 
+
+/* ---------------- 多格图格几何（TileObjectData） ---------------- */
+
+static void tile_style_size(terraria_tile_object_style_t style, int *w, int *h) {
+    int sw = 1, sh = 1;
+    switch (style) {
+        case TERRARIA_TILE_OBJECT_CHAIR:
+        case TERRARIA_TILE_OBJECT_SAPLING:
+        case TERRARIA_TILE_OBJECT_STYLE_1X2: sh = 2; break;
+        case TERRARIA_TILE_OBJECT_WORKBENCH:
+        case TERRARIA_TILE_OBJECT_STYLE_2X1: sw = 2; break;
+        case TERRARIA_TILE_OBJECT_TABLE:
+        case TERRARIA_TILE_OBJECT_STYLE_3X2: sw = 3; sh = 2; break;
+        case TERRARIA_TILE_OBJECT_BANNER:
+        case TERRARIA_TILE_OBJECT_CLOSED_DOOR: sh = 3; break;
+        case TERRARIA_TILE_OBJECT_STYLE_2X2: sw = 2; sh = 2; break;
+        case TERRARIA_TILE_OBJECT_STYLE_3X3:
+        case TERRARIA_TILE_OBJECT_STYLE_3X3_WALL: sw = 3; sh = 3; break;
+        default: break;
+    }
+    if (w) *w = sw;
+    if (h) *h = sh;
+}
+
+static void tile_geometry(const terraria_tile_handle_t *tile, int *w, int *h) {
+    int sw = 1, sh = 1;
+    tile_style_size(tile->object_style, &sw, &sh);
+    if (w) *w = tile->tile_width > 0 ? tile->tile_width : sw;
+    if (h) *h = tile->tile_height > 0 ? tile->tile_height : sh;
+}
+
+static bool tile_has_geometry(const terraria_tile_handle_t *tile) {
+    return tile->tile_width > 0 || tile->tile_height > 0 ||
+           tile->origin_x != 0 || tile->origin_y != 0 ||
+           tile->coordinate_width > 0 || tile->coordinate_padding > 0 ||
+           tile->coordinate_heights != NULL ||
+           tile->coordinate_height_count > 0 ||
+           tile->style_wrap_limit > 0 || tile->style_multiplier > 0 ||
+           tile->style_line_skip > 0 || tile->draw_y_offset != 0 ||
+           tile->style_horizontal || tile->anchor_wall;
+}
+
+static bool tile_is_multitile(const terraria_tile_handle_t *tile) {
+    int w = 1, h = 1;
+    tile_geometry(tile, &w, &h);
+    return w > 1 || h > 1;
+}
+
+static void set_tod_int(patch_handle_t cls, patch_handle_t obj,
+                        const char *name, int value) {
+    char setter[64];
+    snprintf(setter, sizeof(setter), "set_%s", name);
+    patch_handle_t m = patchlib_type_get_method_by_param_count(cls, setter, 1);
+    if (patchlib_is_valid(m)) {
+        void *args[1] = {&value};
+        patchlib_method_invoke_args(m, obj, NULL, args);
+        patchlib_free(m);
+    }
+}
+
+/// 给 TileObjectData 应用自定义几何；在 addTile 之前调用。
+static void apply_tile_object_geometry(patch_handle_t cls, patch_handle_t obj,
+                                       const terraria_tile_handle_t *tile) {
+    if (!patchlib_is_valid(cls) || !patchlib_is_valid(obj) || !tile)
+        return;
+
+    int w = 1, h = 1;
+    tile_geometry(tile, &w, &h);
+
+    if (tile->tile_width > 0)
+        set_tod_int(cls, obj, "Width", tile->tile_width);
+    if (tile->tile_height > 0)
+        set_tod_int(cls, obj, "Height", tile->tile_height);
+
+    const int cw = tile->coordinate_width > 0 ? tile->coordinate_width : 16;
+    /* 0 = 家具通用默认 2；负数 = 显式 0（需要无缝拼接时用）。 */
+    const int pad = tile->coordinate_padding > 0
+                            ? tile->coordinate_padding
+                            : (tile->coordinate_padding < 0 ? 0 : 2);
+    set_tod_int(cls, obj, "CoordinateWidth", cw);
+    set_tod_int(cls, obj, "CoordinatePadding", pad);
+
+    /* 每行像素高度：显式提供优先；多格但没提供时用 16 填充，避免沿用预设尺寸。 */
+    if (tile->coordinate_heights && tile->coordinate_height_count > 0) {
+        patch_handle_t int_t = patchlib_get_basic_type(PATCH_INT32);
+        if (patchlib_is_valid(int_t)) {
+            patch_handle_t arr = patchlib_array_create(
+                    (size_t)tile->coordinate_height_count, int_t);
+            if (patchlib_is_valid(arr)) {
+                for (int i = 0; i < tile->coordinate_height_count; ++i) {
+                    int v = tile->coordinate_heights[i];
+                    patchlib_array_set(arr, (size_t)i, &v);
+                }
+                patch_handle_t m = patchlib_type_get_method_by_param_count(
+                        cls, "set_CoordinateHeights", 1);
+                if (patchlib_is_valid(m)) {
+                    void *args[1] = {&arr};
+                    patchlib_method_invoke_args(m, obj, NULL, args);
+                    patchlib_free(m);
+                }
+                patchlib_free(arr);
+            }
+            patchlib_free(int_t);
+        }
+    } else if (h > 1) {
+        patch_handle_t int_t = patchlib_get_basic_type(PATCH_INT32);
+        if (patchlib_is_valid(int_t)) {
+            patch_handle_t arr = patchlib_array_create((size_t)h, int_t);
+            if (patchlib_is_valid(arr)) {
+                for (int i = 0; i < h; ++i) {
+                    int v = 16;
+                    patchlib_array_set(arr, (size_t)i, &v);
+                }
+                patch_handle_t m = patchlib_type_get_method_by_param_count(
+                        cls, "set_CoordinateHeights", 1);
+                if (patchlib_is_valid(m)) {
+                    void *args[1] = {&arr};
+                    patchlib_method_invoke_args(m, obj, NULL, args);
+                    patchlib_free(m);
+                }
+                patchlib_free(arr);
+            }
+            patchlib_free(int_t);
+        }
+    }
+
+    /* Point16 是 4 字节结构体（两个 short），按同尺寸整型传递即可。 */
+    if (tile->origin_x != 0 || tile->origin_y != 0) {
+        struct { short x; short y; } origin = {
+            (short)tile->origin_x, (short)tile->origin_y };
+        patch_handle_t m = patchlib_type_get_method_by_param_count(
+                cls, "set_Origin", 1);
+        if (patchlib_is_valid(m)) {
+            void *args[1] = {&origin};
+            patchlib_method_invoke_args(m, obj, NULL, args);
+            patchlib_free(m);
+        }
+    }
+
+    if (tile->draw_y_offset != 0)
+        set_tod_int(cls, obj, "DrawYOffset", tile->draw_y_offset);
+    if (tile->style_horizontal)
+        set_tile_property_bool(cls, obj, "StyleHorizontal", true);
+    if (tile->style_wrap_limit > 0)
+        set_tod_int(cls, obj, "StyleWrapLimit", tile->style_wrap_limit);
+    if (tile->style_multiplier > 0)
+        set_tod_int(cls, obj, "StyleMultiplier", tile->style_multiplier);
+    if (tile->style_line_skip > 0)
+        set_tod_int(cls, obj, "StyleLineSkip", tile->style_line_skip);
+    if (tile->anchor_wall)
+        set_tile_property_bool(cls, obj, "AnchorWall", true);
+
+    TEKLOG_INFO("tile object geometry: %s id=%d %dx%d cw=%d pad=%d",
+                tile->internal_name ? tile->internal_name : "?", tile->runtime_id,
+                w, h, cw, pad);
+}
+
 static void apply_tile_object_data(terraria_tile_handle_t *tile) {
     if (!tile || tile->runtime_id < g_vanilla_tile_count ||
-        tile->object_style == TERRARIA_TILE_OBJECT_NONE) {
+        (tile->object_style == TERRARIA_TILE_OBJECT_NONE &&
+         !tile_has_geometry(tile))) {
         return;
     }
 
     patch_handle_t tod_cls =
             patchlib_type_get_type("Terraria.ObjectData", "TileObjectData");
     if (!patchlib_is_valid(tod_cls)) {
+        TEKLOG_WARN("tile object data: TileObjectData type missing");
         return;
     }
 #if defined(__ANDROID__)
@@ -1659,6 +1865,10 @@ static void apply_tile_object_data(terraria_tile_handle_t *tile) {
 
     if (!patchlib_is_valid(f_ro) || !patchlib_is_valid(f_new) ||
         !patchlib_is_valid(m_add)) {
+        TEKLOG_WARN("tile object data: fields missing ro=%d new=%d add=%d",
+                    patchlib_is_valid(f_ro) ? 1 : 0,
+                    patchlib_is_valid(f_new) ? 1 : 0,
+                    patchlib_is_valid(m_add) ? 1 : 0);
         if (patchlib_is_valid(f_ro)) patchlib_free(f_ro);
         if (patchlib_is_valid(f_new)) patchlib_free(f_new);
         if (patchlib_is_valid(m_add)) patchlib_free(m_add);
@@ -1690,7 +1900,10 @@ static void apply_tile_object_data(terraria_tile_handle_t *tile) {
             case TERRARIA_TILE_OBJECT_STYLE_3X2:   style_field = "Style3x2"; break;
             case TERRARIA_TILE_OBJECT_STYLE_3X3:   style_field = "Style3x3"; break;
             case TERRARIA_TILE_OBJECT_STYLE_3X3_WALL: style_field = "Style3x3Wall"; break;
-            default: break;
+            default:
+                if (tile_has_geometry(tile))
+                    style_field = "Style1x1";
+                break;
         }
 
         bool copied = false;
@@ -1723,7 +1936,12 @@ static void apply_tile_object_data(terraria_tile_handle_t *tile) {
             if (patchlib_is_valid(tmpl)) patchlib_free(tmpl);
         }
 
+        if (!copied)
+            TEKLOG_WARN("tile object data: copy template failed for %s",
+                        tile->internal_name ? tile->internal_name : "?");
         if (copied) {
+            if (tile_has_geometry(tile))
+                apply_tile_object_geometry(tod_cls, new_tile, tile);
             if (tile->lava_immune_object) {
                 set_tile_property_bool(tod_cls, new_tile, "LavaDeath", false);
             } else if (tile->lava_death) {
@@ -2471,6 +2689,8 @@ static void tile_frame_important_postfix(patch_handle_t this, void **args,
         return;
     }
 
+    validate_multitile_at(i, j, h);
+
     static patch_handle_t wg_cls = PATCH_NULL;
     static patch_handle_t m_chk_1x1 = PATCH_NULL;
     static patch_handle_t m_chk_1x2 = PATCH_NULL;
@@ -2912,9 +3132,1760 @@ void terraria_tile_manager_post_setup_content(void) {
         }
     }
 
-    /* 4. 懒挂载自发光 / 补写地图查找表 */
+    /* 4. 懒挂载自发光 / 交互 / 容器，补写地图查找表 */
     ensure_apply_tile_light_hook();
+    ensure_interaction_hooks();
     apply_custom_tile_map_entries();
+}
+
+
+/* ============================================================================
+ * 坐标读取 / 多格结构校验
+ * ========================================================================== */
+
+static bool read_tile_at(int x, int y, unsigned short *out_type,
+                         bool *out_active, short *out_frame_x,
+                         short *out_frame_y) {
+    ensure_tile_access_initialized();
+#if defined(__ANDROID__)
+    const int max_x = g_pe_max_tiles_x_slot ? *g_pe_max_tiles_x_slot : 0;
+    const int max_y = g_pe_max_tiles_y_slot ? *g_pe_max_tiles_y_slot : 0;
+    if (!g_pe_tile_lookup_slot || !g_pe_tile_type_slot || max_x <= 0 || max_y <= 0)
+        return false;
+    if (x < 0 || y < 0 || x >= max_x || y >= max_y)
+        return false;
+    const uint32_t *lookup = *g_pe_tile_lookup_slot;
+    const uint16_t *types = *g_pe_tile_type_slot;
+    if (!lookup || !types)
+        return false;
+    const uint32_t def = lookup[(size_t)y * (size_t)max_x + (size_t)x];
+    if (def >= 200000u)
+        return false;
+    if (out_type) *out_type = types[def];
+    if (out_active) *out_active = types[def] != 0;
+    if (out_frame_x && g_pe_tile_framex_slot && *g_pe_tile_framex_slot)
+        *out_frame_x = (*g_pe_tile_framex_slot)[def];
+    if (out_frame_y && g_pe_tile_framey_slot && *g_pe_tile_framey_slot)
+        *out_frame_y = (*g_pe_tile_framey_slot)[def];
+    return true;
+#else
+    /* 世界还没加载时 Main.tile 为 null，直接调用 GetTileSafely 会段错误。 */
+    static patch_handle_t f_main_tile = PATCH_NULL;
+    if (!patchlib_is_valid(f_main_tile)) {
+        patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            f_main_tile = patchlib_type_get_field(main_cls, "tile");
+            patchlib_free(main_cls);
+        }
+    }
+    if (!patchlib_is_valid(f_main_tile))
+        return false;
+    patch_handle_t world_tiles = PATCH_NULL;
+    patchlib_field_get_value(f_main_tile, PATCH_NULL, &world_tiles);
+    if (!patchlib_is_valid(world_tiles))
+        return false;
+    patchlib_free(world_tiles);
+
+    static patch_handle_t m_get_tile = PATCH_NULL;
+    if (!patchlib_is_valid(m_get_tile)) {
+        patch_handle_t framing = patchlib_type_get_type("Terraria", "Framing");
+        if (patchlib_is_valid(framing)) {
+            m_get_tile = patchlib_type_get_method_by_param_count(
+                    framing, "GetTileSafely", 2);
+        }
+    }
+    if (!patchlib_is_valid(m_get_tile))
+        return false;
+    int ix = x, iy = y;
+    patch_handle_t tile = PATCH_NULL;
+    void *args[2] = {&ix, &iy};
+    if (!patchlib_method_invoke_args(m_get_tile, PATCH_NULL, &tile, args) ||
+        !patchlib_is_valid(tile))
+        return false;
+
+    unsigned short type = 0;
+    unsigned short header = 0;
+    short fx = 0, fy = 0;
+    if (patchlib_is_valid(f_pc_tile_type))
+        patchlib_field_get_value(f_pc_tile_type, tile, &type);
+    if (patchlib_is_valid(f_pc_tile_sheader))
+        patchlib_field_get_value(f_pc_tile_sheader, tile, &header);
+    if (patchlib_is_valid(f_pc_tile_framex))
+        patchlib_field_get_value(f_pc_tile_framex, tile, &fx);
+    if (patchlib_is_valid(f_pc_tile_framey))
+        patchlib_field_get_value(f_pc_tile_framey, tile, &fy);
+    patchlib_free(tile);
+
+    if (out_type) *out_type = type;
+    /* 1.4.6: Tile.active() == (sTileHeader & 0x20) != 0 */
+    if (out_active) *out_active = (header & 0x20) != 0 && type != 0;
+    if (out_frame_x) *out_frame_x = fx;
+    if (out_frame_y) *out_frame_y = fy;
+    return true;
+#endif
+}
+
+static int tile_padding(const terraria_tile_handle_t *tile) {
+    if (tile->coordinate_padding > 0)
+        return tile->coordinate_padding;
+    return tile->coordinate_padding < 0 ? 0 : 2;
+}
+
+static int tile_step_x(const terraria_tile_handle_t *tile) {
+    const int cw = tile->coordinate_width > 0 ? tile->coordinate_width : 16;
+    return cw + tile_padding(tile);
+}
+
+static int tile_step_y(const terraria_tile_handle_t *tile) {
+    int h = 16;
+    if (tile->coordinate_heights && tile->coordinate_height_count > 0)
+        h = tile->coordinate_heights[0];
+    return h + tile_padding(tile);
+}
+
+static void tile_origin_of(const terraria_tile_handle_t *tile, int x, int y,
+                           short fx, short fy, int *out_x, int *out_y) {
+    const int sx = tile_step_x(tile);
+    const int sy = tile_step_y(tile);
+    int ox = x, oy = y;
+    if (sx > 0) ox = x - (int)fx / sx;
+    if (sy > 0) oy = y - (int)fy / sy;
+    if (out_x) *out_x = ox;
+    if (out_y) *out_y = oy;
+}
+
+static bool tile_is_support_tile(int type) {
+    if (type <= 0)
+        return false;
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (!patchlib_is_valid(main_cls))
+        return false;
+    static patch_handle_t f_solid = PATCH_NULL;
+    static patch_handle_t f_table = PATCH_NULL;
+    if (!patchlib_is_valid(f_solid))
+        f_solid = patchlib_type_get_field(main_cls, "tileSolid");
+    if (!patchlib_is_valid(f_table))
+        f_table = patchlib_type_get_field(main_cls, "tileTable");
+    static patch_handle_t f_platforms = PATCH_NULL;
+    if (!patchlib_is_valid(f_platforms)) {
+        patch_handle_t tid = patchlib_type_get_type("Terraria.ID", "TileID");
+        if (patchlib_is_valid(tid)) {
+            patch_handle_t sets = patchlib_type_get_inner_type(tid, "Sets");
+            if (patchlib_is_valid(sets)) {
+                f_platforms = patchlib_type_get_field(sets, "Platforms");
+                patchlib_free(sets);
+            }
+            patchlib_free(tid);
+        }
+    }
+    bool ok = false;
+    patch_handle_t fields[3] = {f_solid, f_table, f_platforms};
+    for (int i = 0; i < 3 && !ok; ++i) {
+        if (!patchlib_is_valid(fields[i]))
+            continue;
+        patch_handle_t arr = PATCH_NULL;
+        patchlib_field_get_value(fields[i], PATCH_NULL, &arr);
+        if (!patchlib_is_valid(arr))
+            continue;
+        if ((size_t)type < patchlib_array_length(arr)) {
+            unsigned char v = 0;
+            if (patchlib_array_at(arr, (size_t)type, &v) && (v & 1))
+                ok = true;
+        }
+        patchlib_free(arr);
+    }
+    patchlib_free(main_cls);
+    return ok;
+}
+
+static bool g_structural_killing = false;
+
+static void kill_multitile_structure(const terraria_tile_handle_t *tile,
+                                     int ox, int oy, int w, int h) {
+    if (!tile || g_structural_killing)
+        return;
+    static patch_handle_t wg_cls = PATCH_NULL;
+    static patch_handle_t f_destroy = PATCH_NULL;
+    static patch_handle_t m_kill = PATCH_NULL;
+    if (!patchlib_is_valid(m_kill)) {
+        wg_cls = patchlib_type_get_type("Terraria", "WorldGen");
+        if (patchlib_is_valid(wg_cls)) {
+            f_destroy = patchlib_type_get_field(wg_cls, "destroyObject");
+            m_kill = patchlib_type_get_method_by_param_count(wg_cls, "KillTile", 5);
+        }
+    }
+    if (!patchlib_is_valid(m_kill))
+        return;
+
+    bool was = false;
+    if (patchlib_is_valid(f_destroy))
+        patchlib_field_get_value(f_destroy, PATCH_NULL, &was);
+    if (was)
+        return;
+    bool on = true;
+    if (patchlib_is_valid(f_destroy))
+        patchlib_field_set_value(f_destroy, PATCH_NULL, &on);
+    g_structural_killing = true;
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            unsigned short t = 0;
+            bool a = false;
+            if (!read_tile_at(ox + dx, oy + dy, &t, &a, NULL, NULL) || !a ||
+                (int)t != tile->runtime_id)
+                continue;
+            int cx = ox + dx, cy = oy + dy;
+            bool fail = false, effect_only = false;
+            bool no_item = !(dx == 0 && dy == 0);
+            void *args[5] = {&cx, &cy, &fail, &effect_only, &no_item};
+            patchlib_method_invoke_args(m_kill, PATCH_NULL, NULL, args);
+        }
+    }
+    g_structural_killing = false;
+    if (patchlib_is_valid(f_destroy))
+        patchlib_field_set_value(f_destroy, PATCH_NULL, &was);
+}
+
+static void validate_multitile_at(int i, int j, terraria_tile_handle_t *h) {
+    if (!h || !tile_is_multitile(h) || g_structural_killing)
+        return;
+    int w = 1, hh = 1;
+    tile_geometry(h, &w, &hh);
+
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(i, j, &type, &active, &fx, &fy) || !active ||
+        (int)type != h->runtime_id)
+        return;
+    int ox = 0, oy = 0;
+    tile_origin_of(h, i, j, fx, fy, &ox, &oy);
+    if (ox < 0 || oy < 0)
+        return;
+
+    bool ok = true;
+    for (int dy = 0; dy < hh && ok; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            unsigned short t = 0;
+            bool a = false;
+            if (!read_tile_at(ox + dx, oy + dy, &t, &a, NULL, NULL) || !a ||
+                (int)t != h->runtime_id) {
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    if (ok && !h->anchor_wall) {
+        bool support = false;
+        for (int dx = 0; dx < w && !support; ++dx) {
+            unsigned short t = 0;
+            bool a = false;
+            if (read_tile_at(ox + dx, oy + hh, &t, &a, NULL, NULL) && a &&
+                tile_is_support_tile((int)t))
+                support = true;
+        }
+        if (!support)
+            ok = false;
+    }
+
+    if (!ok) {
+        TEKLOG_INFO("tile structure invalid: %s origin=(%d,%d) %dx%d -> destroy",
+                    h->internal_name ? h->internal_name : "?", ox, oy, w, hh);
+        kill_multitile_structure(h, ox, oy, w, hh);
+    }
+}
+
+
+/* ============================================================================
+ * 交互图格 + 容器物品槽位
+ * ========================================================================== */
+
+static patch_hook_id_t h_player_tile_use = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_tile_object_place = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_world_kill_tile = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_tile_load_textures = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_interaction_range = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_smart_interact = PATCH_HOOK_INVALID_ID;
+static patch_hook_id_t h_setup_aim = PATCH_HOOK_INVALID_ID;
+
+static patch_handle_t g_chest_cls = PATCH_NULL;
+static patch_handle_t g_chest_item_field = PATCH_NULL;
+static patch_handle_t g_main_chest_field = PATCH_NULL;
+static patch_handle_t g_item_type_field = PATCH_NULL;
+static patch_handle_t g_item_stack_field = PATCH_NULL;
+static patch_handle_t g_item_prefix_field = PATCH_NULL;
+static patch_handle_t g_m_chest_find = PATCH_NULL;
+static patch_handle_t g_m_chest_create = PATCH_NULL;
+static patch_handle_t g_m_chest_destroy = PATCH_NULL;
+static patch_handle_t g_m_chest_can_destroy = PATCH_NULL;
+static patch_handle_t g_player_cls = PATCH_NULL;
+static patch_handle_t g_f_player_attempted = PATCH_NULL;
+static patch_handle_t g_f_player_release_use = PATCH_NULL;
+static patch_handle_t g_f_player_use_happened = PATCH_NULL;
+static patch_handle_t g_f_player_control_use = PATCH_NULL;
+static patch_handle_t g_f_player_chest = PATCH_NULL;
+static patch_handle_t g_m_player_open_chest = PATCH_NULL;
+
+static bool tile_is_container(const terraria_tile_handle_t *t) {
+    return t && t->container && t->runtime_id >= g_vanilla_tile_count;
+}
+
+static bool tile_is_interactive(const terraria_tile_handle_t *t) {
+    return t && (t->container || t->interactable);
+}
+
+static void ensure_container_api(void) {
+    if (patchlib_is_valid(g_m_chest_find))
+        return;
+    patch_handle_t chest = patchlib_type_get_type("Terraria", "Chest");
+    patch_handle_t item = patchlib_type_get_type("Terraria", "Item");
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    patch_handle_t player = patchlib_type_get_type("Terraria", "Player");
+    g_chest_cls = chest;
+    if (patchlib_is_valid(chest)) {
+        g_chest_item_field = patchlib_type_get_field(chest, "item");
+        g_m_chest_find = patchlib_type_get_method_by_param_count(chest, "FindChest", 2);
+        g_m_chest_create = patchlib_type_get_method_by_param_count(chest, "CreateChest", 3);
+        g_m_chest_destroy = patchlib_type_get_method_by_param_count(chest, "DestroyChest", 2);
+        g_m_chest_can_destroy = patchlib_type_get_method_by_param_count(
+                chest, "CanDestroyChest", 2);
+    }
+    if (patchlib_is_valid(main_cls))
+        g_main_chest_field = patchlib_type_get_field(main_cls, "chest");
+    if (patchlib_is_valid(item)) {
+        g_item_type_field = patchlib_type_get_field(item, "type");
+        g_item_stack_field = patchlib_type_get_field(item, "stack");
+        g_item_prefix_field = patchlib_type_get_field(item, "prefix");
+    }
+    g_player_cls = player;
+    if (patchlib_is_valid(player)) {
+        g_f_player_attempted = patchlib_type_get_field(player, "tileInteractAttempted");
+        g_f_player_release_use = patchlib_type_get_field(player, "releaseUseTile");
+        g_f_player_use_happened = patchlib_type_get_field(player, "tileInteractionHappened");
+        g_f_player_control_use = patchlib_type_get_field(player, "controlUseTile");
+        g_f_player_chest = patchlib_type_get_field(player, "chest");
+        g_m_player_open_chest = patchlib_type_get_method_by_param_count(
+                player, "OpenChest", 3);
+    }
+    if (patchlib_is_valid(main_cls))
+        patchlib_free(main_cls);
+    if (patchlib_is_valid(item))
+        patchlib_free(item);
+}
+
+static bool chest_array_ready(void) {
+    /* 世界未加载时（maxTilesX<=0 / Main.tile 为 null）不要碰 Chest API。 */
+    static patch_handle_t f_max_x = PATCH_NULL;
+    if (!patchlib_is_valid(f_max_x)) {
+        patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            f_max_x = patchlib_type_get_field(main_cls, "maxTilesX");
+            patchlib_free(main_cls);
+        }
+    }
+    if (patchlib_is_valid(f_max_x)) {
+        int max_x = 0;
+        patchlib_field_get_value(f_max_x, PATCH_NULL, &max_x);
+        if (max_x <= 0)
+            return false;
+    }
+    if (!patchlib_is_valid(g_main_chest_field))
+        return false;
+    patch_handle_t arr = PATCH_NULL;
+    patchlib_field_get_value(g_main_chest_field, PATCH_NULL, &arr);
+    if (!patchlib_is_valid(arr))
+        return false;
+    const size_t len = patchlib_array_length(arr);
+    patchlib_free(arr);
+    return len > 0;
+}
+
+/* 新建/加载的 Chest 可能 item/name 为 null（PE 尤其如此），
+ * 直接存档/打开会 NRE 甚至把存档写坏。按 Aether 的做法补齐。 */
+static void ensure_chest_initialized(int chest_index) {
+    if (chest_index < 0 || !patchlib_is_valid(g_main_chest_field) ||
+        !patchlib_is_valid(g_chest_cls))
+        return;
+    patch_handle_t chests = PATCH_NULL;
+    patchlib_field_get_value(g_main_chest_field, PATCH_NULL, &chests);
+    if (!patchlib_is_valid(chests))
+        return;
+    patch_handle_t chest = PATCH_NULL;
+    const bool ok = (size_t)chest_index < patchlib_array_length(chests) &&
+                    patchlib_array_at(chests, (size_t)chest_index, &chest) &&
+                    patchlib_is_valid(chest);
+    patchlib_free(chests);
+    if (!ok)
+        return;
+
+    static patch_handle_t f_name = PATCH_NULL;
+    if (!patchlib_is_valid(f_name))
+        f_name = patchlib_type_get_field(g_chest_cls, "name");
+    if (patchlib_is_valid(f_name)) {
+        patch_handle_t name = PATCH_NULL;
+        patchlib_field_get_value(f_name, chest, &name);
+        if (!patchlib_is_valid(name)) {
+            patch_handle_t empty = patchlib_string_create("");
+            if (patchlib_is_valid(empty)) {
+                patchlib_field_set_value(f_name, chest, &empty);
+                patchlib_free(empty);
+            }
+        } else {
+            patchlib_free(name);
+        }
+    }
+
+    if (patchlib_is_valid(g_chest_item_field)) {
+        patch_handle_t items = PATCH_NULL;
+        patchlib_field_get_value(g_chest_item_field, chest, &items);
+        if (!patchlib_is_valid(items)) {
+            /* 不要调用 Chest.FillWithEmptyInstances()：PE 上它内部可能抛托管异常，
+             * 跨 native 边界就是 SIGABRT。直接建一个空数组即可。 */
+            int count = 40;
+            patch_handle_t f_max = patchlib_type_get_field(g_chest_cls, "maxItems");
+            if (patchlib_is_valid(f_max)) {
+                int m = 0;
+                patchlib_field_get_value(f_max, chest, &m);
+                if (m > 0 && m <= 200) count = m;
+                patchlib_free(f_max);
+            }
+#if defined(__ANDROID__)
+            patch_handle_t elem = patchlib_type_get_type("Terraria", "ChestItem");
+#else
+            patch_handle_t elem = patchlib_type_get_type("Terraria", "Item");
+#endif
+            if (patchlib_is_valid(elem)) {
+                patch_handle_t arr = patchlib_array_create((size_t)count, elem);
+                if (patchlib_is_valid(arr)) {
+                    patchlib_field_set_value(g_chest_item_field, chest, &arr);
+                    patchlib_free(arr);
+                }
+                patchlib_free(elem);
+            }
+        } else {
+            patchlib_free(items);
+        }
+    }
+    patchlib_free(chest);
+}
+
+static int chest_find_at(int x, int y) {
+    if (!patchlib_is_valid(g_m_chest_find) || !chest_array_ready())
+        return -1;
+    int ix = x, iy = y, result = -1;
+    void *args[2] = {&ix, &iy};
+    patchlib_method_invoke_args(g_m_chest_find, PATCH_NULL, &result, args);
+    return result;
+}
+
+static int chest_find_or_create(int x, int y) {
+    if (!chest_array_ready())
+        return -1;
+    int idx = chest_find_at(x, y);
+    if (idx >= 0) {
+        ensure_chest_initialized(idx);
+        return idx;
+    }
+    if (!patchlib_is_valid(g_m_chest_create))
+        return -1;
+    int ix = x, iy = y, id = -1, result = -1;
+    void *args[3] = {&ix, &iy, &id};
+    patchlib_method_invoke_args(g_m_chest_create, PATCH_NULL, &result, args);
+    if (result >= 0) {
+        ensure_chest_initialized(result);
+        TEKLOG_INFO("container chest created at (%d,%d) index=%d", x, y, result);
+    }
+    return result;
+}
+
+static bool chest_can_destroy(int x, int y) {
+    if (!patchlib_is_valid(g_m_chest_can_destroy) || !chest_array_ready())
+        return true;
+    int ix = x, iy = y;
+    bool result = true;
+    void *args[2] = {&ix, &iy};
+    patchlib_method_invoke_args(g_m_chest_can_destroy, PATCH_NULL, &result, args);
+    return result;
+}
+
+static void chest_destroy_at(int x, int y) {
+    if (!patchlib_is_valid(g_m_chest_destroy))
+        return;
+    int ix = x, iy = y;
+    void *args[2] = {&ix, &iy};
+    patchlib_method_invoke_args(g_m_chest_destroy, PATCH_NULL, NULL, args);
+}
+
+static patch_handle_t container_items(int chest_index) {
+    if (chest_index < 0 || !patchlib_is_valid(g_main_chest_field) ||
+        !patchlib_is_valid(g_chest_item_field))
+        return PATCH_NULL;
+    patch_handle_t chests = PATCH_NULL;
+    patchlib_field_get_value(g_main_chest_field, PATCH_NULL, &chests);
+    if (!patchlib_is_valid(chests))
+        return PATCH_NULL;
+    patch_handle_t chest = PATCH_NULL;
+    bool ok = (size_t)chest_index < patchlib_array_length(chests) &&
+              patchlib_array_at(chests, (size_t)chest_index, &chest) &&
+              patchlib_is_valid(chest);
+    patchlib_free(chests);
+    if (!ok)
+        return PATCH_NULL;
+    patch_handle_t items = PATCH_NULL;
+    patchlib_field_get_value(g_chest_item_field, chest, &items);
+    patchlib_free(chest);
+    return patchlib_is_valid(items) ? items : PATCH_NULL;
+}
+
+
+#if defined(__ANDROID__)
+/* 手机端 Chest 的槽位是 ChestItem 值类型：short type/stack + byte prefix。 */
+typedef struct {
+    short type;
+    short stack;
+    unsigned char prefix;
+    unsigned char favorited;
+} pe_chest_item_t;
+#endif
+
+static bool container_read_slot(int chest_index, int slot, int *out_type,
+                                int *out_stack, int *out_prefix) {
+    patch_handle_t items = container_items(chest_index);
+    if (!patchlib_is_valid(items))
+        return false;
+    bool ok = false;
+    if ((size_t)slot < patchlib_array_length(items)) {
+#if defined(__ANDROID__)
+        unsigned char buf[16];
+        memset(buf, 0, sizeof(buf));
+        if (patchlib_array_at(items, (size_t)slot, buf)) {
+            pe_chest_item_t ci;
+            memcpy(&ci, buf, sizeof(ci));
+            if (out_type) *out_type = ci.type;
+            if (out_stack) *out_stack = ci.stack;
+            if (out_prefix) *out_prefix = ci.prefix;
+            ok = true;
+        }
+#else
+        patch_handle_t item = PATCH_NULL;
+        if (patchlib_array_at(items, (size_t)slot, &item) &&
+            patchlib_is_valid(item)) {
+            int type = 0, stack = 0;
+            unsigned char prefix = 0;
+            if (patchlib_is_valid(g_item_type_field))
+                patchlib_field_get_value(g_item_type_field, item, &type);
+            if (patchlib_is_valid(g_item_stack_field))
+                patchlib_field_get_value(g_item_stack_field, item, &stack);
+            if (patchlib_is_valid(g_item_prefix_field))
+                patchlib_field_get_value(g_item_prefix_field, item, &prefix);
+            patchlib_free(item);
+            if (out_type) *out_type = type;
+            if (out_stack) *out_stack = stack;
+            if (out_prefix) *out_prefix = (int)prefix;
+            ok = true;
+        }
+#endif
+    }
+    patchlib_free(items);
+    return ok;
+}
+
+static bool container_write_slot(int chest_index, int slot, int type, int stack,
+                                 int prefix) {
+    patch_handle_t items = container_items(chest_index);
+    if (!patchlib_is_valid(items))
+        return false;
+    bool ok = false;
+    if ((size_t)slot < patchlib_array_length(items)) {
+#if defined(__ANDROID__)
+        unsigned char buf[16];
+        memset(buf, 0, sizeof(buf));
+        pe_chest_item_t ci = {
+            (short)(type > 0 ? type : 0),
+            (short)(type > 0 ? (stack > 0 ? stack : 1) : 0),
+            (unsigned char)(prefix > 0 ? prefix : 0),
+            0,
+        };
+        memcpy(buf, &ci, sizeof(ci));
+        ok = patchlib_array_set(items, (size_t)slot, buf);
+#else
+        patch_handle_t item = PATCH_NULL;
+        if (patchlib_array_at(items, (size_t)slot, &item) &&
+            patchlib_is_valid(item)) {
+            int t = type > 0 ? type : 0;
+            int st = t > 0 ? (stack > 0 ? stack : 1) : 0;
+            unsigned char px = (unsigned char)(prefix > 0 ? prefix : 0);
+            if (patchlib_is_valid(g_item_type_field))
+                patchlib_field_set_value(g_item_type_field, item, &t);
+            if (patchlib_is_valid(g_item_stack_field))
+                patchlib_field_set_value(g_item_stack_field, item, &st);
+            if (patchlib_is_valid(g_item_prefix_field))
+                patchlib_field_set_value(g_item_prefix_field, item, &px);
+            patchlib_free(item);
+            ok = true;
+        }
+#endif
+    }
+    patchlib_free(items);
+    return ok;
+}
+
+int terraria_tile_container_slot_count(terraria_tile_handle_t *tile) {
+    if (!tile)
+        return 0;
+    int n = tile->container_slots;
+    if (n <= 0 || n > 40)
+        n = 40;
+    return n;
+}
+
+void terraria_tile_manager_get_origin(terraria_tile_handle_t *tile, int x, int y,
+                                      int *out_x, int *out_y) {
+    if (!tile) {
+        if (out_x) *out_x = x;
+        if (out_y) *out_y = y;
+        return;
+    }
+    short fx = 0, fy = 0;
+    unsigned short type = 0;
+    bool active = false;
+    if (read_tile_at(x, y, &type, &active, &fx, &fy) && active &&
+        (int)type == tile->runtime_id) {
+        tile_origin_of(tile, x, y, fx, fy, out_x, out_y);
+        return;
+    }
+    if (out_x) *out_x = x;
+    if (out_y) *out_y = y;
+}
+
+int terraria_tile_container_index(terraria_tile_handle_t *tile, int x, int y) {
+    if (!tile_is_container(tile))
+        return -1;
+    ensure_container_api();
+    int ox = x, oy = y;
+    terraria_tile_manager_get_origin(tile, x, y, &ox, &oy);
+    int idx = chest_find_at(ox, oy);
+    if (idx >= 0)
+        ensure_chest_initialized(idx);
+    return idx;
+}
+
+bool terraria_tile_container_get_slot(terraria_tile_handle_t *tile, int x, int y,
+                                      int slot, int *out_item_id, int *out_stack,
+                                      int *out_prefix) {
+    if (!tile_is_container(tile))
+        return false;
+    const int slots = terraria_tile_container_slot_count(tile);
+    if (slot < 0 || slot >= slots)
+        return false;
+    ensure_container_api();
+    const int idx = terraria_tile_container_index(tile, x, y);
+    if (idx < 0)
+        return false;
+    int type = 0, stack = 0, prefix = 0;
+    if (!container_read_slot(idx, slot, &type, &stack, &prefix))
+        return false;
+    if (out_item_id) *out_item_id = type;
+    if (out_stack) *out_stack = stack;
+    if (out_prefix) *out_prefix = prefix;
+    return true;
+}
+
+bool terraria_tile_container_set_slot(terraria_tile_handle_t *tile, int x, int y,
+                                      int slot, int item_id, int stack, int prefix) {
+    if (!tile_is_container(tile))
+        return false;
+    const int slots = terraria_tile_container_slot_count(tile);
+    if (slot < 0 || slot >= slots)
+        return false;
+    ensure_container_api();
+    int ox = x, oy = y;
+    terraria_tile_manager_get_origin(tile, x, y, &ox, &oy);
+    int idx = chest_find_or_create(ox, oy);
+    if (idx < 0)
+        return false;
+    return container_write_slot(idx, slot, item_id, stack, prefix);
+}
+
+bool terraria_tile_container_clear(terraria_tile_handle_t *tile, int x, int y) {
+    if (!tile_is_container(tile))
+        return false;
+    const int slots = terraria_tile_container_slot_count(tile);
+    for (int i = 0; i < slots; ++i)
+        terraria_tile_container_set_slot(tile, x, y, i, 0, 0, 0);
+    return true;
+}
+
+/* ---- 放置后确保容器 Chest 存在 ---- */
+
+static void ensure_container_at_tile(int x, int y) {
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(x, y, &type, &active, &fx, &fy) || !active)
+        return;
+    terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+    if (!tile_is_container(h))
+        return;
+    int ox = 0, oy = 0;
+    tile_origin_of(h, x, y, fx, fy, &ox, &oy);
+    chest_find_or_create(ox, oy);
+}
+
+static void world_place_object_postfix(patch_handle_t this, void **args,
+                                       void *result,
+                                       const patch_method_signature_t *sig) {
+    (void)this;
+    (void)sig;
+    if (!result || !*(bool *)result || !args || !args[0] || !args[1])
+        return;
+    const int x = *(const int *)args[0];
+    const int y = *(const int *)args[1];
+    ensure_container_at_tile(x, y);
+}
+
+/* ---- 破坏前：容器有物品时阻止，空容器则移除 Chest ---- */
+
+static bool world_kill_tile_prefix(patch_handle_t this, void **args,
+                                   const patch_method_signature_t *sig,
+                                   void *result) {
+    (void)this;
+    (void)sig;
+    (void)result;
+    if (!args || !args[0] || !args[1])
+        return false;
+    const int i = *(const int *)args[0];
+    const int j = *(const int *)args[1];
+    const bool fail = args[2] ? *(const bool *)args[2] : false;
+    if (fail)
+        return false;
+
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(i, j, &type, &active, &fx, &fy) || !active)
+        return false;
+    terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+    if (!tile_is_container(h))
+        return false;
+
+    ensure_container_api();
+    int ox = 0, oy = 0;
+    tile_origin_of(h, i, j, fx, fy, &ox, &oy);
+    if (chest_find_at(ox, oy) < 0)
+        return false;
+    if (!chest_can_destroy(ox, oy)) {
+        /* 和原版箱子一样：有物品时挖不动，转为“敲击失败” */
+        if (args[2])
+            *(bool *)args[2] = true;
+        return false;
+    }
+    chest_destroy_at(ox, oy);
+    return false;
+}
+
+/* ---- 右键交互 ---- */
+
+static bool player_field_bool(patch_handle_t field, patch_handle_t player) {
+    if (!patchlib_is_valid(field) || !patchlib_is_valid(player))
+        return false;
+    unsigned char v = 0;
+    patchlib_field_get_value(field, player, &v);
+    return v != 0;
+}
+
+static void player_set_bool(patch_handle_t field, patch_handle_t player,
+                            bool value) {
+    if (!patchlib_is_valid(field) || !patchlib_is_valid(player))
+        return;
+    unsigned char v = value ? 1 : 0;
+    patchlib_field_set_value(field, player, &v);
+}
+
+/* 原版 IsInInteractionRangeToMultiTileHitbox 只认识 BasicChest 等固定类型，
+ * 自定义容器会得到空矩形并每帧判定“太远”而关闭箱子。这里用自己的几何覆盖。 */
+static patch_handle_t find_field_up(patch_handle_t type, const char *name) {
+    patch_handle_t cur = type;
+    for (int depth = 0; depth < 8 && patchlib_is_valid(cur); ++depth) {
+        patch_handle_t f = patchlib_type_get_field(cur, name);
+        if (patchlib_is_valid(f))
+            return f;
+        patch_handle_t parent = patchlib_type_get_parent(cur);
+        if (!patchlib_is_valid(parent))
+            break;
+        if (cur != type) patchlib_free(cur);
+        cur = parent;
+    }
+    if (cur != type && patchlib_is_valid(cur)) patchlib_free(cur);
+    return PATCH_NULL;
+}
+
+static int read_player_int(const char *field_name, patch_handle_t player,
+                           const char *getter_name, int fallback) {
+#if defined(__ANDROID__)
+    /* PE 的 tileRangeX/Y 是静态属性（实例字段在 LocalUserGameState 上）。
+     * 在钩子里通过 FFI 调 get_tileRangeX()/get_tileRangeY() 会触发托管
+     * 异常并跨边界 abort（打开箱子时 IsInInteractionRangeToMultiTileHitbox
+     * 会每帧调用，表现为“打开瞬间崩溃”）。这里不碰托管代码，直接用原版
+     * 默认值 5/3（Player.DefaultTileRangeX/Y）。 */
+    (void)field_name;
+    (void)player;
+    (void)getter_name;
+    return fallback;
+#else
+    static patch_handle_t f_ = PATCH_NULL;
+    static patch_handle_t m_ = PATCH_NULL;
+    static char cached_name[64] = {0};
+    if (strcmp(cached_name, field_name) != 0) {
+        cached_name[0] = '\0';
+        if (patchlib_is_valid(f_)) patchlib_free(f_);
+        if (patchlib_is_valid(m_)) patchlib_free(m_);
+        f_ = PATCH_NULL;
+        m_ = PATCH_NULL;
+        if (patchlib_is_valid(g_player_cls)) {
+            patch_handle_t cand = find_field_up(g_player_cls, field_name);
+            if (patchlib_is_valid(cand) && patchlib_field_is_static(cand))
+                f_ = cand;
+            else if (patchlib_is_valid(cand))
+                patchlib_free(cand);
+            if (!patchlib_is_valid(f_))
+                m_ = patchlib_type_get_method_by_param_count(g_player_cls, getter_name, 0);
+        }
+        snprintf(cached_name, sizeof(cached_name), "%s", field_name);
+    }
+    int v = fallback;
+    if (patchlib_is_valid(f_))
+        patchlib_field_get_value(f_, PATCH_NULL, &v);
+    else if (patchlib_is_valid(m_))
+        patchlib_method_invoke_args(m_, PATCH_NULL, &v, NULL);
+    return v;
+#endif
+}
+
+static bool player_reach_contains(patch_handle_t player, int tx, int ty) {
+    static patch_handle_t f_pos = PATCH_NULL, f_w = PATCH_NULL, f_h = PATCH_NULL;
+    if (!patchlib_is_valid(f_pos) && patchlib_is_valid(g_player_cls)) {
+        f_pos = find_field_up(g_player_cls, "position");
+        f_w = find_field_up(g_player_cls, "width");
+        f_h = find_field_up(g_player_cls, "height");
+    }
+    if (!patchlib_is_valid(f_pos) || !patchlib_is_valid(f_w) || !patchlib_is_valid(f_h))
+        return true;
+    struct { float x, y; } pos = {0, 0};
+    int pw = 0, ph = 0;
+    patchlib_field_get_value(f_pos, player, &pos);
+    patchlib_field_get_value(f_w, player, &pw);
+    patchlib_field_get_value(f_h, player, &ph);
+
+    int rx = read_player_int("tileRangeX", player, "get_tileRangeX", 5);
+    int ry = read_player_int("tileRangeY", player, "get_tileRangeY", 3);
+    if (rx <= 0) rx = 5;
+    if (ry <= 0) ry = 3;
+    if (rx > 20) rx = 20;
+    if (ry > 20) ry = 20;
+
+    const float lx = pos.x / 16.0f;
+    const float ly = pos.y / 16.0f;
+    const int min_x = (int)lx - rx;
+    const int max_x = (int)((pos.x + pw) / 16.0f + 1.0f) - 1 + rx;
+    const int min_y = (int)ly - ry;
+    const int max_y = (int)((pos.y + ph) / 16.0f + 1.0f) - 1 + ry;
+    return tx >= min_x && tx <= max_x && ty >= min_y && ty <= max_y;
+}
+
+/* 原版查找/关闭箱子时用：给自定义容器返回真实的命中范围判定。 */
+static bool interaction_range_prefix(patch_handle_t this, void **args,
+                                     const patch_method_signature_t *sig,
+                                     void *result) {
+    (void)sig;
+    if (!args || !args[0] || !args[1] || !result || !patchlib_is_valid(this))
+        return false;
+    const int cx = *(const int *)args[0];
+    const int cy = *(const int *)args[1];
+
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(cx, cy, &type, &active, &fx, &fy) || !active)
+        return false;
+    terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+    if (!tile_is_container(h))
+        return false;
+
+    int w = 1, hh = 1;
+    tile_geometry(h, &w, &hh);
+    /* 容器矩形：以 origin 为左上角，按格数换算像素，再像原版一样内缩 1px */
+    const float left = (float)cx * 16.0f + 1.0f;
+    const float top = (float)cy * 16.0f + 1.0f;
+    const float right = (float)(cx + w) * 16.0f - 1.0f;
+    const float bottom = (float)(cy + hh) * 16.0f - 1.0f;
+
+    struct { float x, y; } pos = {0, 0};
+    int pw = 0, ph = 0;
+    if (patchlib_is_valid(g_player_cls)) {
+        static patch_handle_t f_pos = PATCH_NULL, f_w = PATCH_NULL, f_h = PATCH_NULL;
+        if (!patchlib_is_valid(f_pos)) {
+            f_pos = patchlib_type_get_field(g_player_cls, "position");
+            f_w = patchlib_type_get_field(g_player_cls, "width");
+            f_h = patchlib_type_get_field(g_player_cls, "height");
+        }
+        if (patchlib_is_valid(f_pos)) patchlib_field_get_value(f_pos, this, &pos);
+        if (patchlib_is_valid(f_w)) patchlib_field_get_value(f_w, this, &pw);
+        if (patchlib_is_valid(f_h)) patchlib_field_get_value(f_h, this, &ph);
+    }
+    const float center_x = pos.x + (float)pw * 0.5f;
+    const float center_y = pos.y + (float)ph * 0.5f;
+    const float cxp = center_x < left ? left : (center_x > right ? right : center_x);
+    const float cyp = center_y < top ? top : (center_y > bottom ? bottom : center_y);
+    const int tx = (int)(cxp / 16.0f);
+    const int ty = (int)(cyp / 16.0f);
+    *(bool *)result = player_reach_contains(this, tx, ty);
+    return true;
+}
+
+static void consume_tile_use(patch_handle_t player) {
+    player_set_bool(g_f_player_release_use, player, false);
+    player_set_bool(g_f_player_use_happened, player, true);
+}
+
+/* 右键处理；返回 true 表示已消费这次按键（跳过原版）。 */
+static bool handle_tile_interaction(patch_handle_t player, int x, int y,
+                                    bool touch_tap) {
+    ensure_container_api();
+    /* PC/鼠标走原版 attempted 门控；PE 触摸的“点一下”不会设置
+     * tileInteractAttempted（实测恒为 0），改用 PE 的点击语义：
+     * mouseLeft=false && (!mouseLeftRelease || 之前按下过) 视为一次点击释放。 */
+    if (!player_field_bool(g_f_player_attempted, player) && !touch_tap)
+        return false;
+    if (!player_field_bool(g_f_player_release_use, player))
+        return false;
+
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (!read_tile_at(x, y, &type, &active, &fx, &fy) || !active ||
+        (int)type < g_vanilla_tile_count)
+        return false;
+    terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+    if (!tile_is_interactive(h))
+        return false;
+
+    if (tile_is_container(h)) {
+        /* 已经打开着箱子时不要再开：触摸抬起的事件可能在关闭背包的那一帧
+         * 仍然残留，否则会出现“关掉背包又自动打开”的循环。 */
+        if (patchlib_is_valid(g_f_player_chest)) {
+            int cur_chest = -1;
+            patchlib_field_get_value(g_f_player_chest, player, &cur_chest);
+            if (cur_chest >= 0)
+                return false;
+        }
+        int ox = 0, oy = 0;
+        tile_origin_of(h, x, y, fx, fy, &ox, &oy);
+        int idx = chest_find_or_create(ox, oy);
+        if (idx < 0)
+            return false;
+        TEKLOG_INFO("tile container: open tile=(%d,%d) origin=(%d,%d) chest=%d",
+                    x, y, ox, oy, idx);
+        if (patchlib_is_valid(g_m_player_open_chest)) {
+            int ax = ox, ay = oy, chest = idx;
+            void *args[3] = {&ax, &ay, &chest};
+            patchlib_method_invoke_args(g_m_player_open_chest, player, NULL, args);
+        }
+        consume_tile_use(player);
+        return true;
+    }
+
+    if (h->interactable && h->tile_ops.on_interact) {
+        int who = 0;
+        if (patchlib_is_valid(g_player_cls)) {
+            patch_handle_t f_who = patchlib_type_get_field(g_player_cls, "whoAmI");
+            if (patchlib_is_valid(f_who)) {
+                patchlib_field_get_value(f_who, player, &who);
+                patchlib_free(f_who);
+            }
+        }
+        if (h->tile_ops.on_interact(h, x, y, who)) {
+            consume_tile_use(player);
+            return true;
+        }
+    }
+    return false;
+}
+
+#if defined(__ANDROID__)
+static bool si_safe_invoke(patch_handle_t method, patch_handle_t instance,
+                           void **params, patch_handle_t *out_obj);
+
+static patch_handle_t g_probe_get_inventory = PATCH_NULL;
+
+static int probe_static_bool(patch_handle_t m) {
+    if (!patchlib_is_valid(m))
+        return -1;
+    void *exception = NULL;
+    void *r = il2cpp_runtime_invoke(m, NULL, NULL, &exception);
+    if (exception || !r)
+        return -1;
+    void *u = il2cpp_object_unbox(r);
+    return u ? (*(unsigned char *)u != 0) : -1;
+}
+
+static patch_handle_t g_wc_instance_field = PATCH_NULL;
+static patch_handle_t g_wc_get_world = PATCH_NULL;
+static patch_handle_t g_wc_down_field = PATCH_NULL;
+static patch_handle_t g_wc_was_down_field = PATCH_NULL;
+static bool g_wc_ready = false;
+static bool g_touch_pressed_on_container = false;
+static int g_touch_block_frames = 0;
+
+static void ensure_world_cursor_api(void) {
+    if (g_wc_ready)
+        return;
+    g_wc_ready = true;
+    patch_handle_t layer = patchlib_type_get_type("", "XNAUIInputLayer");
+    if (patchlib_is_valid(layer)) {
+        g_wc_instance_field = patchlib_type_get_field(layer, "Instance");
+        g_wc_get_world = patchlib_type_get_method_by_param_count(
+                layer, "GetWorldCursor", 0);
+        patchlib_free(layer);
+    }
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (patchlib_is_valid(main_cls)) {
+        g_probe_get_inventory = patchlib_type_get_method_by_param_count(
+                main_cls, "get_playerInventory", 0);
+        patchlib_free(main_cls);
+    }
+    patch_handle_t cursor = patchlib_type_get_type("", "Cursor");
+    if (patchlib_is_valid(cursor)) {
+        g_wc_down_field = patchlib_type_get_field(cursor, "Down");
+        g_wc_was_down_field = patchlib_type_get_field(cursor, "WasDown");
+        patchlib_free(cursor);
+    }
+    TEKLOG_INFO("tile container: world cursor api instance=%d get=%d "
+                "down=%d wasDown=%d",
+                patchlib_is_valid(g_wc_instance_field),
+                patchlib_is_valid(g_wc_get_world),
+                patchlib_is_valid(g_wc_down_field),
+                patchlib_is_valid(g_wc_was_down_field));
+}
+
+/* 返回世界光标（准心）的按下状态：Down=当前，WasDown=上一帧。 */
+static bool world_cursor_state(int *down, int *was_down) {
+    ensure_world_cursor_api();
+    if (!patchlib_is_valid(g_wc_instance_field) ||
+        !patchlib_is_valid(g_wc_get_world))
+        return false;
+    patch_handle_t layer = PATCH_NULL;
+    patchlib_field_get_value(g_wc_instance_field, PATCH_NULL, &layer);
+    if (!patchlib_is_valid(layer))
+        return false;
+    patch_handle_t cursor = PATCH_NULL;
+    const bool ok = si_safe_invoke(g_wc_get_world, layer, NULL, &cursor) &&
+                    patchlib_is_valid(cursor);
+    if (ok) {
+        unsigned char d = 0, w = 0;
+        if (patchlib_is_valid(g_wc_down_field))
+            patchlib_field_get_value(g_wc_down_field, cursor, &d);
+        if (patchlib_is_valid(g_wc_was_down_field))
+            patchlib_field_get_value(g_wc_was_down_field, cursor, &w);
+        if (down) *down = d;
+        if (was_down) *was_down = w;
+    }
+    return ok;
+}
+
+static void use_probe(patch_handle_t player, int x, int y) {
+    const int attempted = patchlib_is_valid(g_f_player_attempted) &&
+                          player_field_bool(g_f_player_attempted, player);
+    const int release = patchlib_is_valid(g_f_player_release_use) &&
+                        player_field_bool(g_f_player_release_use, player);
+    const int control = patchlib_is_valid(g_f_player_control_use) &&
+                        player_field_bool(g_f_player_control_use, player);
+    int down = -1, was = -1;
+    world_cursor_state(&down, &was);
+
+    static int probe_log = 0;
+    const bool interesting = attempted || control || down > 0 || was > 0;
+    if (!interesting && (probe_log++ % 120 != 0))
+        return;
+    TEKLOG_INFO("tile container: probe tile=(%d,%d) attempted=%d release=%d "
+                "controlUse=%d cursorDown=%d cursorWasDown=%d",
+                x, y, attempted, release, control, down, was);
+}
+
+#endif
+
+static bool tile_interactions_use_prefix(patch_handle_t this, void **args,
+                                         const patch_method_signature_t *sig,
+                                         void *result) {
+    (void)sig;
+    (void)result;
+    if (!args || !args[0] || !args[1] || !patchlib_is_valid(this))
+        return false;
+    const int x = *(const int *)args[0];
+    const int y = *(const int *)args[1];
+
+    bool touch_tap = false;
+    unsigned short type = 0;
+    bool active = false;
+    short fx = 0, fy = 0;
+    if (read_tile_at(x, y, &type, &active, &fx, &fy) && active &&
+        (int)type >= g_vanilla_tile_count) {
+        terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+        if (tile_is_container(h)) {
+#if defined(__ANDROID__)
+            use_probe(this, x, y);
+            int cur_chest = -1;
+            if (patchlib_is_valid(g_f_player_chest))
+                patchlib_field_get_value(g_f_player_chest, this, &cur_chest);
+            const int inv = probe_static_bool(g_probe_get_inventory);
+            if (inv > 0 || cur_chest >= 0) {
+                /* 箱子/背包开着：拒绝触摸输入，并给关闭后的几帧留冷却，
+                 * 避免“关背包”的那次触摸又开一次箱子。 */
+                g_touch_pressed_on_container = false;
+                g_touch_block_frames = 10;
+            } else if (g_touch_block_frames > 0) {
+                --g_touch_block_frames;
+                g_touch_pressed_on_container = false;
+            } else {
+                /* 读世界光标（准心），不是 Main.mouseLeft。
+                 * Main.mouseLeft 是 UI/虚拟鼠标，触摸时会粘滞；
+                 * Cursor.Down/WasDown 才是触摸本身的按下沿。 */
+                int down = -1, was = -1;
+                if (world_cursor_state(&down, &was)) {
+                    if (down > 0 && was == 0) {
+                        touch_tap = true;
+                        g_touch_pressed_on_container = false;
+                    }
+                }
+            }
+#endif
+        }
+    }
+    return handle_tile_interaction(this, x, y, touch_tap);
+}
+
+/* ============================================================================
+ * 智能光标候选注入（仅 PE）
+ *
+ * 原版 TileSmartInteractCandidateProvider 只处理固定 tile.type 白名单，
+ * 自定义容器永远不会成为候选，手机端点它不会产生 TileInteractionsUse。
+ *
+ * 这里在 ProvideCandidate 返回 false（原版没找到候选）时，自己扫描
+ * SmartInteractScanSettings 给定的范围，找到自定义容器后：
+ *   - 复用 provider 自带的 _candidate（ReusableCandidate）对象；
+ *   - 直接写它的私有字段（不走托管方法，避免异常跨边界 abort）；
+ *   - 把它作为 out candidate 返回，让原版 SmartInteractSystem 调
+ *     WinCandidacy()，从而正常设置 Main.SmartInteract* 与交互范围。
+ * 这样点击链路完全走原版，不需要手动写 Main.SmartInteract*。
+ * ========================================================================== */
+
+#if defined(__ANDROID__)
+/* PE SmartInteractScanSettings（struct，0x24 字节）：
+ * Player* player; bool demand; bool full; pad2;
+ * Vector2 mousevec; int LX, HX, LY, HY; */
+typedef struct {
+    void *player;
+    bool demand_only_zero;
+    bool full_interaction;
+    unsigned char pad[2];
+    float mouse_x;
+    float mouse_y;
+    int lx, hx, ly, hy;
+} pe_smart_scan_t;
+
+static patch_handle_t g_si_cand_field = PATCH_NULL;
+static patch_handle_t g_si_f_strict = PATCH_NULL;
+static patch_handle_t g_si_f_dist = PATCH_NULL;
+static patch_handle_t g_si_f_aim_x = PATCH_NULL;
+static patch_handle_t g_si_f_aim_y = PATCH_NULL;
+static patch_handle_t g_si_f_lx = PATCH_NULL;
+static patch_handle_t g_si_f_ly = PATCH_NULL;
+static patch_handle_t g_si_f_hx = PATCH_NULL;
+static patch_handle_t g_si_f_hy = PATCH_NULL;
+static bool g_si_ready = false;
+
+static void smart_interact_resolve_fields(void) {
+    if (g_si_ready)
+        return;
+    g_si_ready = true;
+    patch_handle_t prov = patchlib_type_get_type(
+            "Terraria.GameContent.ObjectInteractions",
+            "TileSmartInteractCandidateProvider");
+    if (!patchlib_is_valid(prov))
+        return;
+    g_si_cand_field = patchlib_type_get_field(prov, "_candidate");
+    patch_handle_t cand_cls = patchlib_type_get_inner_type(prov, "ReusableCandidate");
+    if (!patchlib_is_valid(cand_cls) && patchlib_is_valid(g_si_cand_field))
+        cand_cls = patchlib_field_get_type_handle(g_si_cand_field);
+    patchlib_free(prov);
+    if (!patchlib_is_valid(cand_cls))
+        return;
+    g_si_f_strict = patchlib_type_get_field(cand_cls, "_strictSettings");
+    g_si_f_dist = patchlib_type_get_field(
+            cand_cls, "<DistanceFromCursor>k__BackingField");
+    g_si_f_aim_x = patchlib_type_get_field(cand_cls, "_aimedX");
+    g_si_f_aim_y = patchlib_type_get_field(cand_cls, "_aimedY");
+    g_si_f_lx = patchlib_type_get_field(cand_cls, "_lx");
+    g_si_f_ly = patchlib_type_get_field(cand_cls, "_ly");
+    g_si_f_hx = patchlib_type_get_field(cand_cls, "_hx");
+    g_si_f_hy = patchlib_type_get_field(cand_cls, "_hy");
+    TEKLOG_INFO("tile container: smart candidate fields strict=%d dist=%d "
+                "aim=%d/%d box=%d/%d/%d/%d",
+                patchlib_is_valid(g_si_f_strict),
+                patchlib_is_valid(g_si_f_dist),
+                patchlib_is_valid(g_si_f_aim_x),
+                patchlib_is_valid(g_si_f_aim_y),
+                patchlib_is_valid(g_si_f_lx),
+                patchlib_is_valid(g_si_f_ly),
+                patchlib_is_valid(g_si_f_hx),
+                patchlib_is_valid(g_si_f_hy));
+}
+
+/* PE 上安全调用托管方法：走 il2cpp_runtime_invoke，托管异常会被捕获，
+ * 不会像直接 ffi_call 那样 abort。只用于写 SmartInteractTileCoordsSelected
+ * 这种必须经过托管 API 的数据。 */
+static bool si_safe_invoke(patch_handle_t method, patch_handle_t instance,
+                           void **params, patch_handle_t *out_obj) {
+    if (!patchlib_is_valid(method))
+        return false;
+    void *exception = NULL;
+    void *res = il2cpp_runtime_invoke(method, instance, params, &exception);
+    if (exception) {
+        TEKLOG_ERROR("tile container: smart interact invoke exception");
+        return false;
+    }
+    if (out_obj)
+        *out_obj = (patch_handle_t)res;
+    return true;
+}
+
+static patch_handle_t g_si_get_selected = PATCH_NULL;
+static patch_handle_t g_si_set_item = PATCH_NULL;
+static patch_handle_t g_si_get_count = PATCH_NULL;
+static patch_handle_t g_si_set_count = PATCH_NULL;
+static patch_handle_t g_si_added_field = PATCH_NULL;
+static patch_handle_t g_si_added_set_item = PATCH_NULL;
+static patch_handle_t g_si_win = PATCH_NULL;
+static patch_handle_t g_si_get_genuine = PATCH_NULL;
+static patch_handle_t g_si_get_x = PATCH_NULL;
+static patch_handle_t g_si_get_y = PATCH_NULL;
+static bool g_si_dict_ready = false;
+
+static void smart_interact_resolve_dict(void) {
+    if (g_si_dict_ready)
+        return;
+    g_si_dict_ready = true;
+    patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+    if (!patchlib_is_valid(main_cls))
+        return;
+    g_si_get_selected = patchlib_type_get_method_by_param_count(
+            main_cls, "get_SmartInteractTileCoordsSelected", 0);
+    g_si_get_count = patchlib_type_get_method_by_param_count(
+            main_cls, "get_SmartInteractTileCoordsCount", 0);
+    g_si_set_count = patchlib_type_get_method_by_param_count(
+            main_cls, "set_SmartInteractTileCoordsCount", 1);
+    g_si_get_genuine = patchlib_type_get_method_by_param_count(
+            main_cls, "get_SmartInteractShowingGenuine", 0);
+    g_si_get_x = patchlib_type_get_method_by_param_count(
+            main_cls, "get_SmartInteractX", 0);
+    g_si_get_y = patchlib_type_get_method_by_param_count(
+            main_cls, "get_SmartInteractY", 0);
+    patchlib_free(main_cls);
+
+    if (patchlib_is_valid(g_si_get_selected)) {
+        patch_method_signature_t sig;
+        memset(&sig, 0, sizeof(sig));
+        if (patchlib_method_get_signature(g_si_get_selected, &sig) &&
+            patchlib_is_valid(sig.return_type_handle)) {
+            g_si_set_item = patchlib_type_get_method_by_param_count(
+                    sig.return_type_handle, "set_Item", 2);
+        }
+    }
+
+    patch_handle_t prov = patchlib_type_get_type(
+            "Terraria.GameContent.ObjectInteractions",
+            "TileSmartInteractCandidateProvider");
+    if (patchlib_is_valid(prov)) {
+        g_si_added_field = patchlib_type_get_field(prov, "AddedTileObjects");
+        patch_handle_t cand_cls = patchlib_type_get_inner_type(prov, "ReusableCandidate");
+        if (patchlib_is_valid(cand_cls)) {
+            g_si_win = patchlib_type_get_method_by_param_count(
+                    cand_cls, "WinCandidacy", 0);
+        }
+        if (patchlib_is_valid(g_si_added_field)) {
+            patch_handle_t dt = patchlib_field_get_type_handle(g_si_added_field);
+            if (patchlib_is_valid(dt))
+                g_si_added_set_item = patchlib_type_get_method_by_param_count(
+                        dt, "set_Item", 2);
+        }
+        patchlib_free(prov);
+    }
+
+    TEKLOG_INFO("tile container: smart dict api selected=%d set_item=%d "
+                "count=%d/%d",
+                patchlib_is_valid(g_si_get_selected),
+                patchlib_is_valid(g_si_set_item),
+                patchlib_is_valid(g_si_get_count),
+                patchlib_is_valid(g_si_set_count));
+}
+
+static void smart_interact_fill_selected(patch_handle_t this,
+                                         int lx, int ly, int hx, int hy) {
+    smart_interact_resolve_dict();
+    int added = 0;
+
+    /* provider.AddedTileObjects：和原版 FillPotentialTargetTiles 一样登记已处理 */
+    if (patchlib_is_valid(g_si_added_field) &&
+        patchlib_is_valid(g_si_added_set_item)) {
+        patch_handle_t dict = PATCH_NULL;
+        patchlib_field_get_value(g_si_added_field, this, &dict);
+        if (patchlib_is_valid(dict)) {
+            for (int y = ly; y <= hy; ++y) {
+                for (int x = lx; x <= hx; ++x) {
+                    int key = (y << 16) | (x & 0xFFFF);
+                    unsigned char v = 0;
+                    void *params[2] = {&key, &v};
+                    si_safe_invoke(g_si_added_set_item, dict, params, NULL);
+                }
+            }
+        }
+    }
+
+    /* Main.SmartInteractTileCoordsSelected：触摸/高亮判定用的字典 */
+    if (patchlib_is_valid(g_si_get_selected) &&
+        patchlib_is_valid(g_si_set_item)) {
+        patch_handle_t dict = PATCH_NULL;
+        if (si_safe_invoke(g_si_get_selected, PATCH_NULL, NULL, &dict) &&
+            patchlib_is_valid(dict)) {
+            for (int y = ly; y <= hy; ++y) {
+                for (int x = lx; x <= hx; ++x) {
+                    int key = (y << 16) | (x & 0xFFFF);
+                    unsigned char v = 1;
+                    void *params[2] = {&key, &v};
+                    if (si_safe_invoke(g_si_set_item, dict, params, NULL))
+                        ++added;
+                }
+            }
+        }
+    }
+
+    if (added > 0 && patchlib_is_valid(g_si_get_count) &&
+        patchlib_is_valid(g_si_set_count)) {
+        void *exception = NULL;
+        void *res = il2cpp_runtime_invoke(g_si_get_count, PATCH_NULL, NULL, &exception);
+        if (!exception && res) {
+            int cur = 0;
+            void *unboxed = il2cpp_object_unbox(res);
+            if (unboxed)
+                cur = *(int *)unboxed;
+            int next = cur + added;
+            void *params[1] = {&next};
+            exception = NULL;
+            il2cpp_runtime_invoke(g_si_set_count, PATCH_NULL, params, &exception);
+        }
+    }
+}
+
+static void smart_interact_postfix(patch_handle_t this, void **args, void *result,
+                                   const patch_method_signature_t *sig) {
+    (void)sig;
+    if (!result || *(bool *)result)
+        return; /* 原版已有候选 */
+    if (!args || !args[0] || !args[1] || !patchlib_is_valid(this))
+        return;
+    smart_interact_resolve_fields();
+    if (!patchlib_is_valid(g_si_cand_field) || !patchlib_is_valid(g_si_f_dist))
+        return;
+
+    const pe_smart_scan_t *st = (const pe_smart_scan_t *)args[0];
+    if (!st || !patchlib_is_valid(st->player))
+        return;
+
+    /* 防呆：结构体 ABI 若意外不匹配，坐标可能是垃圾值；
+     * 先按世界尺寸夹紧，并限制扫描框大小，避免巨型循环卡死。 */
+    int max_x = 0, max_y = 0;
+    if (patchlib_is_valid(f_main_max_tiles_x))
+        patchlib_field_get_value(f_main_max_tiles_x, PATCH_NULL, &max_x);
+    if (patchlib_is_valid(f_main_max_tiles_y))
+        patchlib_field_get_value(f_main_max_tiles_y, PATCH_NULL, &max_y);
+    if (max_x <= 0 || max_y <= 0)
+        return;
+    const int scan_lx = st->lx < 0 ? 0 : st->lx;
+    const int scan_hx = st->hx > max_x - 1 ? max_x - 1 : st->hx;
+    const int scan_ly = st->ly < 0 ? 0 : st->ly;
+    const int scan_hy = st->hy > max_y - 1 ? max_y - 1 : st->hy;
+    if (scan_hx < scan_lx || scan_hy < scan_ly ||
+        scan_hx - scan_lx > 64 || scan_hy - scan_ly > 64)
+        return;
+
+    patch_handle_t cand = PATCH_NULL;
+    patchlib_field_get_value(g_si_cand_field, this, &cand);
+    if (!patchlib_is_valid(cand))
+        return;
+
+    /* 找距离鼠标最近的自定义容器（按 2x2/多格整体框计算）。 */
+    bool found = false;
+    int best_aim_x = 0, best_aim_y = 0;
+    int best_lx = 0, best_ly = 0, best_hx = 0, best_hy = 0;
+    float best_dist = 0.0f;
+    int seen_x[32], seen_y[32], seen_n = 0;
+
+    for (int ty = scan_ly; ty <= scan_hy; ++ty) {
+        for (int tx = scan_lx; tx <= scan_hx; ++tx) {
+            unsigned short type = 0;
+            bool active = false;
+            short fx = 0, fy = 0;
+            if (!read_tile_at(tx, ty, &type, &active, &fx, &fy) || !active ||
+                (int)type < g_vanilla_tile_count)
+                continue;
+            terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+            if (!tile_is_container(h))
+                continue;
+            int ox = 0, oy = 0;
+            tile_origin_of(h, tx, ty, fx, fy, &ox, &oy);
+            bool seen = false;
+            for (int i = 0; i < seen_n; ++i) {
+                if (seen_x[i] == ox && seen_y[i] == oy) {
+                    seen = true;
+                    break;
+                }
+            }
+            if (seen)
+                continue;
+            if (seen_n < 32) {
+                seen_x[seen_n] = ox;
+                seen_y[seen_n] = oy;
+                ++seen_n;
+            }
+            int w = 1, hh = 1;
+            tile_geometry(h, &w, &hh);
+            const int hx = ox + w - 1;
+            const int hy = oy + hh - 1;
+
+            const float min_px = (float)ox * 16.0f;
+            const float max_px = (float)(hx + 1) * 16.0f;
+            const float min_py = (float)oy * 16.0f;
+            const float max_py = (float)(hy + 1) * 16.0f;
+            float cl_x = st->mouse_x < min_px ? min_px
+                        : (st->mouse_x > max_px ? max_px : st->mouse_x);
+            float cl_y = st->mouse_y < min_py ? min_py
+                        : (st->mouse_y > max_py ? max_py : st->mouse_y);
+            const float dx = st->mouse_x - cl_x;
+            const float dy = st->mouse_y - cl_y;
+            const float dist = dx * dx + dy * dy;
+
+            int aim_x = (int)(cl_x / 16.0f);
+            int aim_y = (int)(cl_y / 16.0f);
+            if (aim_x < ox) aim_x = ox;
+            if (aim_x > hx) aim_x = hx;
+            if (aim_y < oy) aim_y = oy;
+            if (aim_y > hy) aim_y = hy;
+
+            if (!player_reach_contains(st->player, aim_x, aim_y))
+                continue;
+            if (!found || dist < best_dist) {
+                found = true;
+                best_dist = dist;
+                best_aim_x = aim_x;
+                best_aim_y = aim_y;
+                best_lx = ox;
+                best_ly = oy;
+                best_hx = hx;
+                best_hy = hy;
+            }
+        }
+    }
+    if (!found) {
+        patchlib_free(cand);
+        return;
+    }
+
+    /* 始终按 genuine 候选处理：手机端普通点击时 FullInteraction 往往为 false，
+     * 若照搬 strict=!FullInteraction，PE 的 WinCandidacy 可能只设置
+     * SmartInteractShowingFake，导致不出现高亮、也不进入点击链路。 */
+    unsigned char strict = 0;
+    float dist = best_dist;
+    int ax = best_aim_x, ay = best_aim_y;
+    int lx = best_lx, ly = best_ly, hx = best_hx, hy = best_hy;
+    if (patchlib_is_valid(g_si_f_strict))
+        patchlib_field_set_value(g_si_f_strict, cand, &strict);
+    patchlib_field_set_value(g_si_f_dist, cand, &dist);
+    if (patchlib_is_valid(g_si_f_aim_x))
+        patchlib_field_set_value(g_si_f_aim_x, cand, &ax);
+    if (patchlib_is_valid(g_si_f_aim_y))
+        patchlib_field_set_value(g_si_f_aim_y, cand, &ay);
+    if (patchlib_is_valid(g_si_f_lx))
+        patchlib_field_set_value(g_si_f_lx, cand, &lx);
+    if (patchlib_is_valid(g_si_f_ly))
+        patchlib_field_set_value(g_si_f_ly, cand, &ly);
+    if (patchlib_is_valid(g_si_f_hx))
+        patchlib_field_set_value(g_si_f_hx, cand, &hx);
+    if (patchlib_is_valid(g_si_f_hy))
+        patchlib_field_set_value(g_si_f_hy, cand, &hy);
+
+    smart_interact_fill_selected(this, lx, ly, hx, hy);
+
+    /* 原版 RunQuery 会对获胜候选调用 WinCandidacy；这里先主动调用一次，
+     * 保证 Main.SmartInteractX/Y、ShowingGenuine 与交互范围一定被设置。 */
+    if (patchlib_is_valid(g_si_win))
+        si_safe_invoke(g_si_win, cand, NULL, NULL);
+
+    {
+        static int state_log = 0;
+        if (state_log++ % 300 == 0) {
+            int genuine = -1, sx = 0, sy = 0;
+            if (patchlib_is_valid(g_si_get_genuine)) {
+                void *exc = NULL;
+                void *r = il2cpp_runtime_invoke(g_si_get_genuine, NULL, NULL, &exc);
+                if (!exc && r) {
+                    void *u = il2cpp_object_unbox(r);
+                    if (u) genuine = *(unsigned char *)u;
+                }
+            }
+            if (patchlib_is_valid(g_si_get_x)) {
+                void *exc = NULL;
+                void *r = il2cpp_runtime_invoke(g_si_get_x, NULL, NULL, &exc);
+                if (!exc && r) {
+                    void *u = il2cpp_object_unbox(r);
+                    if (u) sx = *(int *)u;
+                }
+            }
+            if (patchlib_is_valid(g_si_get_y)) {
+                void *exc = NULL;
+                void *r = il2cpp_runtime_invoke(g_si_get_y, NULL, NULL, &exc);
+                if (!exc && r) {
+                    void *u = il2cpp_object_unbox(r);
+                    if (u) sy = *(int *)u;
+                }
+            }
+            TEKLOG_INFO("tile container: after WinCandidacy genuine=%d "
+                        "smart=(%d,%d)", genuine, sx, sy);
+        }
+    }
+
+    /* out ISmartInteractCandidate */
+    *(patch_handle_t *)args[1] = cand;
+    *(bool *)result = true;
+    patchlib_free(cand);
+
+    static int log_budget = 0;
+    if (log_budget++ % 300 == 0) {
+        TEKLOG_INFO("tile container: smart candidate box=(%d,%d)-(%d,%d) "
+                    "aim=(%d,%d) total=%d", lx, ly, hx, hy, ax, ay,
+                    log_budget);
+    }
+}
+#endif /* __ANDROID__ */
+
+#if defined(__ANDROID__)
+/* Main.SetupNonSmartCursorAimTileCoords(ref lx, ref hx, ref ly, ref hy)
+ *
+ * 手机端不开智能光标时，触摸瞄准用这个方法算出的区域来决定 tileTarget。
+ * 原版只按光标附近的普通图格计算；自定义容器不在它的逻辑里，导致
+ * tileTarget 落不到容器上，TileInteractionsUse 收到的坐标不是容器格。
+ *
+ * 这里在原版算完后，若瞄准区域压到自定义容器，就把区域改成容器整体框，
+ * 让后续的 tileTarget 选到容器本身（不做“点偏也能开”的扩展）。 */
+static void setup_aim_postfix(patch_handle_t this, void **args, void *result,
+                              const patch_method_signature_t *sig) {
+    (void)this;
+    (void)result;
+    (void)sig;
+    if (!args || !args[0] || !args[1] || !args[2] || !args[3])
+        return;
+    int *plx = *(int **)args[0];
+    int *phx = *(int **)args[1];
+    int *ply = *(int **)args[2];
+    int *phy = *(int **)args[3];
+    if (!plx || !phx || !ply || !phy)
+        return;
+
+    const int lx = *plx, hx = *phx, ly = *ply, hy = *phy;
+    static int aim_log = 0;
+    const bool log_this = (aim_log++ % 120 == 0);
+    if (log_this)
+        TEKLOG_INFO("tile container: aim raw lx=%d hx=%d ly=%d hy=%d",
+                    lx, hx, ly, hy);
+    if (hx < lx || hy < ly || hx - lx > 8 || hy - ly > 8)
+        return; /* 只处理原版的小瞄准区域 */
+
+    terraria_tile_handle_t *found = NULL;
+    int fox = 0, foy = 0, fw = 1, fh = 1;
+    for (int ty = ly - 1; ty <= hy + 1 && !found; ++ty) {
+        for (int tx = lx - 1; tx <= hx + 1; ++tx) {
+            unsigned short type = 0;
+            bool active = false;
+            short fx = 0, fy = 0;
+            if (!read_tile_at(tx, ty, &type, &active, &fx, &fy) || !active ||
+                (int)type < g_vanilla_tile_count)
+                continue;
+            terraria_tile_handle_t *h = terraria_tile_manager_get_tile((int)type);
+            if (!tile_is_container(h))
+                continue;
+            int ox = 0, oy = 0;
+            tile_origin_of(h, tx, ty, fx, fy, &ox, &oy);
+            int w = 1, hh = 1;
+            tile_geometry(h, &w, &hh);
+            /* 只接受与当前瞄准区域相交的容器 */
+            if (ox > hx + 1 || ox + w - 1 < lx - 1 ||
+                oy > hy + 1 || oy + hh - 1 < ly - 1)
+                continue;
+            found = h;
+            fox = ox;
+            foy = oy;
+            fw = w;
+            fh = hh;
+            break;
+        }
+    }
+    if (!found)
+        return;
+
+    *plx = fox;
+    *phx = fox + fw;
+    *ply = foy;
+    *phy = foy + fh;
+
+    static int log_budget = 0;
+    if (log_budget++ % 300 == 0)
+        TEKLOG_INFO("tile container: aim region -> (%d,%d)-(%d,%d)",
+                    fox, foy, fox + fw, foy + fh);
+}
+#endif
+
+static void ensure_interaction_hooks(void) {
+    bool any_container = false;
+    bool any_interactive = false;
+    const size_t count = tefstd_vector_size(&g_terraria_tile_registry);
+    for (size_t i = 0; i < count; ++i) {
+        terraria_tile_handle_t *t =
+                *(terraria_tile_handle_t **)tefstd_vector_at(
+                        &g_terraria_tile_registry, i);
+        if (!t) continue;
+        if (t->container) any_container = true;
+        if (t->interactable || t->container) any_interactive = true;
+    }
+    if (!any_interactive)
+        return;
+
+    ensure_container_api();
+
+    if (any_interactive && h_player_tile_use == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t player = patchlib_type_get_type("Terraria", "Player");
+        if (patchlib_is_valid(player)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    player, "TileInteractionsUse", 2);
+            if (patchlib_is_valid(m)) {
+                h_player_tile_use = patchlib_install_prepost_hook(
+                        m, tile_interactions_use_prefix, NULL);
+                TEKLOG_INFO("tile interaction: TileInteractionsUse hook=%d",
+                            (int)h_player_tile_use);
+                patchlib_free(m);
+            }
+            patchlib_free(player);
+        }
+    }
+
+    if (!any_container)
+        return;
+
+    if (h_tile_object_place == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t wg = patchlib_type_get_type("Terraria", "WorldGen");
+        if (patchlib_is_valid(wg)) {
+            /* PlaceObject(x, y, type, mute, style, alternate, random, direction)
+             * 参数都是原始 int/bool，PE 上不需要按值结构体编组。 */
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    wg, "PlaceObject", 8);
+            if (patchlib_is_valid(m)) {
+                h_tile_object_place = patchlib_install_prepost_hook(
+                        m, NULL, world_place_object_postfix);
+                TEKLOG_INFO("tile container: WorldGen.PlaceObject hook=%d",
+                            (int)h_tile_object_place);
+                patchlib_free(m);
+            }
+            patchlib_free(wg);
+        }
+    }
+
+#if defined(__ANDROID__)
+    /* 仅 PE：原版提供者不认自定义容器，需要注入候选；
+     * 这里只写 provider 自带 _candidate 的字段并把它作为 out candidate 返回，
+     * 不直接调用 Main 的 setter，避免托管异常跨边界 abort。 */
+    if (h_smart_interact == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t prov = patchlib_type_get_type(
+                "Terraria.GameContent.ObjectInteractions",
+                "TileSmartInteractCandidateProvider");
+        if (patchlib_is_valid(prov)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    prov, "ProvideCandidate", 2);
+            if (patchlib_is_valid(m)) {
+                h_smart_interact = patchlib_install_prepost_hook(
+                        m, NULL, smart_interact_postfix);
+                TEKLOG_INFO("tile container: smart interact hook=%d",
+                            (int)h_smart_interact);
+                patchlib_free(m);
+            }
+            patchlib_free(prov);
+        }
+    }
+
+    if (h_setup_aim == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t main_cls = patchlib_type_get_type("Terraria", "Main");
+        if (patchlib_is_valid(main_cls)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    main_cls, "SetupNonSmartCursorAimTileCoords", 4);
+            if (patchlib_is_valid(m)) {
+                h_setup_aim = patchlib_install_prepost_hook(
+                        m, NULL, setup_aim_postfix);
+                TEKLOG_INFO("tile container: non-smart aim hook=%d",
+                            (int)h_setup_aim);
+                patchlib_free(m);
+            }
+            patchlib_free(main_cls);
+        }
+    }
+#endif
+
+    if (h_interaction_range == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t player_cls = patchlib_type_get_type("Terraria", "Player");
+        if (patchlib_is_valid(player_cls)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(
+                    player_cls, "IsInInteractionRangeToMultiTileHitbox", 2);
+            if (patchlib_is_valid(m)) {
+                h_interaction_range = patchlib_install_prepost_hook(
+                        m, interaction_range_prefix, NULL);
+                TEKLOG_INFO("tile container: interaction range hook=%d",
+                            (int)h_interaction_range);
+                patchlib_free(m);
+            }
+            patchlib_free(player_cls);
+        }
+    }
+
+    if (h_world_kill_tile == PATCH_HOOK_INVALID_ID) {
+        patch_handle_t wg = patchlib_type_get_type("Terraria", "WorldGen");
+        if (patchlib_is_valid(wg)) {
+            patch_handle_t m = patchlib_type_get_method_by_param_count(wg, "KillTile", 5);
+            if (patchlib_is_valid(m)) {
+                h_world_kill_tile = patchlib_install_prepost_hook(
+                        m, world_kill_tile_prefix, NULL);
+                TEKLOG_INFO("tile container: WorldGen.KillTile hook=%d",
+                            (int)h_world_kill_tile);
+                patchlib_free(m);
+            }
+            patchlib_free(wg);
+        }
+    }
+}
+
+static void tile_load_textures_postfix(patch_handle_t this, void **args,
+                                       void *result,
+                                       const patch_method_signature_t *sig) {
+    (void)this;
+    (void)args;
+    (void)result;
+    (void)sig;
+    tile_init_textures_impl();
 }
 
 /* ---------------- 生命周期 ---------------- */
@@ -3011,6 +4982,28 @@ void terraria_tile_manager_init(void) {
         patchlib_free(wg);
     }
 
+    /* 原版加载贴图后再扩 TextureAssets.Tile，避免 LoadAsset(Images/Tiles_<自定义ID>) */
+    if (patchlib_is_valid(g_tile_textures_field)) {
+        patch_handle_t ai = patchlib_type_get_type(
+                "Terraria.Initializers", "AssetInitializer");
+        if (patchlib_is_valid(ai)) {
+            /* 挂在 Load(bool) 之后：它只在资源加载流程结束时调用一次，
+             * 移动端即使内部多次 LoadTextures 也不会在扩数组后重复加载。 */
+            patch_handle_t m = patchlib_type_get_method_by_param_count(ai, "Load", 1);
+            if (patchlib_is_valid(m)) {
+                h_tile_load_textures = patchlib_install_prepost_hook(
+                        m, NULL, tile_load_textures_postfix);
+                if (h_tile_load_textures != PATCH_HOOK_INVALID_ID) {
+                    g_tile_textures_hooked = true;
+                    TEKLOG_INFO("tile textures: deferred to LoadTextures postfix (hook=%d)",
+                                (int)h_tile_load_textures);
+                }
+                patchlib_free(m);
+            }
+            patchlib_free(ai);
+        }
+    }
+
     /* MapHelper：初始化补扩 + 自定义图例背景过滤 */
     patch_handle_t map_helper =
             patchlib_type_get_type("Terraria.Map", "MapHelper");
@@ -3062,6 +5055,13 @@ void terraria_tile_manager_destroy(void) {
         &h_kill_tile_dust,
         &h_kill_tile_sounds,
         &h_tile_frame_important,
+        &h_player_tile_use,
+        &h_tile_object_place,
+        &h_world_kill_tile,
+        &h_tile_load_textures,
+        &h_interaction_range,
+        &h_smart_interact,
+        &h_setup_aim,
 #if !defined(__ANDROID__)
         &h_apply_tile_light,
 #endif
